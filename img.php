@@ -26,6 +26,7 @@ $tileURL = "http://services.arcgisonline.com/ArcGIS/rest/services/World_Street_M
 */
 
 
+
 function urlForTile($x, $y, $z) {
   global $tileURL;
   return str_replace(array(
@@ -126,25 +127,40 @@ $swTile = $mercator->pixelsToTile($center['x'] - $width/2, $center['y'] - $heigh
 // print_r($swTile);
 // echo '<br />';
 
+
 // Now download all the tiles
 $tiles = array();
+$chs = array();
+$mh = curl_multi_init();
 $numTiles = 0;
 
 for($x = $swTile['x']; $x <= $neTile['x']; $x++) {
-  if(!array_key_exists("$x", $tiles))
+  if(!array_key_exists("$x", $tiles)) {
     $tiles["$x"] = array();
+    $chs["$x"] = array();
+  }
 
   for($y = $swTile['y']; $y <= $neTile['y']; $y++) {
     $url = urlForTile($x, $y, $zoom);
-    $tiles["$x"]["$y"] = imagecreatefromjpeg($url);
+    $tiles["$x"]["$y"] = false;
+    $chs["$x"]["$y"] = curl_init($url);
+    curl_setopt($chs["$x"]["$y"], CURLOPT_RETURNTRANSFER, TRUE);
+    curl_multi_add_handle($mh, $chs["$x"]["$y"]);
     $numTiles++;
   }
 }
 
-// echo '<pre>';
-// print_r($tiles);
-// echo '</pre>';
+$running = null;
+// Execute the handles. Blocks until all are finished.
+do {
+  $mrc = curl_multi_exec($mh, $running);
+} while($running > 0);
 
+foreach($chs as $x=>$yTiles) {
+  foreach($yTiles as $y=>$ch) {
+    $tiles["$x"]["$y"] = imagecreatefromstring(curl_multi_getcontent($ch));
+  }
+}
 
 // Assemble all the tiles into a new image positioned as appropriate
 foreach($tiles as $x=>$yTiles) {
