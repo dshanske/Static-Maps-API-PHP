@@ -128,6 +128,7 @@ $swTile = $mercator->pixelsToTile($center['x'] - $width/2, $center['y'] - $heigh
 
 // Now download all the tiles
 $tiles = array();
+$numTiles = 0;
 
 for($x = $swTile['x']; $x <= $neTile['x']; $x++) {
   if(!array_key_exists("$x", $tiles))
@@ -136,6 +137,7 @@ for($x = $swTile['x']; $x <= $neTile['x']; $x++) {
   for($y = $swTile['y']; $y <= $neTile['y']; $y++) {
     $url = urlForTile($x, $y, $zoom);
     $tiles["$x"]["$y"] = imagecreatefromjpeg($url);
+    $numTiles++;
   }
 }
 
@@ -164,9 +166,27 @@ foreach($tiles as $x=>$yTiles) {
   }
 }
 
-$logo = imagecreatefrompng('./images/powered-by-esri.png');
-imagecopy($im, $logo, $width-imagesx($logo)-4, $height-imagesy($logo)-4, 0,0, imagesx($logo),imagesy($logo));
 
+// Add markers
+
+if(get('marker')) {
+
+}
+
+
+
+
+$logo = imagecreatefrompng('./images/powered-by-esri.png');
+// TODO: Shrink the logo if the image is small
+if($width < 160) {
+  $shrinkFactor = 2;
+  imagecopyresampled($im, $logo, $width-round(imagesx($logo)/$shrinkFactor)-4, $height-round(imagesy($logo)/$shrinkFactor)-4, 0,0, round(imagesx($logo)/$shrinkFactor),round(imagesy($logo)/$shrinkFactor), imagesx($logo),imagesy($logo));
+} else {
+  imagecopy($im, $logo, $width-imagesx($logo)-4, $height-imagesy($logo)-4, 0,0, imagesx($logo),imagesy($logo));
+}
+
+
+header('X-Tiles-Downloaded: ' . $numTiles);
 header('Content-type: image/jpeg');
 imagejpeg($im, null, 90);
 imagedestroy($im);
