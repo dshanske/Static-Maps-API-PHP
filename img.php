@@ -11,7 +11,40 @@ $width = get('width', 300);
 $height = get('height', 300);
 
 
-$tileURL = "http://services.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{Z}/{Y}/{X}";
+$tileServices = array(
+  'streets' => array(
+    'http://services.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{Z}/{Y}/{X}'
+  ),
+  'satellite' => array(
+    'http://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{Z}/{Y}/{X}'
+  ),
+  'hybrid' => array(
+    'http://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{Z}/{Y}/{X}',
+    'http://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{Z}/{Y}/{X}'
+  ),
+  'topo' => array(
+    'http://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{Z}/{Y}/{X}'
+  ),
+  'gray' => array(
+    'http://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer/tile/{Z}/{Y}/{X}',
+    'http://services.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Reference/MapServer/tile/{Z}/{Y}/{X}'
+  ),
+  'oceans' => array(
+    'http://server.arcgisonline.com/ArcGIS/rest/services/Ocean_Basemap/MapServer/tile/{Z}/{Y}/{X}'
+  ),
+  'national-geographic' => array(
+    'http://server.arcgisonline.com/ArcGIS/rest/services/NatGeo_World_Map/MapServer/tile/{Z}/{Y}/{X}'
+  ),
+  'osm' => array(
+    'http://tile.openstreetmap.org/{Z}/{X}/{Y}.png'
+  )
+);
+
+if(get('basemap')) {
+  $tileURL = $tileServices[get('basemap')][0];
+} else {
+  $tileURL = $tileServices['streets'][0];
+}
 #$tileURL = "images/{Y}-{X}.jpg";
 
 /*
