@@ -6,8 +6,39 @@ function get($k, $default=false) {
 
 define('TILE_SIZE', 256);
 
-$latitude = get('latitude', 45.5165);
-$longitude = get('longitude', -122.6764);
+$defaultLatitude = 45.5165;
+$defaultLongitude = -122.6764;
+
+$markers = array();
+if($markersTemp=get('marker')) {
+  if(!is_array($markersTemp))
+    $markersTemp = array($markersTemp);
+
+  // If no latitude is set, use the center of all the markers
+  foreach($markersTemp as $m) {
+    if(preg_match_all('/(?P<k>[a-z]+):(?P<v>[^,]+)/', $m, $matches)) {
+      $properties = array();
+      foreach($matches['k'] as $i=>$key) {
+        $properties[$key] = $matches['v'][$i];
+      }
+
+      // Skip invalid marker definitions for now, maybe show an error later?
+      if(array_key_exists('lat', $properties) && array_key_exists('lng', $properties) && array_key_exists('icon', $properties)) {
+        $properties['iconFile'] = './images/' . $properties['icon'] . '.png';
+        if(file_exists($properties['iconFile'])) {
+          $markers[] = $properties;
+        }
+      }
+    }
+  }
+
+  foreach($markers as $marker) {
+
+  }
+}
+
+$latitude = get('latitude', $defaultLatitude);
+$longitude = get('longitude', $defaultLongitude);
 $zoom = get('zoom', 14);
 $width = get('width', 300);
 $height = get('height', 300);
@@ -220,54 +251,34 @@ foreach($tiles as $x=>$yTiles) {
 
 
 // Add markers
+foreach($markers as $marker) {
+  // Icons that start with 'dot-' do not have a shadow
+  $shadow = !preg_match('/^dot-/', $marker['icon']);
 
-if($markers=get('marker')) {
-  if(!is_array($markers))
-    $markers = array($markers);
+  // Icons with a shadow are centered at the bottom middle pixel.
+  // Icons with no shadow are centered in the center pixel.
 
-  foreach($markers as $m) {
-    if(preg_match_all('/(?P<k>[a-z]+):(?P<v>[^,]+)/', $m, $matches)) {
-      $properties = array();
-      foreach($matches['k'] as $i=>$key) {
-        $properties[$key] = $matches['v'][$i];
-      }
+  $px = $mercator->latLngToPixels($marker['lat'], $marker['lng'], $zoom);
+  $pos = array(
+    'x' => $px['x'] - $leftEdge,
+    'y' => $px['y'] - $topEdge
+  );
 
-      // Skip invalid marker definitions for now, maybe show an error later?
-      if(array_key_exists('lat', $properties) && array_key_exists('lng', $properties) && array_key_exists('icon', $properties)) {
-        $iconFile = './images/' . $properties['icon'] . '.png';
-        if(file_exists($iconFile)) {
+  $iconImg = imagecreatefrompng($marker['iconFile']);
 
-          // Icons that start with 'dot-' do not have a shadow
-          $shadow = !preg_match('/^dot-/', $properties['icon']);
-
-          // Icons with a shadow are centered at the bottom middle pixel.
-          // Icons with no shadow are centered in the center pixel.
-
-          $px = $mercator->latLngToPixels($properties['lat'], $properties['lng'], $zoom);
-          $pos = array(
-            'x' => $px['x'] - $leftEdge,
-            'y' => $px['y'] - $topEdge
-          );
-
-          $iconImg = imagecreatefrompng($iconFile);
-
-          if($shadow) {
-            $iconPos = array(
-              'x' => $pos['x'] - round(imagesx($iconImg)/2),
-              'y' => $pos['y'] - imagesy($iconImg)
-            );
-          } else {
-            $iconPos = array(
-              'x' => $pos['x'] - round(imagesx($iconImg)/2),
-              'y' => $pos['y'] - round(imagesy($iconImg)/2)
-            );
-          }
-
-          imagecopy($im, $iconImg, $iconPos['x'], $iconPos['y'], 0,0, imagesx($iconImg),imagesy($iconImg));
-        }
-      }
-    }
+  if($shadow) {
+    $iconPos = array(
+      'x' => $pos['x'] - round(imagesx($iconImg)/2),
+      'y' => $pos['y'] - imagesy($iconImg)
+    );
+  } else {
+    $iconPos = array(
+      'x' => $pos['x'] - round(imagesx($iconImg)/2),
+      'y' => $pos['y'] - round(imagesy($iconImg)/2)
+    );
   }
+
+  imagecopy($im, $iconImg, $iconPos['x'], $iconPos['y'], 0,0, imagesx($iconImg),imagesy($iconImg));
 }
 
 
