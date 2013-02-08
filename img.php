@@ -1,13 +1,10 @@
 <?php
-
-function get($k, $default=false) {
-  return array_key_exists($k, $_GET) ? $_GET[$k] : $default;
-}
+include('include/WebMercator.php');
+include('include/ArcGISGeocoder.php');
 
 define('TILE_SIZE', 256);
 
-$defaultLatitude = 45.5165;
-$defaultLongitude = -122.6764;
+// If any markers are specified, choose a default lat/lng as the center of all the markers
 
 $bounds = array(
   'minLat' => 90,
@@ -23,15 +20,31 @@ if($markersTemp=get('marker')) {
 
   // If no latitude is set, use the center of all the markers
   foreach($markersTemp as $m) {
-    if(preg_match_all('/(?P<k>[a-z]+):(?P<v>[^,]+)/', $m, $matches)) {
+    if(preg_match_all('/(?P<k>[a-z]+):(?P<v>[^;]+)/', $m, $matches)) {
       $properties = array();
       foreach($matches['k'] as $i=>$key) {
         $properties[$key] = $matches['v'][$i];
       }
 
       // Skip invalid marker definitions for now, maybe show an error later?
-      if(array_key_exists('lat', $properties) && array_key_exists('lng', $properties) && array_key_exists('icon', $properties)) {
+      if(array_key_exists('icon', $properties) && (
+          (array_key_exists('lat', $properties) && array_key_exists('lng', $properties))
+          || array_key_exists('location', $properties)
+        )
+      ) {
         $properties['iconFile'] = './images/' . $properties['icon'] . '.png';
+
+        // Geocode the provided location and return lat/lng
+        if(array_key_exists('location', $properties)) {
+          $result = ArcGISGeocoder::geocode($properties['location']);
+          if(!$result->success) {
+            continue;
+          }
+
+          $properties['lat'] = $result->latitude;
+          $properties['lng'] = $result->longitude;
+        }
+
         if(file_exists($properties['iconFile'])) {
           $markers[] = $properties;
         }
@@ -79,7 +92,7 @@ $tileServices = array(
   ),
   'gray' => array(
     'http://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer/tile/{Z}/{Y}/{X}',
-    'http://services.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Reference/MapServer/tile/{Z}/{Y}/{X}'
+    'http://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Reference/MapServer/tile/{Z}/{Y}/{X}'
   ),
   'oceans' => array(
     'http://server.arcgisonline.com/ArcGIS/rest/services/Ocean_Basemap/MapServer/tile/{Z}/{Y}/{X}'
@@ -94,26 +107,16 @@ $tileServices = array(
 
 if(get('basemap')) {
   $tileURL = $tileServices[get('basemap')][0];
+  if(array_key_exists(1, $tileServices[get('basemap')]))
+    $overlayURL = $tileServices[get('basemap')][1];
+  else
+    $overlayURL = 0;
 } else {
   $tileURL = $tileServices['streets'][0];
+  $overlayURL = false;
 }
-#$tileURL = "images/{Y}-{X}.jpg";
 
-/*
-?>
-<div style="float:left;">
-  <img src="output.jpg" width="<?= $width ?>" height="<?= $height ?>" /><br />
-  <!-- 
-  <img src="http://maps.googleapis.com/maps/api/staticmap?center=<?= $latitude ?>,<?= $longitude ?>&amp;zoom=14&amp;size=<?= $width ?>x<?= $height ?>&amp;sensor=false" width="<?= $width ?>" height="<?= $height ?>" /> 
-  -->
-</div>
-<?php
-*/
-
-
-
-function urlForTile($x, $y, $z) {
-  global $tileURL;
+function urlForTile($x, $y, $z, $tileURL) {
   return str_replace(array(
     '{X}', '{Y}', '{Z}'
   ), array(
@@ -122,92 +125,30 @@ function urlForTile($x, $y, $z) {
 }
 
 
-class Mercator {
-
-  public function totalPixelsForZoomLevel($zoom) {
-    return pow(2, $zoom) * TILE_SIZE;
-  }
-
-  public function lngToX($longitude, $zoom) {
-    return round((($longitude + 180) / 360) * $this->totalPixelsForZoomLevel($zoom));
-  }
-
-  public function latToY($latitude, $zoom) {
-    return round(((atanh(sin(deg2rad(-$latitude))) / pi()) + 1) * $this->totalPixelsForZoomLevel($zoom - 1));
-  }
-
-  public function latLngToPixels($latitude, $longitude, $zoom) {
-    return array(
-      'x' => $this->lngToX($longitude, $zoom),
-      'y' => $this->latToY($latitude, $zoom)
-    );
-  }
-
-
-  public function xToLng($x, $zoom) {
-    return (($x * 360) / $this->totalPixelsForZoomLevel($zoom)) - 180;
-  }
-
-  public function yToLat($y, $zoom) {
-    $a = pi() * (($y / $this->totalPixelsForZoomLevel($zoom - 1)) - 1);
-    return -1 * (rad2deg(asin(tanh($a))));
-  }
-
-  public function pixelsToLatLng($x, $y, $zoom) {
-    return array(
-      'lat' => $this->yToLat($y, $zoom),
-      'lng' => $this->xToLng($x, $zoom)
-    );
-  }
-
-  public function tileToPixels($x, $y) {
-    return array(
-      'x' => $x * TILE_SIZE,
-      'y' => $y * TILE_SIZE
-    );
-  }
-
-  public function pixelsToTile($x, $y) {
-    return array(
-      'x' => floor($x / TILE_SIZE),
-      'y' => floor($y / TILE_SIZE)
-    );
-  }
-
-  public function positionInTile($x, $y) {
-    $tile = $this->pixelsToTile($x, $y);
-    return array(
-      'x' => round(TILE_SIZE * (($x / TILE_SIZE) - $tile['x'])),
-      'y' => round(TILE_SIZE * (($y / TILE_SIZE) - $tile['y']))
-    );
-  }
-
-}
-
-$mercator = new Mercator();
+$webmercator = new WebMercator();
 
 
 $im = imagecreatetruecolor($width, $height);
 
 
 // Find the pixel coordinate of the center of the map
-$center = $mercator->latLngToPixels($latitude, $longitude, $zoom);
+$center = $webmercator->latLngToPixels($latitude, $longitude, $zoom);
 // echo '<br />';
 
-$tilePos = $mercator->pixelsToTile($center['x'], $center['y']);
+$tilePos = $webmercator->pixelsToTile($center['x'], $center['y']);
 // print_r($tilePos);
 // echo '<br />';
 
-$pos = $mercator->positionInTile($center['x'], $center['y']);
+$pos = $webmercator->positionInTile($center['x'], $center['y']);
 // print_r($pos);
 // echo '<br />';
 
 // For the given number of pixels, determine how many tiles are needed in each direction
-$neTile = $mercator->pixelsToTile($center['x'] + $width/2, $center['y'] + $height/2);
+$neTile = $webmercator->pixelsToTile($center['x'] + $width/2, $center['y'] + $height/2);
 // print_r($neTile);
 // echo '<br />';
 
-$swTile = $mercator->pixelsToTile($center['x'] - $width/2, $center['y'] - $height/2);
+$swTile = $webmercator->pixelsToTile($center['x'] - $width/2, $center['y'] - $height/2);
 // print_r($swTile);
 // echo '<br />';
 
@@ -217,6 +158,7 @@ $topEdge = $center['y'] - $height/2;
 
 // Now download all the tiles
 $tiles = array();
+$overlays = array();
 $chs = array();
 $mh = curl_multi_init();
 $numTiles = 0;
@@ -224,15 +166,26 @@ $numTiles = 0;
 for($x = $swTile['x']; $x <= $neTile['x']; $x++) {
   if(!array_key_exists("$x", $tiles)) {
     $tiles["$x"] = array();
+    $overlays["$x"] = array();
     $chs["$x"] = array();
+    $ochs["$x"] = array();
   }
 
   for($y = $swTile['y']; $y <= $neTile['y']; $y++) {
-    $url = urlForTile($x, $y, $zoom);
+    $url = urlForTile($x, $y, $zoom, $tileURL);
     $tiles["$x"]["$y"] = false;
     $chs["$x"]["$y"] = curl_init($url);
     curl_setopt($chs["$x"]["$y"], CURLOPT_RETURNTRANSFER, TRUE);
     curl_multi_add_handle($mh, $chs["$x"]["$y"]);
+
+    if($overlayURL) {
+      $url = urlForTile($x, $y, $zoom, $overlayURL);
+      $overlays["$x"]["$y"] = false;
+      $ochs["$x"]["$y"] = curl_init($url);
+      curl_setopt($ochs["$x"]["$y"], CURLOPT_RETURNTRANSFER, TRUE);
+      curl_multi_add_handle($mh, $ochs["$x"]["$y"]);
+    }
+
     $numTiles++;
   }
 }
@@ -249,22 +202,38 @@ foreach($chs as $x=>$yTiles) {
   }
 }
 
+if($overlayURL) {
+  foreach($ochs as $x=>$yTiles) {
+    foreach($yTiles as $y=>$ch) {
+      $overlays["$x"]["$y"] = imagecreatefromstring(curl_multi_getcontent($ch));
+    }
+  }
+}
+
 // Assemble all the tiles into a new image positioned as appropriate
 foreach($tiles as $x=>$yTiles) {
   foreach($yTiles as $y=>$tile) {
     $x = intval($x);
     $y = intval($y);
-    // echo '<hr />';
-    // echo $x . 'x' . $y . '<br />';
-
-    // print_r($tilePos); echo '<br />';
-    // print_r($pos); echo '<br />';
 
     $ox = (($x - $tilePos['x']) * TILE_SIZE) - $pos['x'] + ($width/2);
     $oy = (($y - $tilePos['y']) * TILE_SIZE) - $pos['y'] + ($height/2);
 
-    // echo 'Offset: ' . $ox . 'x' . $oy . '<br />';
     imagecopy($im, $tile, $ox,$oy, 0,0, imagesx($tile),imagesy($tile));
+  }
+}
+
+if($overlayURL) {
+  foreach($overlays as $x=>$yTiles) {
+    foreach($yTiles as $y=>$tile) {
+      $x = intval($x);
+      $y = intval($y);
+
+      $ox = (($x - $tilePos['x']) * TILE_SIZE) - $pos['x'] + ($width/2);
+      $oy = (($y - $tilePos['y']) * TILE_SIZE) - $pos['y'] + ($height/2);
+
+      imagecopy($im, $tile, $ox,$oy, 0,0, imagesx($tile),imagesy($tile));
+    }
   }
 }
 
@@ -277,7 +246,7 @@ foreach($markers as $marker) {
   // Icons with a shadow are centered at the bottom middle pixel.
   // Icons with no shadow are centered in the center pixel.
 
-  $px = $mercator->latLngToPixels($marker['lat'], $marker['lng'], $zoom);
+  $px = $webmercator->latLngToPixels($marker['lat'], $marker['lng'], $zoom);
   $pos = array(
     'x' => $px['x'] - $leftEdge,
     'y' => $px['y'] - $topEdge
@@ -304,11 +273,13 @@ foreach($markers as $marker) {
 $logo = imagecreatefrompng('./images/powered-by-esri.png');
 
 // Shrink the esri logo if the image is small
-if($width < 220) {
-  $shrinkFactor = 2;
-  imagecopyresampled($im, $logo, $width-round(imagesx($logo)/$shrinkFactor)-4, $height-round(imagesy($logo)/$shrinkFactor)-4, 0,0, round(imagesx($logo)/$shrinkFactor),round(imagesy($logo)/$shrinkFactor), imagesx($logo),imagesy($logo));
-} else {
-  imagecopy($im, $logo, $width-imagesx($logo)-4, $height-imagesy($logo)-4, 0,0, imagesx($logo),imagesy($logo));
+if($width > 120) {
+  if($width < 220) {
+    $shrinkFactor = 2;
+    imagecopyresampled($im, $logo, $width-round(imagesx($logo)/$shrinkFactor)-4, $height-round(imagesy($logo)/$shrinkFactor)-4, 0,0, round(imagesx($logo)/$shrinkFactor),round(imagesy($logo)/$shrinkFactor), imagesx($logo),imagesy($logo));
+  } else {
+    imagecopy($im, $logo, $width-imagesx($logo)-4, $height-imagesy($logo)-4, 0,0, imagesx($logo),imagesy($logo));
+  }  
 }
 
 
@@ -328,3 +299,8 @@ function pa($a) {
   print_r($a);
   echo '</pre>';
 }
+
+function get($k, $default=false) {
+  return array_key_exists($k, $_GET) ? $_GET[$k] : $default;
+}
+
