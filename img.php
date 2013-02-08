@@ -4,6 +4,8 @@ function get($k, $default=false) {
   return array_key_exists($k, $_GET) ? $_GET[$k] : $default;
 }
 
+define('TILE_SIZE', 256);
+
 $latitude = get('latitude', 45.5165);
 $longitude = get('longitude', -122.6764);
 $zoom = get('zoom', 14);
@@ -73,15 +75,15 @@ function urlForTile($x, $y, $z) {
 class Mercator {
 
   public function totalPixelsForZoomLevel($zoom) {
-    return pow(2, $zoom) * 256;
+    return pow(2, $zoom) * TILE_SIZE;
   }
 
   public function lngToX($longitude, $zoom) {
-    return (($longitude + 180) / 360) * $this->totalPixelsForZoomLevel($zoom);
+    return round((($longitude + 180) / 360) * $this->totalPixelsForZoomLevel($zoom));
   }
 
   public function latToY($latitude, $zoom) {
-    return ((atanh(sin(deg2rad(-$latitude))) / pi()) + 1) * $this->totalPixelsForZoomLevel($zoom - 1);
+    return round(((atanh(sin(deg2rad(-$latitude))) / pi()) + 1) * $this->totalPixelsForZoomLevel($zoom - 1));
   }
 
   public function latLngToPixels($latitude, $longitude, $zoom) {
@@ -110,23 +112,23 @@ class Mercator {
 
   public function tileToPixels($x, $y) {
     return array(
-      'x' => $x * 256,
-      'y' => $y * 256
+      'x' => $x * TILE_SIZE,
+      'y' => $y * TILE_SIZE
     );
   }
 
   public function pixelsToTile($x, $y) {
     return array(
-      'x' => floor($x / 256),
-      'y' => floor($y / 256)
+      'x' => floor($x / TILE_SIZE),
+      'y' => floor($y / TILE_SIZE)
     );
   }
 
   public function positionInTile($x, $y) {
     $tile = $this->pixelsToTile($x, $y);
     return array(
-      'x' => round(256 * (($x / 256) - $tile['x'])),
-      'y' => round(256 * (($y / 256) - $tile['y']))
+      'x' => round(TILE_SIZE * (($x / TILE_SIZE) - $tile['x'])),
+      'y' => round(TILE_SIZE * (($y / TILE_SIZE) - $tile['y']))
     );
   }
 
@@ -140,7 +142,6 @@ $im = imagecreatetruecolor($width, $height);
 
 // Find the pixel coordinate of the center of the map
 $center = $mercator->latLngToPixels($latitude, $longitude, $zoom);
-// print_r($center);
 // echo '<br />';
 
 $tilePos = $mercator->pixelsToTile($center['x'], $center['y']);
@@ -159,6 +160,9 @@ $neTile = $mercator->pixelsToTile($center['x'] + $width/2, $center['y'] + $heigh
 $swTile = $mercator->pixelsToTile($center['x'] - $width/2, $center['y'] - $height/2);
 // print_r($swTile);
 // echo '<br />';
+
+$leftEdge = $center['x'] - $width/2;
+$topEdge = $center['y'] - $height/2;
 
 
 // Now download all the tiles
@@ -206,28 +210,71 @@ foreach($tiles as $x=>$yTiles) {
     // print_r($tilePos); echo '<br />';
     // print_r($pos); echo '<br />';
 
-    $ox = (($x - $tilePos['x']) * 256) - $pos['x'] + ($width/2);
-    $oy = (($y - $tilePos['y']) * 256) - $pos['y'] + ($height/2);
+    $ox = (($x - $tilePos['x']) * TILE_SIZE) - $pos['x'] + ($width/2);
+    $oy = (($y - $tilePos['y']) * TILE_SIZE) - $pos['y'] + ($height/2);
 
     // echo 'Offset: ' . $ox . 'x' . $oy . '<br />';
     imagecopy($im, $tile, $ox,$oy, 0,0, imagesx($tile),imagesy($tile));
-
   }
 }
 
 
 // Add markers
 
-if(get('marker')) {
+if($markers=get('marker')) {
+  if(!is_array($markers))
+    $markers = array($markers);
 
+  foreach($markers as $m) {
+    if(preg_match_all('/(?P<k>[a-z]+):(?P<v>[^,]+)/', $m, $matches)) {
+      $properties = array();
+      foreach($matches['k'] as $i=>$key) {
+        $properties[$key] = $matches['v'][$i];
+      }
+
+      // Skip invalid marker definitions for now, maybe show an error later?
+      if(array_key_exists('lat', $properties) && array_key_exists('lng', $properties) && array_key_exists('icon', $properties)) {
+        $iconFile = './images/' . $properties['icon'] . '.png';
+        if(file_exists($iconFile)) {
+
+          // Icons that start with 'dot-' do not have a shadow
+          $shadow = !preg_match('/^dot-/', $properties['icon']);
+
+          // Icons with a shadow are centered at the bottom middle pixel.
+          // Icons with no shadow are centered in the center pixel.
+
+          $px = $mercator->latLngToPixels($properties['lat'], $properties['lng'], $zoom);
+          $pos = array(
+            'x' => $px['x'] - $leftEdge,
+            'y' => $px['y'] - $topEdge
+          );
+
+          $iconImg = imagecreatefrompng($iconFile);
+
+          if($shadow) {
+            $iconPos = array(
+              'x' => $pos['x'] - round(imagesx($iconImg)/2),
+              'y' => $pos['y'] - imagesy($iconImg)
+            );
+          } else {
+            $iconPos = array(
+              'x' => $pos['x'] - round(imagesx($iconImg)/2),
+              'y' => $pos['y'] - round(imagesy($iconImg)/2)
+            );
+          }
+
+          imagecopy($im, $iconImg, $iconPos['x'], $iconPos['y'], 0,0, imagesx($iconImg),imagesy($iconImg));
+        }
+      }
+    }
+  }
 }
 
 
-
-
 $logo = imagecreatefrompng('./images/powered-by-esri.png');
-// TODO: Shrink the logo if the image is small
-if($width < 160) {
+
+// Shrink the esri logo if the image is small
+if($width < 220) {
   $shrinkFactor = 2;
   imagecopyresampled($im, $logo, $width-round(imagesx($logo)/$shrinkFactor)-4, $height-round(imagesy($logo)/$shrinkFactor)-4, 0,0, round(imagesx($logo)/$shrinkFactor),round(imagesy($logo)/$shrinkFactor), imagesx($logo),imagesy($logo));
 } else {
@@ -236,8 +283,8 @@ if($width < 160) {
 
 
 header('X-Tiles-Downloaded: ' . $numTiles);
-header('Content-type: image/jpeg');
-imagejpeg($im, null, 90);
+header('Content-type: image/png');
+imagepng($im);
 imagedestroy($im);
 
 
@@ -245,3 +292,9 @@ imagedestroy($im);
  * http://msdn.microsoft.com/en-us/library/bb259689.aspx
  * http://derickrethans.nl/php-mapping.html
  */
+
+function pa($a) {
+  echo '<pre>';
+  print_r($a);
+  echo '</pre>';
+}
