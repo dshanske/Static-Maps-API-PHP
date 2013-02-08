@@ -9,6 +9,13 @@ define('TILE_SIZE', 256);
 $defaultLatitude = 45.5165;
 $defaultLongitude = -122.6764;
 
+$bounds = array(
+  'minLat' => 90,
+  'maxLat' => -90,
+  'minLng' => 180,
+  'maxLng' => -180
+);
+
 $markers = array();
 if($markersTemp=get('marker')) {
   if(!is_array($markersTemp))
@@ -28,14 +35,26 @@ if($markersTemp=get('marker')) {
         if(file_exists($properties['iconFile'])) {
           $markers[] = $properties;
         }
+
+        if($properties['lat'] < $bounds['minLat'])
+          $bounds['minLat'] = $properties['lat'];
+
+        if($properties['lat'] > $bounds['maxLat'])
+          $bounds['maxLat'] = $properties['lat'];
+
+        if($properties['lng'] < $bounds['minLng'])
+          $bounds['minLng'] = $properties['lng'];
+
+        if($properties['lng'] > $bounds['maxLng'])
+          $bounds['maxLng'] = $properties['lng'];
       }
     }
   }
-
-  foreach($markers as $marker) {
-
-  }
 }
+
+$defaultLatitude = $bounds['minLat'] + (($bounds['maxLat'] - $bounds['minLat']) / 2);
+$defaultLongitude = $bounds['minLng'] + (($bounds['maxLng'] - $bounds['minLng']) / 2);
+
 
 $latitude = get('latitude', $defaultLatitude);
 $longitude = get('longitude', $defaultLongitude);
