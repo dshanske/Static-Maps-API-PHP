@@ -102,6 +102,24 @@ $tileServices = array(
   ),
   'osm' => array(
     'http://tile.openstreetmap.org/{Z}/{X}/{Y}.png'
+  ),
+  'stamen-toner' => array(
+    'http://tile.stamen.com/toner/{Z}/{X}/{Y}.png'
+  ),
+  'stamen-toner-background' => array(
+    'http://tile.stamen.com/toner-background/{Z}/{X}/{Y}.png'
+  ),
+  'stamen-toner-lite' => array(
+    'http://tile.stamen.com/toner-lite/{Z}/{X}/{Y}.png'
+  ),
+  'stamen-terrain' => array(
+    'http://tile.stamen.com/terrain/{Z}/{X}/{Y}.png'
+  ),
+  'stamen-terrain-background' => array(
+    'http://tile.stamen.com/terrain-background/{Z}/{X}/{Y}.png'
+  ),
+  'stamen-watercolor' => array(
+    'http://tile.stamen.com/watercolor/{Z}/{X}/{Y}.png'
   )
 );
 
@@ -279,13 +297,15 @@ if($width > 120) {
     imagecopyresampled($im, $logo, $width-round(imagesx($logo)/$shrinkFactor)-4, $height-round(imagesy($logo)/$shrinkFactor)-4, 0,0, round(imagesx($logo)/$shrinkFactor),round(imagesy($logo)/$shrinkFactor), imagesx($logo),imagesy($logo));
   } else {
     imagecopy($im, $logo, $width-imagesx($logo)-4, $height-imagesy($logo)-4, 0,0, imagesx($logo),imagesy($logo));
-  }  
+  }
 }
 
+// -1 is the default compressions level compiled into the zlib library
+$quality = get('quality', -1);
 
 header('X-Tiles-Downloaded: ' . $numTiles);
 header('Content-type: image/png');
-imagepng($im);
+imagepng($im, null, $quality);
 imagedestroy($im);
 
 
