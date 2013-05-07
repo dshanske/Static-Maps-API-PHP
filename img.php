@@ -300,12 +300,22 @@ if($width > 120) {
   }
 }
 
-// -1 is the default compressions level compiled into the zlib library
-$quality = get('quality', -1);
-
 header('X-Tiles-Downloaded: ' . $numTiles);
-header('Content-type: image/png');
-imagepng($im, null, $quality);
+
+$fmt = get('format', "png");
+switch($fmt) {
+  case "jpg":
+  case "jpeg":
+    header('Content-type: image/jpg');
+    $quality = get('quality', 75);
+    imagejpeg($im, null, $quality);
+    break;
+  case "png":
+  default:
+    header('Content-type: image/png');
+    imagepng($im);
+    break;
+}
 imagedestroy($im);
 
 
