@@ -6,7 +6,7 @@ class ArcGISGeocoderResult {
   public $longitude;
   public $bounds;
   public $raw;
-  public $success = FALSE;
+  public $success = false;
 
   public function __construct($location, $raw) {
     if($location) {
@@ -20,7 +20,7 @@ class ArcGISGeocoderResult {
       // $this->bounds->extend($location->extent->ymin, $location->extent->xmin);
       // $this->bounds->extend($location->extent->ymax, $location->extent->xmax);
 
-      $this->success = TRUE;
+      $this->success = true;
     } else {
       $this->raw = $raw;
     }
@@ -28,7 +28,7 @@ class ArcGISGeocoderResult {
 
   public function __get($key) {
     if(!$this->bounds)
-      return NULL;
+      return null;
 
     switch($key) {
       case 'radius':
@@ -41,13 +41,13 @@ class ArcGISGeocoder {
   public static function geocode($input){
     $json = self::_getData($input);
 
-    if($json == FALSE)
-      return new ArcGISGeocoderResult(FALSE, $json);
+    if($json == false)
+      return new ArcGISGeocoderResult(false, $json);
     
     $result = json_decode($json);
     
     if(empty($result->locations))
-      return new ArcGISGeocoderResult(FALSE, $json);
+      return new ArcGISGeocoderResult(false, $json);
 
     $location = $result->locations[0];
 
@@ -59,7 +59,7 @@ class ArcGISGeocoder {
     $ch = curl_init();
 
     curl_setopt($ch, CURLOPT_URL, 'http://geocode.arcgis.com/arcgis/rest/services/World/GeocodeServer/find?f=json&text='.urlencode($input));
-    curl_setopt($ch, CURLOPT_RETURNTRANSFER, TRUE);
+    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
     curl_setopt($ch, CURLOPT_TIMEOUT, 5);
 
     return curl_exec($ch);

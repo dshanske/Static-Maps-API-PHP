@@ -23,9 +23,10 @@ Static Maps API
   * `stamen-terrain-background` - [Stamen Terrain](http://maps.stamen.com/terrain-background/) without labels
   * `stamen-watercolor` - [Stamen Watercolor](http://maps.stamen.com/watercolor/)
 * `attribution` - default "esri" - "esri" or "none" - If you add attribution on the image in some other way, you can set this to "none" to hide the Esri logo
-* `latitude` - optional - Latitude to center the map at. Not needed if specifying one or more markers.
-* `longitude` - optional - Longitude to center the map at. Not needed if specifying one or more markers.
-* `marker[]` - Specify one or more markers to overlay on the map. Parameters for the marker are specified as follows: `key:value;`
+* `latitude` - optional - Latitude to center the map at. Not needed if using the location parameter, or if specifying one or more markers.
+* `longitude` - optional - Longitude to center the map at.
+* `location` - optional - Free-form text that will be geocoded to center the map. Not needed if specifying a location with the latitude and longitude parameters, or if a marker is specified.
+* `marker[]` - Specify one or more markers to overlay on the map. Parameters are specified as: `key:value;`
   * `location` - Free-form text that will be geocoded to place the pin
   * `lat` - If a `location` is not provided, you can specify the location with the `lat` and `lng` parameters.
   * `lng` - See above
