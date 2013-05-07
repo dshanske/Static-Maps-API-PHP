@@ -19,14 +19,14 @@ if($markersTemp=get('marker')) {
     $markersTemp = array($markersTemp);
 
   // If no latitude is set, use the center of all the markers
-  foreach($markersTemp as $m) {
+  foreach($markersTemp as $i=>$m) {
     if(preg_match_all('/(?P<k>[a-z]+):(?P<v>[^;]+)/', $m, $matches)) {
       $properties = array();
-      foreach($matches['k'] as $i=>$key) {
-        $properties[$key] = $matches['v'][$i];
+      foreach($matches['k'] as $j=>$key) {
+        $properties[$key] = $matches['v'][$j];
       }
 
-      // Skip invalid marker definitions for now, maybe show an error later?
+      // Skip invalid marker definitions, show error in a header
       if(array_key_exists('icon', $properties) && (
           (array_key_exists('lat', $properties) && array_key_exists('lng', $properties))
           || array_key_exists('location', $properties)
@@ -38,6 +38,7 @@ if($markersTemp=get('marker')) {
         if(array_key_exists('location', $properties)) {
           $result = ArcGISGeocoder::geocode($properties['location']);
           if(!$result->success) {
+            header('X-Marker-' . ($i+1) . ': error geocoding location "' . $properties['location'] . '"');
             continue;
           }
 
@@ -60,6 +61,8 @@ if($markersTemp=get('marker')) {
 
         if($properties['lng'] > $bounds['maxLng'])
           $bounds['maxLng'] = $properties['lng'];
+      } else {
+        header('X-Marker-' . ($i+1) . ': missing icon, or lat/lng/location parameters');
       }
     }
   }
@@ -68,9 +71,27 @@ if($markersTemp=get('marker')) {
 $defaultLatitude = $bounds['minLat'] + (($bounds['maxLat'] - $bounds['minLat']) / 2);
 $defaultLongitude = $bounds['minLng'] + (($bounds['maxLng'] - $bounds['minLng']) / 2);
 
+if(get('latitude') !== false) {
+  $latitude = get('latitude');
+  $longitude = get('longitude');
+} elseif(get('location') !== false) {
+  $result = ArcGISGeocoder::geocode(get('location'));
+  if(!$result->success) {
+    $latitude = $defaultLatitude;
+    $longitude = $defaultLongitude;
+    header('X-Geocode: error');
+    header('X-Geocode-Result: ' . $result->raw);
+  } else {
+    $latitude = $result->latitude;
+    $longitude = $result->longitude;
+    header('X-Geocode: success');
+    header('X-Geocode-Result: ' . $latitude . ', ' . $longitude);
+  }
+} else {
+  $latitude = $defaultLatitude;
+  $longitude = $defaultLongitude;
+}
 
-$latitude = get('latitude', $defaultLatitude);
-$longitude = get('longitude', $defaultLongitude);
 $zoom = get('zoom', 14);
 $width = get('width', 300);
 $height = get('height', 300);
@@ -304,6 +325,8 @@ if(get('attribution') != 'none') {
     }
   }
 }
+
+header('Cache-Control: max-age=' . (60*60*24*30) . ', public');
 
 header('X-Tiles-Downloaded: ' . $numTiles);
 
