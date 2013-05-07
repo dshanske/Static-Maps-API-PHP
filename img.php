@@ -94,6 +94,9 @@ $tileServices = array(
     'http://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer/tile/{Z}/{Y}/{X}',
     'http://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Reference/MapServer/tile/{Z}/{Y}/{X}'
   ),
+  'gray-background' => array(
+    'http://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer/tile/{Z}/{Y}/{X}',
+  ),
   'oceans' => array(
     'http://server.arcgisonline.com/ArcGIS/rest/services/Ocean_Basemap/MapServer/tile/{Z}/{Y}/{X}'
   ),
@@ -270,18 +273,19 @@ foreach($markers as $marker) {
 }
 
 
-$logo = imagecreatefrompng('./images/powered-by-esri.png');
+if(get('attribution') != 'none') {
+  $logo = imagecreatefrompng('./images/powered-by-esri.png');
 
-// Shrink the esri logo if the image is small
-if($width > 120) {
-  if($width < 220) {
-    $shrinkFactor = 2;
-    imagecopyresampled($im, $logo, $width-round(imagesx($logo)/$shrinkFactor)-4, $height-round(imagesy($logo)/$shrinkFactor)-4, 0,0, round(imagesx($logo)/$shrinkFactor),round(imagesy($logo)/$shrinkFactor), imagesx($logo),imagesy($logo));
-  } else {
-    imagecopy($im, $logo, $width-imagesx($logo)-4, $height-imagesy($logo)-4, 0,0, imagesx($logo),imagesy($logo));
-  }  
+  // Shrink the esri logo if the image is small
+  if($width > 120) {
+    if($width < 220) {
+      $shrinkFactor = 2;
+      imagecopyresampled($im, $logo, $width-round(imagesx($logo)/$shrinkFactor)-4, $height-round(imagesy($logo)/$shrinkFactor)-4, 0,0, round(imagesx($logo)/$shrinkFactor),round(imagesy($logo)/$shrinkFactor), imagesx($logo),imagesy($logo));
+    } else {
+      imagecopy($im, $logo, $width-imagesx($logo)-4, $height-imagesy($logo)-4, 0,0, imagesx($logo),imagesy($logo));
+    }  
+  }
 }
-
 
 header('X-Tiles-Downloaded: ' . $numTiles);
 header('Content-type: image/png');
