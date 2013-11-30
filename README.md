@@ -34,64 +34,64 @@ Static Maps API
 
 ## Markers
 
-* ![dot-large-blue](https://devtopia/Portland-R-D-Center/static-maps-api/raw/master/images/dot-large-blue.png) `dot-large-blue`
-* ![dot-large-gray](https://devtopia/Portland-R-D-Center/static-maps-api/raw/master/images/dot-large-gray.png) `dot-large-gray`
-* ![dot-large-green](https://devtopia/Portland-R-D-Center/static-maps-api/raw/master/images/dot-large-green.png) `dot-large-green`
-* ![dot-large-orange](https://devtopia/Portland-R-D-Center/static-maps-api/raw/master/images/dot-large-orange.png) `dot-large-orange`
-* ![dot-large-pink](https://devtopia/Portland-R-D-Center/static-maps-api/raw/master/images/dot-large-pink.png) `dot-large-pink`
-* ![dot-large-purple](https://devtopia/Portland-R-D-Center/static-maps-api/raw/master/images/dot-large-purple.png) `dot-large-purple`
-* ![dot-large-red](https://devtopia/Portland-R-D-Center/static-maps-api/raw/master/images/dot-large-red.png) `dot-large-red`
-* ![dot-large-yellow](https://devtopia/Portland-R-D-Center/static-maps-api/raw/master/images/dot-large-yellow.png) `dot-large-yellow`
-* ![dot-small-blue](https://devtopia/Portland-R-D-Center/static-maps-api/raw/master/images/dot-small-blue.png) `dot-small-blue`
-* ![dot-small-gray](https://devtopia/Portland-R-D-Center/static-maps-api/raw/master/images/dot-small-gray.png) `dot-small-gray`
-* ![dot-small-green](https://devtopia/Portland-R-D-Center/static-maps-api/raw/master/images/dot-small-green.png) `dot-small-green`
-* ![dot-small-orange](https://devtopia/Portland-R-D-Center/static-maps-api/raw/master/images/dot-small-orange.png) `dot-small-orange`
-* ![dot-small-pink](https://devtopia/Portland-R-D-Center/static-maps-api/raw/master/images/dot-small-pink.png) `dot-small-pink`
-* ![dot-small-purple](https://devtopia/Portland-R-D-Center/static-maps-api/raw/master/images/dot-small-purple.png) `dot-small-purple`
-* ![dot-small-red](https://devtopia/Portland-R-D-Center/static-maps-api/raw/master/images/dot-small-red.png) `dot-small-red`
-* ![dot-small-yellow](https://devtopia/Portland-R-D-Center/static-maps-api/raw/master/images/dot-small-yellow.png) `dot-small-yellow`
-* ![fb](https://devtopia/Portland-R-D-Center/static-maps-api/raw/master/images/fb.png) `fb`
-* ![google](https://devtopia/Portland-R-D-Center/static-maps-api/raw/master/images/google.png) `google`
-* ![large-blue-blank](https://devtopia/Portland-R-D-Center/static-maps-api/raw/master/images/large-blue-blank.png) `large-blue-blank`
-* ![large-blue-cutout](https://devtopia/Portland-R-D-Center/static-maps-api/raw/master/images/large-blue-cutout.png) `large-blue-cutout`
-* ![large-gray-blank](https://devtopia/Portland-R-D-Center/static-maps-api/raw/master/images/large-gray-blank.png) `large-gray-blank`
-* ![large-gray-cutout](https://devtopia/Portland-R-D-Center/static-maps-api/raw/master/images/large-gray-cutout.png) `large-gray-cutout`
-* ![large-gray-user](https://devtopia/Portland-R-D-Center/static-maps-api/raw/master/images/large-gray-user.png) `large-gray-user`
-* ![large-green-blank](https://devtopia/Portland-R-D-Center/static-maps-api/raw/master/images/large-green-blank.png) `large-green-blank`
-* ![large-green-cutout](https://devtopia/Portland-R-D-Center/static-maps-api/raw/master/images/large-green-cutout.png) `large-green-cutout`
-* ![large-orange-blank](https://devtopia/Portland-R-D-Center/static-maps-api/raw/master/images/large-orange-blank.png) `large-orange-blank`
-* ![large-orange-cutout](https://devtopia/Portland-R-D-Center/static-maps-api/raw/master/images/large-orange-cutout.png) `large-orange-cutout`
-* ![large-pink-blank](https://devtopia/Portland-R-D-Center/static-maps-api/raw/master/images/large-pink-blank.png) `large-pink-blank`
-* ![large-pink-cutout](https://devtopia/Portland-R-D-Center/static-maps-api/raw/master/images/large-pink-cutout.png) `large-pink-cutout`
-* ![large-purple-blank](https://devtopia/Portland-R-D-Center/static-maps-api/raw/master/images/large-purple-blank.png) `large-purple-blank`
-* ![large-purple-cutout](https://devtopia/Portland-R-D-Center/static-maps-api/raw/master/images/large-purple-cutout.png) `large-purple-cutout`
-* ![large-red-blank](https://devtopia/Portland-R-D-Center/static-maps-api/raw/master/images/large-red-blank.png) `large-red-blank`
-* ![large-red-cutout](https://devtopia/Portland-R-D-Center/static-maps-api/raw/master/images/large-red-cutout.png) `large-red-cutout`
-* ![large-yellow-blank](https://devtopia/Portland-R-D-Center/static-maps-api/raw/master/images/large-yellow-blank.png) `large-yellow-blank`
-* ![large-yellow-cutout](https://devtopia/Portland-R-D-Center/static-maps-api/raw/master/images/large-yellow-cutout.png) `large-yellow-cutout`
-* ![large-yellow-message](https://devtopia/Portland-R-D-Center/static-maps-api/raw/master/images/large-yellow-message.png) `large-yellow-message`
-* ![large-yellow-user](https://devtopia/Portland-R-D-Center/static-maps-api/raw/master/images/large-yellow-user.png) `large-yellow-user`
-* ![small-blue-blank](https://devtopia/Portland-R-D-Center/static-maps-api/raw/master/images/small-blue-blank.png) `small-blue-blank`
-* ![small-blue-cutout](https://devtopia/Portland-R-D-Center/static-maps-api/raw/master/images/small-blue-cutout.png) `small-blue-cutout`
-* ![small-gray-blank](https://devtopia/Portland-R-D-Center/static-maps-api/raw/master/images/small-gray-blank.png) `small-gray-blank`
-* ![small-gray-cutout](https://devtopia/Portland-R-D-Center/static-maps-api/raw/master/images/small-gray-cutout.png) `small-gray-cutout`
-* ![small-gray-message](https://devtopia/Portland-R-D-Center/static-maps-api/raw/master/images/small-gray-message.png) `small-gray-message`
-* ![small-gray-user](https://devtopia/Portland-R-D-Center/static-maps-api/raw/master/images/small-gray-user.png) `small-gray-user`
-* ![small-green-blank](https://devtopia/Portland-R-D-Center/static-maps-api/raw/master/images/small-green-blank.png) `small-green-blank`
-* ![small-green-cutout](https://devtopia/Portland-R-D-Center/static-maps-api/raw/master/images/small-green-cutout.png) `small-green-cutout`
-* ![small-green-user](https://devtopia/Portland-R-D-Center/static-maps-api/raw/master/images/small-green-user.png) `small-green-user`
-* ![small-orange-blank](https://devtopia/Portland-R-D-Center/static-maps-api/raw/master/images/small-orange-blank.png) `small-orange-blank`
-* ![small-orange-cutout](https://devtopia/Portland-R-D-Center/static-maps-api/raw/master/images/small-orange-cutout.png) `small-orange-cutout`
-* ![small-pink-blank](https://devtopia/Portland-R-D-Center/static-maps-api/raw/master/images/small-pink-blank.png) `small-pink-blank`
-* ![small-pink-cutout](https://devtopia/Portland-R-D-Center/static-maps-api/raw/master/images/small-pink-cutout.png) `small-pink-cutout`
-* ![small-pink-user](https://devtopia/Portland-R-D-Center/static-maps-api/raw/master/images/small-pink-user.png) `small-pink-user`
-* ![small-purple-blank](https://devtopia/Portland-R-D-Center/static-maps-api/raw/master/images/small-purple-blank.png) `small-purple-blank`
-* ![small-purple-cutout](https://devtopia/Portland-R-D-Center/static-maps-api/raw/master/images/small-purple-cutout.png) `small-purple-cutout`
-* ![small-red-blank](https://devtopia/Portland-R-D-Center/static-maps-api/raw/master/images/small-red-blank.png) `small-red-blank`
-* ![small-red-cutout](https://devtopia/Portland-R-D-Center/static-maps-api/raw/master/images/small-red-cutout.png) `small-red-cutout`
-* ![small-yellow-blank](https://devtopia/Portland-R-D-Center/static-maps-api/raw/master/images/small-yellow-blank.png) `small-yellow-blank`
-* ![small-yellow-cutout](https://devtopia/Portland-R-D-Center/static-maps-api/raw/master/images/small-yellow-cutout.png) `small-yellow-cutout`
-* ![small-yellow-user](https://devtopia/Portland-R-D-Center/static-maps-api/raw/master/images/small-yellow-user.png) `small-yellow-user`
+* ![dot-large-blue](images/dot-large-blue.png) `dot-large-blue`
+* ![dot-large-gray](images/dot-large-gray.png) `dot-large-gray`
+* ![dot-large-green](images/dot-large-green.png) `dot-large-green`
+* ![dot-large-orange](images/dot-large-orange.png) `dot-large-orange`
+* ![dot-large-pink](images/dot-large-pink.png) `dot-large-pink`
+* ![dot-large-purple](images/dot-large-purple.png) `dot-large-purple`
+* ![dot-large-red](images/dot-large-red.png) `dot-large-red`
+* ![dot-large-yellow](images/dot-large-yellow.png) `dot-large-yellow`
+* ![dot-small-blue](images/dot-small-blue.png) `dot-small-blue`
+* ![dot-small-gray](images/dot-small-gray.png) `dot-small-gray`
+* ![dot-small-green](images/dot-small-green.png) `dot-small-green`
+* ![dot-small-orange](images/dot-small-orange.png) `dot-small-orange`
+* ![dot-small-pink](images/dot-small-pink.png) `dot-small-pink`
+* ![dot-small-purple](images/dot-small-purple.png) `dot-small-purple`
+* ![dot-small-red](images/dot-small-red.png) `dot-small-red`
+* ![dot-small-yellow](images/dot-small-yellow.png) `dot-small-yellow`
+* ![fb](images/fb.png) `fb`
+* ![google](images/google.png) `google`
+* ![large-blue-blank](images/large-blue-blank.png) `large-blue-blank`
+* ![large-blue-cutout](images/large-blue-cutout.png) `large-blue-cutout`
+* ![large-gray-blank](images/large-gray-blank.png) `large-gray-blank`
+* ![large-gray-cutout](images/large-gray-cutout.png) `large-gray-cutout`
+* ![large-gray-user](images/large-gray-user.png) `large-gray-user`
+* ![large-green-blank](images/large-green-blank.png) `large-green-blank`
+* ![large-green-cutout](images/large-green-cutout.png) `large-green-cutout`
+* ![large-orange-blank](images/large-orange-blank.png) `large-orange-blank`
+* ![large-orange-cutout](images/large-orange-cutout.png) `large-orange-cutout`
+* ![large-pink-blank](images/large-pink-blank.png) `large-pink-blank`
+* ![large-pink-cutout](images/large-pink-cutout.png) `large-pink-cutout`
+* ![large-purple-blank](images/large-purple-blank.png) `large-purple-blank`
+* ![large-purple-cutout](images/large-purple-cutout.png) `large-purple-cutout`
+* ![large-red-blank](images/large-red-blank.png) `large-red-blank`
+* ![large-red-cutout](images/large-red-cutout.png) `large-red-cutout`
+* ![large-yellow-blank](images/large-yellow-blank.png) `large-yellow-blank`
+* ![large-yellow-cutout](images/large-yellow-cutout.png) `large-yellow-cutout`
+* ![large-yellow-message](images/large-yellow-message.png) `large-yellow-message`
+* ![large-yellow-user](images/large-yellow-user.png) `large-yellow-user`
+* ![small-blue-blank](images/small-blue-blank.png) `small-blue-blank`
+* ![small-blue-cutout](images/small-blue-cutout.png) `small-blue-cutout`
+* ![small-gray-blank](images/small-gray-blank.png) `small-gray-blank`
+* ![small-gray-cutout](images/small-gray-cutout.png) `small-gray-cutout`
+* ![small-gray-message](images/small-gray-message.png) `small-gray-message`
+* ![small-gray-user](images/small-gray-user.png) `small-gray-user`
+* ![small-green-blank](images/small-green-blank.png) `small-green-blank`
+* ![small-green-cutout](images/small-green-cutout.png) `small-green-cutout`
+* ![small-green-user](images/small-green-user.png) `small-green-user`
+* ![small-orange-blank](images/small-orange-blank.png) `small-orange-blank`
+* ![small-orange-cutout](images/small-orange-cutout.png) `small-orange-cutout`
+* ![small-pink-blank](images/small-pink-blank.png) `small-pink-blank`
+* ![small-pink-cutout](images/small-pink-cutout.png) `small-pink-cutout`
+* ![small-pink-user](images/small-pink-user.png) `small-pink-user`
+* ![small-purple-blank](images/small-purple-blank.png) `small-purple-blank`
+* ![small-purple-cutout](images/small-purple-cutout.png) `small-purple-cutout`
+* ![small-red-blank](images/small-red-blank.png) `small-red-blank`
+* ![small-red-cutout](images/small-red-cutout.png) `small-red-cutout`
+* ![small-yellow-blank](images/small-yellow-blank.png) `small-yellow-blank`
+* ![small-yellow-cutout](images/small-yellow-cutout.png) `small-yellow-cutout`
+* ![small-yellow-user](images/small-yellow-user.png) `small-yellow-user`
 
 
 ## Examples
@@ -99,15 +99,30 @@ Static Maps API
 ### Simple map centered at a location
 
 ```
-http://static-maps.geoloqi.com/img.php?basemap=gray&width=400&height=240&zoom=14&latitude=45.5165&longitude=-122.6764
+http://static-maps.pdx.esri.com/img.php?basemap=gray&width=400&height=240&zoom=14&latitude=45.5165&longitude=-122.6764
 ```
 
 ### Map with a marker centered at an address
 
 ```
-http://static-maps.geoloqi.com/img.php?marker[]=location:920%20SW%203rd%20Ave,%20Portland,%20OR;icon:small-blue-cutout&basemap=gray&width=400&height=240&zoom=14
+http://static-maps.pdx.esri.com/img.php?marker[]=location:920%20SW%203rd%20Ave,%20Portland,%20OR;icon:small-blue-cutout&basemap=gray&width=400&height=240&zoom=14
 ```
 
+## License
+
+Copyright 2013 Esri, Inc
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
 
 
 
