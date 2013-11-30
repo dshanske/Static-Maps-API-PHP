@@ -102,14 +102,19 @@ Static Maps API
 http://static-maps.pdx.esri.com/img.php?basemap=gray&width=400&height=240&zoom=14&latitude=45.5165&longitude=-122.6764
 ```
 
+<img src="http://static-maps.pdx.esri.com/img.php?basemap=gray&width=400&height=240&zoom=14&latitude=45.5165&longitude=-122.6764">
+
 ### Map with a marker centered at an address
 
 ```
 http://static-maps.pdx.esri.com/img.php?marker[]=location:920%20SW%203rd%20Ave,%20Portland,%20OR;icon:small-blue-cutout&basemap=gray&width=400&height=240&zoom=14
 ```
 
+<img src="http://static-maps.pdx.esri.com/img.php?marker[]=location:920%20SW%203rd%20Ave,%20Portland,%20OR;icon:small-blue-cutout&basemap=gray&width=400&height=240&zoom=14">
+
 ## License
 
+```
 Copyright 2013 Esri, Inc
 
 Licensed under the Apache License, Version 2.0 (the "License");
@@ -123,6 +128,4 @@ distributed under the License is distributed on an "AS IS" BASIS,
 WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
-
-
-
+```
