@@ -14,7 +14,7 @@ $bounds = array(
 );
 
 $markers = array();
-if($markersTemp=get('marker')) {
+if($markersTemp=request('marker')) {
   if(!is_array($markersTemp))
     $markersTemp = array($markersTemp);
 
@@ -68,14 +68,44 @@ if($markersTemp=get('marker')) {
   }
 }
 
+$paths = array();
+if($pathsTemp=request('path')) {
+  if(!is_array($pathsTemp))
+    $pathsTemp = array($pathsTemp);
+
+  foreach($pathsTemp as $i=>$path) {
+    $properties = array();
+    if(preg_match_all('/(?P<k>[a-z]+):(?P<v>[^;]+)/', $path, $matches)) {
+      foreach($matches['k'] as $j=>$key) {
+        $properties[$key] = $matches['v'][$j];
+      }
+    }
+
+    // Set default color and weight if none specified
+    if(!array_key_exists('color', $properties))
+      $properties['color'] = '333333';
+    if(!array_key_exists('weight', $properties))
+      $properties['weight'] = 6;
+
+    // Now parse the points into an array
+    if(preg_match_all('/(?P<point>\[[0-9\.-]+,[0-9\.-]+\])/', $path, $matches)) {
+      $properties['path'] = json_decode('[' . implode(',', $matches['point']) . ']');
+    }
+
+    if(array_key_exists('path', $properties))
+      $paths[] = $properties;
+  }
+}
+
+
 $defaultLatitude = $bounds['minLat'] + (($bounds['maxLat'] - $bounds['minLat']) / 2);
 $defaultLongitude = $bounds['minLng'] + (($bounds['maxLng'] - $bounds['minLng']) / 2);
 
-if(get('latitude') !== false) {
-  $latitude = get('latitude');
-  $longitude = get('longitude');
-} elseif(get('location') !== false) {
-  $result = ArcGISGeocoder::geocode(get('location'));
+if(request('latitude') !== false) {
+  $latitude = request('latitude');
+  $longitude = request('longitude');
+} elseif(request('location') !== false) {
+  $result = ArcGISGeocoder::geocode(request('location'));
   if(!$result->success) {
     $latitude = $defaultLatitude;
     $longitude = $defaultLongitude;
@@ -92,9 +122,9 @@ if(get('latitude') !== false) {
   $longitude = $defaultLongitude;
 }
 
-$zoom = get('zoom', 14);
-$width = get('width', 300);
-$height = get('height', 300);
+$zoom = request('zoom', 14);
+$width = request('width', 300);
+$height = request('height', 300);
 
 
 $tileServices = array(
@@ -147,10 +177,10 @@ $tileServices = array(
   )
 );
 
-if(get('basemap')) {
-  $tileURL = $tileServices[get('basemap')][0];
-  if(array_key_exists(1, $tileServices[get('basemap')]))
-    $overlayURL = $tileServices[get('basemap')][1];
+if(request('basemap')) {
+  $tileURL = $tileServices[request('basemap')][0];
+  if(array_key_exists(1, $tileServices[request('basemap')]))
+    $overlayURL = $tileServices[request('basemap')][1];
   else
     $overlayURL = 0;
 } else {
@@ -324,8 +354,32 @@ foreach($markers as $marker) {
   imagecopy($im, $iconImg, $iconPos['x'], $iconPos['y'], 0,0, imagesx($iconImg),imagesy($iconImg));
 }
 
+imageantialias($im, true); // should anti-alias lines
+$colors = array();
+foreach($paths as $path) {
+  imagesetthickness($im, $path['weight']);
 
-if(get('attribution') != 'none') {
+  $colork = $path['color'];
+  if(!array_key_exists($colork, $colors))
+    $colors[$colork] = imagecolorallocatealpha($im, 
+      hexdec($path['color'][0].$path['color'][1]), 
+      hexdec($path['color'][2].$path['color'][3]), 
+      hexdec($path['color'][4].$path['color'][5]), 0);
+  $theColor = $colors[$colork];
+
+  $previous = false;
+  foreach($path['path'] as $point) {
+    if($previous) {
+      $from = $webmercator->latLngToPixels($previous[1], $previous[0], $zoom);
+      $to = $webmercator->latLngToPixels($point[1], $point[0], $zoom);
+      imageline($im, $from['x'] - $leftEdge,$from['y']-$topEdge, $to['x']-$leftEdge,$to['y']-$topEdge, $theColor);
+    }
+    $previous = $point;
+  }
+}
+
+
+if(request('attribution') != 'none') {
   $logo = imagecreatefrompng('./images/powered-by-esri.png');
 
   // Shrink the esri logo if the image is small
@@ -343,16 +397,16 @@ header('Cache-Control: max-age=' . (60*60*24*30) . ', public');
 
 header('X-Tiles-Downloaded: ' . $numTiles);
 
-$fmt = get('format', "png");
+$fmt = request('format', "png");
 switch($fmt) {
   case "jpg":
   case "jpeg":
     header('Content-type: image/jpg');
-    $quality = get('quality', 75);
+    $quality = request('quality', 75);
     imagejpeg($im, null, $quality);
     break;
   case "png":
-  default:
+#  default:
     header('Content-type: image/png');
     imagepng($im);
     break;
@@ -371,7 +425,7 @@ function pa($a) {
   echo '</pre>';
 }
 
-function get($k, $default=false) {
-  return array_key_exists($k, $_GET) ? $_GET[$k] : $default;
+function request($k, $default=false) {
+  return array_key_exists($k, $_REQUEST) ? $_REQUEST[$k] : $default;
 }
 
