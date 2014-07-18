@@ -32,7 +32,6 @@ if($markersTemp=request('marker')) {
           || array_key_exists('location', $properties)
         )
       ) {
-        $properties['iconFile'] = './images/' . $properties['icon'] . '.png';
 
         // Geocode the provided location and return lat/lng
         if(array_key_exists('location', $properties)) {
@@ -44,6 +43,23 @@ if($markersTemp=request('marker')) {
 
           $properties['lat'] = $result->latitude;
           $properties['lng'] = $result->longitude;
+        }
+
+        if(preg_match('/https?:\/\/(.+)/', $properties['icon'], $match)) {
+          // Looks like an external image, attempt to download it
+          $properties['iconFile'] = './images/remote/' . str_replace('.', '_', urlencode($match[1])) . '.png';
+          $ch = curl_init($properties['icon']);
+          curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+          $img = curl_exec($ch);
+          file_put_contents($properties['iconFile'], $img);
+          $properties['iconImg'] = @imagecreatefrompng($properties['iconFile']);
+          if(!$properties['iconImg']) {
+            unlink($properties['iconFile']);
+            $properties['iconFile'] = false;
+            $properties['iconImg'] = false;
+          }
+        } else {
+          $properties['iconFile'] = './images/' . $properties['icon'] . '.png';
         }
 
         if(file_exists($properties['iconFile'])) {
@@ -67,6 +83,7 @@ if($markersTemp=request('marker')) {
     }
   }
 }
+
 
 $paths = array();
 if($pathsTemp=request('path')) {
@@ -337,21 +354,22 @@ foreach($markers as $marker) {
     'y' => $px['y'] - $topEdge
   );
 
-  $iconImg = imagecreatefrompng($marker['iconFile']);
+  if(!array_key_exists('iconImg', $marker))
+    $marker['iconImg'] = imagecreatefrompng($marker['iconFile']);
 
   if($shadow) {
     $iconPos = array(
-      'x' => $pos['x'] - round(imagesx($iconImg)/2),
-      'y' => $pos['y'] - imagesy($iconImg)
+      'x' => $pos['x'] - round(imagesx($marker['iconImg'])/2),
+      'y' => $pos['y'] - imagesy($marker['iconImg'])
     );
   } else {
     $iconPos = array(
-      'x' => $pos['x'] - round(imagesx($iconImg)/2),
-      'y' => $pos['y'] - round(imagesy($iconImg)/2)
+      'x' => $pos['x'] - round(imagesx($marker['iconImg'])/2),
+      'y' => $pos['y'] - round(imagesy($marker['iconImg'])/2)
     );
   }
 
-  imagecopy($im, $iconImg, $iconPos['x'], $iconPos['y'], 0,0, imagesx($iconImg),imagesy($iconImg));
+  imagecopy($im, $marker['iconImg'], $iconPos['x'], $iconPos['y'], 0,0, imagesx($marker['iconImg']),imagesy($marker['iconImg']));
 }
 
 imageantialias($im, true); // should anti-alias lines

@@ -36,7 +36,7 @@ Parameters can be sent in either the query string or in the POST body.
 * `location` - Free-form text that will be geocoded to place the pin
 * `lat` - If a `location` is not provided, you can specify the location with the `lat` and `lng` parameters.
 * `lng` - See above
-* `icon` - Icon to use for the marker. Must choose one of the icons provided in this library. If an invalid icon is specified, the marker will not be rendered.
+* `icon` - Icon to use for the marker. Must choose one of the icons provided in this library, or specify a full URL to a png image. If an invalid icon is specified, the marker will not be rendered.
 
 
 ### Built-In Marker Images
@@ -138,6 +138,15 @@ http://static-maps.pdx.esri.com/img.php?marker[]=location:920%20SW%203rd%20Ave,%
 ```
 
 <img src="http://static-maps.pdx.esri.com/img.php?marker[]=location:920%20SW%203rd%20Ave,%20Portland,%20OR;icon:small-blue-cutout&basemap=gray&width=400&height=240&zoom=14">
+
+### Map with an external marker image
+
+```
+http://static-maps.pdx.esri.com/img.php?basemap=gray&width=400&height=240&zoom=14&marker[]=lat:45.5165;lng:-122.6764;icon:http://aaronparecki.com/images/map-pin-green.png
+```
+
+<img src="http://static-maps.pdx.esri.com/img.php?basemap=gray&width=400&height=240&zoom=14&marker[]=lat:45.5165;lng:-122.6764;icon:http://aaronparecki.com/images/map-pin-green.png">
+
 
 ## License
 
