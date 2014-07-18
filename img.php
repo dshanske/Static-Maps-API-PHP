@@ -238,16 +238,29 @@ do {
   $mrc = curl_multi_exec($mh, $running);
 } while($running > 0);
 
+// In case any of the tiles fail, they will be grey instead of throwing an error
+$blank = imagecreatetruecolor(256, 256);
+$grey = imagecolorallocate($im, 224, 224, 224);
+imagefill($blank, 0,0, $grey);
+
 foreach($chs as $x=>$yTiles) {
   foreach($yTiles as $y=>$ch) {
-    $tiles["$x"]["$y"] = imagecreatefromstring(curl_multi_getcontent($ch));
+    $content = curl_multi_getcontent($ch);
+    if($content)
+      $tiles["$x"]["$y"] = @imagecreatefromstring($content);
+    else
+      $tiles["$x"]["$y"] = $blank;
   }
 }
 
 if($overlayURL) {
   foreach($ochs as $x=>$yTiles) {
     foreach($yTiles as $y=>$ch) {
-      $overlays["$x"]["$y"] = imagecreatefromstring(curl_multi_getcontent($ch));
+      $content = curl_multi_getcontent($ch);
+      if($content)
+        $overlays["$x"]["$y"] = @imagecreatefromstring($content);
+      else
+        $overlays["$x"]["$y"] = $blank;
     }
   }
 }
