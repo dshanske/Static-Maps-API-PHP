@@ -4,6 +4,8 @@ include('include/ArcGISGeocoder.php');
 
 define('TILE_SIZE', 256);
 
+$webmercator = new WebMercator();
+
 // If any markers are specified, choose a default lat/lng as the center of all the markers
 
 $bounds = array(
@@ -14,7 +16,7 @@ $bounds = array(
 );
 
 $markers = array();
-if($markersTemp=get('marker')) {
+if($markersTemp=request('marker')) {
   if(!is_array($markersTemp))
     $markersTemp = array($markersTemp);
 
@@ -32,7 +34,6 @@ if($markersTemp=get('marker')) {
           || array_key_exists('location', $properties)
         )
       ) {
-        $properties['iconFile'] = './images/' . $properties['icon'] . '.png';
 
         // Geocode the provided location and return lat/lng
         if(array_key_exists('location', $properties)) {
@@ -44,6 +45,23 @@ if($markersTemp=get('marker')) {
 
           $properties['lat'] = $result->latitude;
           $properties['lng'] = $result->longitude;
+        }
+
+        if(preg_match('/https?:\/\/(.+)/', $properties['icon'], $match)) {
+          // Looks like an external image, attempt to download it
+          $properties['iconFile'] = './images/remote/' . str_replace('.', '_', urlencode($match[1])) . '.png';
+          $ch = curl_init($properties['icon']);
+          curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+          $img = curl_exec($ch);
+          file_put_contents($properties['iconFile'], $img);
+          $properties['iconImg'] = @imagecreatefrompng($properties['iconFile']);
+          if(!$properties['iconImg']) {
+            unlink($properties['iconFile']);
+            $properties['iconFile'] = false;
+            $properties['iconImg'] = false;
+          }
+        } else {
+          $properties['iconFile'] = './images/' . $properties['icon'] . '.png';
         }
 
         if(file_exists($properties['iconFile'])) {
@@ -68,14 +86,45 @@ if($markersTemp=get('marker')) {
   }
 }
 
+
+$paths = array();
+if($pathsTemp=request('path')) {
+  if(!is_array($pathsTemp))
+    $pathsTemp = array($pathsTemp);
+
+  foreach($pathsTemp as $i=>$path) {
+    $properties = array();
+    if(preg_match_all('/(?P<k>[a-z]+):(?P<v>[^;]+)/', $path, $matches)) {
+      foreach($matches['k'] as $j=>$key) {
+        $properties[$key] = $matches['v'][$j];
+      }
+    }
+
+    // Set default color and weight if none specified
+    if(!array_key_exists('color', $properties))
+      $properties['color'] = '333333';
+    if(!array_key_exists('weight', $properties))
+      $properties['weight'] = 3;
+
+    // Now parse the points into an array
+    if(preg_match_all('/(?P<point>\[[0-9\.-]+,[0-9\.-]+\])/', $path, $matches)) {
+      $properties['path'] = json_decode('[' . implode(',', $matches['point']) . ']');
+    }
+
+    if(array_key_exists('path', $properties))
+      $paths[] = $properties;
+  }
+}
+
+
 $defaultLatitude = $bounds['minLat'] + (($bounds['maxLat'] - $bounds['minLat']) / 2);
 $defaultLongitude = $bounds['minLng'] + (($bounds['maxLng'] - $bounds['minLng']) / 2);
 
-if(get('latitude') !== false) {
-  $latitude = get('latitude');
-  $longitude = get('longitude');
-} elseif(get('location') !== false) {
-  $result = ArcGISGeocoder::geocode(get('location'));
+if(request('latitude') !== false) {
+  $latitude = request('latitude');
+  $longitude = request('longitude');
+} elseif(request('location') !== false) {
+  $result = ArcGISGeocoder::geocode(request('location'));
   if(!$result->success) {
     $latitude = $defaultLatitude;
     $longitude = $defaultLongitude;
@@ -92,9 +141,43 @@ if(get('latitude') !== false) {
   $longitude = $defaultLongitude;
 }
 
-$zoom = get('zoom', 14);
-$width = get('width', 300);
-$height = get('height', 300);
+
+
+$width = request('width', 300);
+$height = request('height', 300);
+
+
+// If no zoom is specified, choose a zoom level that will fit all the markers
+if(request('zoom')) {
+  $zoom = request('zoom');
+} else {
+
+  // start at max zoom level (20)
+  $fitZoom = 20;
+  $doesNotFit = true;
+  while($fitZoom > 1 && $doesNotFit) {
+    $center = $webmercator->latLngToPixels($latitude, $longitude, $fitZoom);
+
+    $leftEdge = $center['x'] - $width/2;
+    $topEdge = $center['y'] - $height/2;
+
+    // check if the bounding rectangle fits within width/height
+    $sw = $webmercator->latLngToPixels($bounds['minLat'], $bounds['minLng'], $fitZoom);
+    $ne = $webmercator->latLngToPixels($bounds['maxLat'], $bounds['maxLng'], $fitZoom);
+
+    $fitHeight = abs($ne['y'] - $sw['y']);
+    $fitWidth = abs($ne['x'] - $sw['x']);
+
+    if($fitHeight <= $height && $fitWidth <= $width) {
+      $doesNotFit = false;
+    }
+
+    $fitZoom--;
+  }
+
+  $zoom = $fitZoom;
+}
+
 
 
 $tileServices = array(
@@ -147,10 +230,10 @@ $tileServices = array(
   )
 );
 
-if(get('basemap')) {
-  $tileURL = $tileServices[get('basemap')][0];
-  if(array_key_exists(1, $tileServices[get('basemap')]))
-    $overlayURL = $tileServices[get('basemap')][1];
+if(request('basemap')) {
+  $tileURL = $tileServices[request('basemap')][0];
+  if(array_key_exists(1, $tileServices[request('basemap')]))
+    $overlayURL = $tileServices[request('basemap')][1];
   else
     $overlayURL = 0;
 } else {
@@ -167,15 +250,15 @@ function urlForTile($x, $y, $z, $tileURL) {
 }
 
 
-$webmercator = new WebMercator();
 
 
 $im = imagecreatetruecolor($width, $height);
 
-
 // Find the pixel coordinate of the center of the map
 $center = $webmercator->latLngToPixels($latitude, $longitude, $zoom);
-// echo '<br />';
+
+$leftEdge = $center['x'] - $width/2;
+$topEdge = $center['y'] - $height/2;
 
 $tilePos = $webmercator->pixelsToTile($center['x'], $center['y']);
 // print_r($tilePos);
@@ -193,9 +276,6 @@ $neTile = $webmercator->pixelsToTile($center['x'] + $width/2, $center['y'] + $he
 $swTile = $webmercator->pixelsToTile($center['x'] - $width/2, $center['y'] - $height/2);
 // print_r($swTile);
 // echo '<br />';
-
-$leftEdge = $center['x'] - $width/2;
-$topEdge = $center['y'] - $height/2;
 
 
 // Now download all the tiles
@@ -238,16 +318,29 @@ do {
   $mrc = curl_multi_exec($mh, $running);
 } while($running > 0);
 
+// In case any of the tiles fail, they will be grey instead of throwing an error
+$blank = imagecreatetruecolor(256, 256);
+$grey = imagecolorallocate($im, 224, 224, 224);
+imagefill($blank, 0,0, $grey);
+
 foreach($chs as $x=>$yTiles) {
   foreach($yTiles as $y=>$ch) {
-    $tiles["$x"]["$y"] = imagecreatefromstring(curl_multi_getcontent($ch));
+    $content = curl_multi_getcontent($ch);
+    if($content)
+      $tiles["$x"]["$y"] = @imagecreatefromstring($content);
+    else
+      $tiles["$x"]["$y"] = $blank;
   }
 }
 
 if($overlayURL) {
   foreach($ochs as $x=>$yTiles) {
     foreach($yTiles as $y=>$ch) {
-      $overlays["$x"]["$y"] = imagecreatefromstring(curl_multi_getcontent($ch));
+      $content = curl_multi_getcontent($ch);
+      if($content)
+        $overlays["$x"]["$y"] = @imagecreatefromstring($content);
+      else
+        $overlays["$x"]["$y"] = $blank;
     }
   }
 }
@@ -285,6 +378,12 @@ foreach($markers as $marker) {
   // Icons that start with 'dot-' do not have a shadow
   $shadow = !preg_match('/^dot-/', $marker['icon']);
 
+  if($width < 120 || $height < 120) {
+    $shrinkFactor = 1.5;
+  } else {
+    $shrinkFactor = 1;
+  }
+
   // Icons with a shadow are centered at the bottom middle pixel.
   // Icons with no shadow are centered in the center pixel.
 
@@ -294,25 +393,69 @@ foreach($markers as $marker) {
     'y' => $px['y'] - $topEdge
   );
 
-  $iconImg = imagecreatefrompng($marker['iconFile']);
+  #if(!array_key_exists('iconImg', $marker)) {
+    if($shrinkFactor > 1) {
+      $tmpImg = imagecreatefrompng($marker['iconFile']);
+      $marker['iconImg'] = imagecreatetruecolor(round(imagesx($tmpImg)/$shrinkFactor), round(imagesy($tmpImg)/$shrinkFactor));
+      imagealphablending($marker['iconImg'], true);
+      $color = imagecolorallocatealpha($marker['iconImg'], 0, 0, 0, 127);
+      imagefill($marker['iconImg'], 0,0, $color);
+      imagecopyresampled($marker['iconImg'], $tmpImg, 0,0, 0,0, imagesx($marker['iconImg']),imagesy($marker['iconImg']), imagesx($tmpImg),imagesy($tmpImg));
+    } else {
+      $marker['iconImg'] = imagecreatefrompng($marker['iconFile']);
+    }
+  #}
 
   if($shadow) {
     $iconPos = array(
-      'x' => $pos['x'] - round(imagesx($iconImg)/2),
-      'y' => $pos['y'] - imagesy($iconImg)
+      'x' => $pos['x'] - round(imagesx($marker['iconImg'])/2),
+      'y' => $pos['y'] - imagesy($marker['iconImg'])
     );
   } else {
     $iconPos = array(
-      'x' => $pos['x'] - round(imagesx($iconImg)/2),
-      'y' => $pos['y'] - round(imagesy($iconImg)/2)
+      'x' => $pos['x'] - round(imagesx($marker['iconImg'])/2),
+      'y' => $pos['y'] - round(imagesy($marker['iconImg'])/2)
     );
   }
 
-  imagecopy($im, $iconImg, $iconPos['x'], $iconPos['y'], 0,0, imagesx($iconImg),imagesy($iconImg));
+  imagecopy($im, $marker['iconImg'], $iconPos['x'],$iconPos['y'], 0,0, imagesx($marker['iconImg']),imagesy($marker['iconImg']));
 }
 
 
-if(get('attribution') != 'none') {
+
+if(count($paths)) {
+  // Draw the path with ImageMagick because GD sucks as anti-aliased lines
+  $mg = new Imagick();
+  $mg->newImage($width, $height, new ImagickPixel('none'));
+
+  $draw = new ImagickDraw();
+
+  $colors = array();
+  foreach($paths as $path) {
+
+    $draw->setStrokeColor(new ImagickPixel('#'.$path['color']));
+    $draw->setStrokeWidth($path['weight']);
+
+    $previous = false;
+    foreach($path['path'] as $point) {
+      if($previous) {
+        $from = $webmercator->latLngToPixels($previous[1], $previous[0], $zoom);
+        $to = $webmercator->latLngToPixels($point[1], $point[0], $zoom);
+        $draw->line($from['x'] - $leftEdge,$from['y']-$topEdge, $to['x']-$leftEdge,$to['y']-$topEdge);
+      }
+      $previous = $point;
+    }
+  }
+
+  $mg->drawImage($draw);
+  $mg->setImageFormat( "png" );
+
+  $pathImg = imagecreatefromstring($mg);
+  imagecopy($im, $pathImg, 0,0, 0,0, $width,$height);
+}
+
+
+if(request('attribution') != 'none') {
   $logo = imagecreatefrompng('./images/powered-by-esri.png');
 
   // Shrink the esri logo if the image is small
@@ -330,16 +473,16 @@ header('Cache-Control: max-age=' . (60*60*24*30) . ', public');
 
 header('X-Tiles-Downloaded: ' . $numTiles);
 
-$fmt = get('format', "png");
+$fmt = request('format', "png");
 switch($fmt) {
   case "jpg":
   case "jpeg":
     header('Content-type: image/jpg');
-    $quality = get('quality', 75);
+    $quality = request('quality', 75);
     imagejpeg($im, null, $quality);
     break;
   case "png":
-  default:
+#  default:
     header('Content-type: image/png');
     imagepng($im);
     break;
@@ -358,7 +501,7 @@ function pa($a) {
   echo '</pre>';
 }
 
-function get($k, $default=false) {
-  return array_key_exists($k, $_GET) ? $_GET[$k] : $default;
+function request($k, $default=false) {
+  return array_key_exists($k, $_REQUEST) ? $_REQUEST[$k] : $default;
 }
 

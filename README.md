@@ -3,6 +3,8 @@ Static Maps API
 
 ## Parameters
 
+Parameters can be sent in either the query string or in the POST body.
+
 * `zoom` - default 14 - Set the zoom level for the map
 * `width` - default 300 - Width in pixels of the final image
 * `height` - default 300 - Height in pixels of the final image
@@ -26,13 +28,18 @@ Static Maps API
 * `latitude` - optional - Latitude to center the map at. Not needed if using the location parameter, or if specifying one or more markers.
 * `longitude` - optional - Longitude to center the map at.
 * `location` - optional - Free-form text that will be geocoded to center the map. Not needed if specifying a location with the latitude and longitude parameters, or if a marker is specified.
-* `marker[]` - Specify one or more markers to overlay on the map. Parameters are specified as: `key:value;`
-  * `location` - Free-form text that will be geocoded to place the pin
-  * `lat` - If a `location` is not provided, you can specify the location with the `lat` and `lng` parameters.
-  * `lng` - See above
-  * `icon` - Icon to use for the marker. Must choose one of the icons provided in this library. If an invalid icon is specified, the marker will not be rendered.
+* `marker[]` - Specify one or more markers to overlay on the map. Parameters are specified as: `key:value;`. See below for the full list of parameters.
+* `path[]` - Specify one or more paths to draw on the map. See below for the full list of parameters to draw a path.
 
 ## Markers
+
+* `location` - Free-form text that will be geocoded to place the pin
+* `lat` - If a `location` is not provided, you can specify the location with the `lat` and `lng` parameters.
+* `lng` - See above
+* `icon` - Icon to use for the marker. Must choose one of the icons provided in this library, or specify a full URL to a png image. If an invalid icon is specified, the marker will not be rendered.
+
+
+### Built-In Marker Images
 
 * ![dot-large-blue](images/dot-large-blue.png) `dot-large-blue`
 * ![dot-large-gray](images/dot-large-gray.png) `dot-large-gray`
@@ -93,6 +100,26 @@ Static Maps API
 * ![small-yellow-cutout](images/small-yellow-cutout.png) `small-yellow-cutout`
 * ![small-yellow-user](images/small-yellow-user.png) `small-yellow-user`
 
+## Paths
+
+A path is specified as a list of longitude and latitudes, as well as optional properties to specify the weight and color of the path.
+
+The coordinates of the path are the first value of the property, specified as a list of coordinates similar to GeoJSON.
+
+### Examples
+
+Simple path with default color and weight.
+
+```
+path[]=[-122.651082,45.508543],[-122.653617,45.506468],[-122.654183,45.506756]
+```
+
+Specifying the color and weight of the path.
+
+```
+path[]=[-122.651082,45.508543],[-122.653617,45.506468],[-122.654183,45.506756];weight:6;color:0033ff
+```
+
 
 ## Examples
 
@@ -111,6 +138,15 @@ http://static-maps.pdx.esri.com/img.php?marker[]=location:920%20SW%203rd%20Ave,%
 ```
 
 <img src="http://static-maps.pdx.esri.com/img.php?marker[]=location:920%20SW%203rd%20Ave,%20Portland,%20OR;icon:small-blue-cutout&basemap=gray&width=400&height=240&zoom=14">
+
+### Map with an external marker image
+
+```
+http://static-maps.pdx.esri.com/img.php?basemap=gray&width=400&height=240&zoom=14&marker[]=lat:45.5165;lng:-122.6764;icon:http://aaronparecki.com/images/map-pin-green.png
+```
+
+<img src="http://static-maps.pdx.esri.com/img.php?basemap=gray&width=400&height=240&zoom=14&marker[]=lat:45.5165;lng:-122.6764;icon:http://aaronparecki.com/images/map-pin-green.png">
+
 
 ## License
 
