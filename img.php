@@ -104,7 +104,7 @@ if($pathsTemp=request('path')) {
     if(!array_key_exists('color', $properties))
       $properties['color'] = '333333';
     if(!array_key_exists('weight', $properties))
-      $properties['weight'] = 6;
+      $properties['weight'] = 3;
 
     // Now parse the points into an array
     if(preg_match_all('/(?P<point>\[[0-9\.-]+,[0-9\.-]+\])/', $path, $matches)) {
@@ -378,6 +378,12 @@ foreach($markers as $marker) {
   // Icons that start with 'dot-' do not have a shadow
   $shadow = !preg_match('/^dot-/', $marker['icon']);
 
+  if($width < 120 || $height < 120) {
+    $shrinkFactor = 1.5;
+  } else {
+    $shrinkFactor = 1;
+  }
+
   // Icons with a shadow are centered at the bottom middle pixel.
   // Icons with no shadow are centered in the center pixel.
 
@@ -387,8 +393,18 @@ foreach($markers as $marker) {
     'y' => $px['y'] - $topEdge
   );
 
-  if(!array_key_exists('iconImg', $marker))
-    $marker['iconImg'] = imagecreatefrompng($marker['iconFile']);
+  #if(!array_key_exists('iconImg', $marker)) {
+    if($shrinkFactor > 1) {
+      $tmpImg = imagecreatefrompng($marker['iconFile']);
+      $marker['iconImg'] = imagecreatetruecolor(round(imagesx($tmpImg)/$shrinkFactor), round(imagesy($tmpImg)/$shrinkFactor));
+      imagealphablending($marker['iconImg'], true);
+      $color = imagecolorallocatealpha($marker['iconImg'], 0, 0, 0, 127);
+      imagefill($marker['iconImg'], 0,0, $color);
+      imagecopyresampled($marker['iconImg'], $tmpImg, 0,0, 0,0, imagesx($marker['iconImg']),imagesy($marker['iconImg']), imagesx($tmpImg),imagesy($tmpImg));
+    } else {
+      $marker['iconImg'] = imagecreatefrompng($marker['iconFile']);
+    }
+  #}
 
   if($shadow) {
     $iconPos = array(
@@ -402,31 +418,40 @@ foreach($markers as $marker) {
     );
   }
 
-  imagecopy($im, $marker['iconImg'], $iconPos['x'], $iconPos['y'], 0,0, imagesx($marker['iconImg']),imagesy($marker['iconImg']));
+  imagecopy($im, $marker['iconImg'], $iconPos['x'],$iconPos['y'], 0,0, imagesx($marker['iconImg']),imagesy($marker['iconImg']));
 }
 
-imageantialias($im, true); // should anti-alias lines
-$colors = array();
-foreach($paths as $path) {
-  imagesetthickness($im, $path['weight']);
 
-  $colork = $path['color'];
-  if(!array_key_exists($colork, $colors))
-    $colors[$colork] = imagecolorallocatealpha($im, 
-      hexdec($path['color'][0].$path['color'][1]), 
-      hexdec($path['color'][2].$path['color'][3]), 
-      hexdec($path['color'][4].$path['color'][5]), 0);
-  $theColor = $colors[$colork];
 
-  $previous = false;
-  foreach($path['path'] as $point) {
-    if($previous) {
-      $from = $webmercator->latLngToPixels($previous[1], $previous[0], $zoom);
-      $to = $webmercator->latLngToPixels($point[1], $point[0], $zoom);
-      imageline($im, $from['x'] - $leftEdge,$from['y']-$topEdge, $to['x']-$leftEdge,$to['y']-$topEdge, $theColor);
+if(count($paths)) {
+  // Draw the path with ImageMagick because GD sucks as anti-aliased lines
+  $mg = new Imagick();
+  $mg->newImage($width, $height, new ImagickPixel('none'));
+
+  $draw = new ImagickDraw();
+
+  $colors = array();
+  foreach($paths as $path) {
+
+    $draw->setStrokeColor(new ImagickPixel('#'.$path['color']));
+    $draw->setStrokeWidth($path['weight']);
+
+    $previous = false;
+    foreach($path['path'] as $point) {
+      if($previous) {
+        $from = $webmercator->latLngToPixels($previous[1], $previous[0], $zoom);
+        $to = $webmercator->latLngToPixels($point[1], $point[0], $zoom);
+        $draw->line($from['x'] - $leftEdge,$from['y']-$topEdge, $to['x']-$leftEdge,$to['y']-$topEdge);
+      }
+      $previous = $point;
     }
-    $previous = $point;
   }
+
+  $mg->drawImage($draw);
+  $mg->setImageFormat( "png" );
+
+  $pathImg = imagecreatefromstring($mg);
+  imagecopy($im, $pathImg, 0,0, 0,0, $width,$height);
 }
 
 
