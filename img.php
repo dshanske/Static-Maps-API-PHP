@@ -49,22 +49,18 @@ if($markersTemp=request('marker')) {
 
         if(preg_match('/https?:\/\/(.+)/', $properties['icon'], $match)) {
           // Looks like an external image, attempt to download it
-          $properties['iconFile'] = './images/remote/' . str_replace('.', '_', urlencode($match[1])) . '.png';
           $ch = curl_init($properties['icon']);
           curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
           $img = curl_exec($ch);
-          file_put_contents($properties['iconFile'], $img);
-          $properties['iconImg'] = @imagecreatefrompng($properties['iconFile']);
+          $properties['iconImg'] = @imagecreatefromstring($img);
           if(!$properties['iconImg']) {
-            unlink($properties['iconFile']);
-            $properties['iconFile'] = false;
             $properties['iconImg'] = false;
           }
         } else {
-          $properties['iconFile'] = './images/' . $properties['icon'] . '.png';
+          $properties['iconImg'] = imagecreatefrompng('./images/' . $properties['icon'] . '.png');
         }
 
-        if(file_exists($properties['iconFile'])) {
+        if($properties['iconImg']) {
           $markers[] = $properties;
         }
 
@@ -373,56 +369,6 @@ if($overlayURL) {
 }
 
 
-// Add markers
-foreach($markers as $marker) {
-  // Icons that start with 'dot-' do not have a shadow
-  $shadow = !preg_match('/^dot-/', $marker['icon']);
-
-  if($width < 120 || $height < 120) {
-    $shrinkFactor = 1.5;
-  } else {
-    $shrinkFactor = 1;
-  }
-
-  // Icons with a shadow are centered at the bottom middle pixel.
-  // Icons with no shadow are centered in the center pixel.
-
-  $px = $webmercator->latLngToPixels($marker['lat'], $marker['lng'], $zoom);
-  $pos = array(
-    'x' => $px['x'] - $leftEdge,
-    'y' => $px['y'] - $topEdge
-  );
-
-  #if(!array_key_exists('iconImg', $marker)) {
-    if($shrinkFactor > 1) {
-      $tmpImg = imagecreatefrompng($marker['iconFile']);
-      $marker['iconImg'] = imagecreatetruecolor(round(imagesx($tmpImg)/$shrinkFactor), round(imagesy($tmpImg)/$shrinkFactor));
-      imagealphablending($marker['iconImg'], true);
-      $color = imagecolorallocatealpha($marker['iconImg'], 0, 0, 0, 127);
-      imagefill($marker['iconImg'], 0,0, $color);
-      imagecopyresampled($marker['iconImg'], $tmpImg, 0,0, 0,0, imagesx($marker['iconImg']),imagesy($marker['iconImg']), imagesx($tmpImg),imagesy($tmpImg));
-    } else {
-      $marker['iconImg'] = imagecreatefrompng($marker['iconFile']);
-    }
-  #}
-
-  if($shadow) {
-    $iconPos = array(
-      'x' => $pos['x'] - round(imagesx($marker['iconImg'])/2),
-      'y' => $pos['y'] - imagesy($marker['iconImg'])
-    );
-  } else {
-    $iconPos = array(
-      'x' => $pos['x'] - round(imagesx($marker['iconImg'])/2),
-      'y' => $pos['y'] - round(imagesy($marker['iconImg'])/2)
-    );
-  }
-
-  imagecopy($im, $marker['iconImg'], $iconPos['x'],$iconPos['y'], 0,0, imagesx($marker['iconImg']),imagesy($marker['iconImg']));
-}
-
-
-
 if(count($paths)) {
   // Draw the path with ImageMagick because GD sucks as anti-aliased lines
   $mg = new Imagick();
@@ -453,6 +399,54 @@ if(count($paths)) {
   $pathImg = imagecreatefromstring($mg);
   imagecopy($im, $pathImg, 0,0, 0,0, $width,$height);
 }
+
+
+// Add markers
+foreach($markers as $marker) {
+  // Icons that start with 'dot-' do not have a shadow
+  $shadow = !preg_match('/^dot-/', $marker['icon']);
+
+  if($width < 120 || $height < 120) {
+    $shrinkFactor = 1.5;
+  } else {
+    $shrinkFactor = 1;
+  }
+
+  // Icons with a shadow are centered at the bottom middle pixel.
+  // Icons with no shadow are centered in the center pixel.
+
+  $px = $webmercator->latLngToPixels($marker['lat'], $marker['lng'], $zoom);
+  $pos = array(
+    'x' => $px['x'] - $leftEdge,
+    'y' => $px['y'] - $topEdge
+  );
+
+  if($shrinkFactor > 1) {
+    $markerImg = imagecreatetruecolor(round(imagesx($marker['iconImg'])/$shrinkFactor), round(imagesy($marker['iconImg'])/$shrinkFactor));
+    imagealphablending($markerImg, true);
+    $color = imagecolorallocatealpha($markerImg, 0, 0, 0, 127);
+    imagefill($markerImg, 0,0, $color);
+    imagecopyresampled($markerImg, $marker['iconImg'], 0,0, 0,0, imagesx($markerImg),imagesy($markerImg), imagesx($marker['iconImg']),imagesy($marker['iconImg']));
+  } else {
+    $markerImg = $marker['iconImg'];
+  }
+
+  if($shadow) {
+    $iconPos = array(
+      'x' => $pos['x'] - round(imagesx($markerImg)/2),
+      'y' => $pos['y'] - imagesy($markerImg)
+    );
+  } else {
+    $iconPos = array(
+      'x' => $pos['x'] - round(imagesx($markerImg)/2),
+      'y' => $pos['y'] - round(imagesy($markerImg)/2)
+    );
+  }
+
+  imagecopy($im, $markerImg, $iconPos['x'],$iconPos['y'], 0,0, imagesx($markerImg),imagesy($markerImg));
+}
+
+
 
 
 if(request('attribution') != 'none') {
