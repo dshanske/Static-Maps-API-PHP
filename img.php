@@ -368,6 +368,39 @@ if($overlayURL) {
   }
 }
 
+
+if(count($paths)) {
+  // Draw the path with ImageMagick because GD sucks as anti-aliased lines
+  $mg = new Imagick();
+  $mg->newImage($width, $height, new ImagickPixel('none'));
+
+  $draw = new ImagickDraw();
+
+  $colors = array();
+  foreach($paths as $path) {
+
+    $draw->setStrokeColor(new ImagickPixel('#'.$path['color']));
+    $draw->setStrokeWidth($path['weight']);
+
+    $previous = false;
+    foreach($path['path'] as $point) {
+      if($previous) {
+        $from = $webmercator->latLngToPixels($previous[1], $previous[0], $zoom);
+        $to = $webmercator->latLngToPixels($point[1], $point[0], $zoom);
+        $draw->line($from['x'] - $leftEdge,$from['y']-$topEdge, $to['x']-$leftEdge,$to['y']-$topEdge);
+      }
+      $previous = $point;
+    }
+  }
+
+  $mg->drawImage($draw);
+  $mg->setImageFormat( "png" );
+
+  $pathImg = imagecreatefromstring($mg);
+  imagecopy($im, $pathImg, 0,0, 0,0, $width,$height);
+}
+
+
 // Add markers
 foreach($markers as $marker) {
   // Icons that start with 'dot-' do not have a shadow
@@ -414,37 +447,6 @@ foreach($markers as $marker) {
 }
 
 
-
-if(count($paths)) {
-  // Draw the path with ImageMagick because GD sucks as anti-aliased lines
-  $mg = new Imagick();
-  $mg->newImage($width, $height, new ImagickPixel('none'));
-
-  $draw = new ImagickDraw();
-
-  $colors = array();
-  foreach($paths as $path) {
-
-    $draw->setStrokeColor(new ImagickPixel('#'.$path['color']));
-    $draw->setStrokeWidth($path['weight']);
-
-    $previous = false;
-    foreach($path['path'] as $point) {
-      if($previous) {
-        $from = $webmercator->latLngToPixels($previous[1], $previous[0], $zoom);
-        $to = $webmercator->latLngToPixels($point[1], $point[0], $zoom);
-        $draw->line($from['x'] - $leftEdge,$from['y']-$topEdge, $to['x']-$leftEdge,$to['y']-$topEdge);
-      }
-      $previous = $point;
-    }
-  }
-
-  $mg->drawImage($draw);
-  $mg->setImageFormat( "png" );
-
-  $pathImg = imagecreatefromstring($mg);
-  imagecopy($im, $pathImg, 0,0, 0,0, $width,$height);
-}
 
 
 if(request('attribution') != 'none') {
