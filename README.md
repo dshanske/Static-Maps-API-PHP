@@ -148,6 +148,85 @@ http://static-maps.pdx.esri.com/img.php?basemap=gray&width=400&height=240&zoom=1
 <img src="http://static-maps.pdx.esri.com/img.php?basemap=gray&width=400&height=240&zoom=14&marker[]=lat:45.5165;lng:-122.6764;icon:http://aaronparecki.com/images/map-pin-green.png">
 
 
+## How to install
+
+How to install on a blank Ubuntu 14.10 image on Amazon
+
+### Install base packages
+
+```
+sudo apt-get update
+sudo apt-get install git build-essential make bison flex gcc patch autoconf locate libssl-dev curl cmake libjpeg-dev libpng-dev libgif-dev libfreetype6 libfreetype6-dev imagemagick libmagickwand-dev libyaml-dev lynx htop 
+```
+
+### Install nginx
+
+```
+wget http://nginx.org/download/nginx-1.7.3.tar.gz
+tar -xzf nginx-1.7.3.tar.gz
+cd nginx-1.7.3/
+./configure --with-http_stub_status_module
+make && sudo make install
+```
+
+Start nginx when the machine boots
+
+```
+sudo sh -c 'cat << ''EOF'' >> /etc/rc.local
+/usr/local/nginx/sbin/nginx
+EOF'
+```
+
+### Install PHP
+
+```
+sudo apt-get install python-software-properties
+sudo add-apt-repository ppa:ondrej/php5
+sudo apt-get update
+sudo apt-get install php5-fpm php5-cli php5-curl php5-memcache php5-dev php5-imagick
+```
+
+Edit `/etc/php5/fpm/pool.d/www.conf` and uncomment the line `listen.mode = 0660`.
+
+Restart PHP `sudo service php5-fpm restart`
+
+### Configure the virtual host for nginx
+
+Add the below server block to /usr/local/nginx/conf/nginx.conf and remove the default server block.
+
+```
+    server {
+        listen 80;
+        location / {
+           root /var/www/static-maps-api;
+
+           location / {
+               index index.php;
+           }
+
+           location ~ \.php$ {
+               fastcgi_pass    unix:/var/run/php5-fpm.sock;
+               fastcgi_index   index.php;
+               fastcgi_split_path_info ^(.+\.php)(.*)$;
+               include fastcgi_params;
+               fastcgi_param   SCRIPT_FILENAME $document_root$fastcgi_script_name;
+           }
+        }
+    }
+```
+
+Add `user www-data` at the top of `nginx.conf`.
+
+### Clone the source
+
+```
+sudo mkdir -p /var/www/static-maps-api
+sudo chown -R ubuntu: /var/www
+cd /var/www/static-maps-api
+git clone git@github.com:esripdx/Static-Maps-API-PHP.git .
+```
+
+
 ## License
 
 ```
