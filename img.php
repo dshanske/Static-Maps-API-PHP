@@ -4,6 +4,8 @@ include('include/ArcGISGeocoder.php');
 
 define('TILE_SIZE', 256);
 
+$webmercator = new WebMercator();
+
 // If any markers are specified, choose a default lat/lng as the center of all the markers
 
 $bounds = array(
@@ -139,9 +141,43 @@ if(request('latitude') !== false) {
   $longitude = $defaultLongitude;
 }
 
-$zoom = request('zoom', 14);
+
+
 $width = request('width', 300);
 $height = request('height', 300);
+
+
+// If no zoom is specified, choose a zoom level that will fit all the markers
+if(request('zoom')) {
+  $zoom = request('zoom');
+} else {
+
+  // start at max zoom level (20)
+  $fitZoom = 20;
+  $doesNotFit = true;
+  while($fitZoom > 1 && $doesNotFit) {
+    $center = $webmercator->latLngToPixels($latitude, $longitude, $fitZoom);
+
+    $leftEdge = $center['x'] - $width/2;
+    $topEdge = $center['y'] - $height/2;
+
+    // check if the bounding rectangle fits within width/height
+    $sw = $webmercator->latLngToPixels($bounds['minLat'], $bounds['minLng'], $fitZoom);
+    $ne = $webmercator->latLngToPixels($bounds['maxLat'], $bounds['maxLng'], $fitZoom);
+
+    $fitHeight = abs($ne['y'] - $sw['y']);
+    $fitWidth = abs($ne['x'] - $sw['x']);
+
+    if($fitHeight <= $height && $fitWidth <= $width) {
+      $doesNotFit = false;
+    }
+
+    $fitZoom--;
+  }
+
+  $zoom = $fitZoom;
+}
+
 
 
 $tileServices = array(
@@ -214,15 +250,15 @@ function urlForTile($x, $y, $z, $tileURL) {
 }
 
 
-$webmercator = new WebMercator();
 
 
 $im = imagecreatetruecolor($width, $height);
 
-
 // Find the pixel coordinate of the center of the map
 $center = $webmercator->latLngToPixels($latitude, $longitude, $zoom);
-// echo '<br />';
+
+$leftEdge = $center['x'] - $width/2;
+$topEdge = $center['y'] - $height/2;
 
 $tilePos = $webmercator->pixelsToTile($center['x'], $center['y']);
 // print_r($tilePos);
@@ -240,9 +276,6 @@ $neTile = $webmercator->pixelsToTile($center['x'] + $width/2, $center['y'] + $he
 $swTile = $webmercator->pixelsToTile($center['x'] - $width/2, $center['y'] - $height/2);
 // print_r($swTile);
 // echo '<br />';
-
-$leftEdge = $center['x'] - $width/2;
-$topEdge = $center['y'] - $height/2;
 
 
 // Now download all the tiles
