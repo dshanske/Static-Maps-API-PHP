@@ -5,7 +5,8 @@ Static Maps API
 
 Parameters can be sent in either the query string or in the POST body.
 
-* `zoom` - default 14 - Set the zoom level for the map
+* `zoom` - optional - Set the zoom level for the map. If not specified, a zoom level will be chosen that contains all markers on the map.
+* `maxzoom` - optional - When a zoom level is chosen automatically, this sets an upper limit on the zoom level that will be chosen. Useful if you know your basemaps don't have imagery past a certain zoom level.
 * `width` - default 300 - Width in pixels of the final image
 * `height` - default 300 - Height in pixels of the final image
 * `basemap` - default "streets" - Select the basemap

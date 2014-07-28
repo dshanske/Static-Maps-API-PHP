@@ -174,6 +174,10 @@ if(request('zoom')) {
   $zoom = $fitZoom;
 }
 
+if(request('maxzoom') && request('maxzoom') < $zoom) {
+  $zoom = request('maxzoom');
+}
+
 
 
 $tileServices = array(
