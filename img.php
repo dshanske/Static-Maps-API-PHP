@@ -105,6 +105,21 @@ if($pathsTemp=request('path')) {
     // Now parse the points into an array
     if(preg_match_all('/(?P<point>\[[0-9\.-]+,[0-9\.-]+\])/', $path, $matches)) {
       $properties['path'] = json_decode('[' . implode(',', $matches['point']) . ']');
+      // Adjust the bounds to fit the path
+
+      foreach($properties['path'] as $point) {
+        if($point[1] < $bounds['minLat'])
+          $bounds['minLat'] = $point[1];
+
+        if($point[1] > $bounds['maxLat'])
+          $bounds['maxLat'] = $point[1];
+
+        if($point[0] < $bounds['minLng'])
+          $bounds['minLng'] = $point[0];
+
+        if($point[0] > $bounds['maxLng'])
+          $bounds['maxLng'] = $point[0];
+      }
     }
 
     if(array_key_exists('path', $properties))
@@ -143,7 +158,7 @@ $width = request('width', 300);
 $height = request('height', 300);
 
 
-// If no zoom is specified, choose a zoom level that will fit all the markers
+// If no zoom is specified, choose a zoom level that will fit all the markers and the path
 if(request('zoom')) {
   $zoom = request('zoom');
 } else {
