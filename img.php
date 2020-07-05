@@ -197,51 +197,51 @@ if(request('maxzoom') && request('maxzoom') < $zoom) {
 
 $tileServices = array(
   'streets' => array(
-    'http://services.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{Z}/{Y}/{X}'
+    'https://services.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{Z}/{Y}/{X}'
   ),
   'satellite' => array(
-    'http://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{Z}/{Y}/{X}'
+    'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{Z}/{Y}/{X}'
   ),
   'hybrid' => array(
-    'http://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{Z}/{Y}/{X}',
-    'http://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{Z}/{Y}/{X}'
+    'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{Z}/{Y}/{X}',
+    'https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{Z}/{Y}/{X}'
   ),
   'topo' => array(
-    'http://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{Z}/{Y}/{X}'
+    'https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{Z}/{Y}/{X}'
   ),
   'gray' => array(
-    'http://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer/tile/{Z}/{Y}/{X}',
-    'http://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Reference/MapServer/tile/{Z}/{Y}/{X}'
+    'https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer/tile/{Z}/{Y}/{X}',
+    'https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Reference/MapServer/tile/{Z}/{Y}/{X}'
   ),
   'gray-background' => array(
-    'http://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer/tile/{Z}/{Y}/{X}',
+    'https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer/tile/{Z}/{Y}/{X}',
   ),
   'oceans' => array(
-    'http://server.arcgisonline.com/ArcGIS/rest/services/Ocean_Basemap/MapServer/tile/{Z}/{Y}/{X}'
+    'https://server.arcgisonline.com/ArcGIS/rest/services/Ocean_Basemap/MapServer/tile/{Z}/{Y}/{X}'
   ),
   'national-geographic' => array(
-    'http://server.arcgisonline.com/ArcGIS/rest/services/NatGeo_World_Map/MapServer/tile/{Z}/{Y}/{X}'
+    'https://server.arcgisonline.com/ArcGIS/rest/services/NatGeo_World_Map/MapServer/tile/{Z}/{Y}/{X}'
   ),
   'osm' => array(
-    'http://tile.openstreetmap.org/{Z}/{X}/{Y}.png'
+    'https://tile.openstreetmap.org/{Z}/{X}/{Y}.png'
   ),
   'stamen-toner' => array(
-    'http://tile.stamen.com/toner/{Z}/{X}/{Y}.png'
+    'https://stamen-tiles.a.ssl.fastly.net/toner/{Z}/{X}/{Y}.png'
   ),
   'stamen-toner-background' => array(
-    'http://tile.stamen.com/toner-background/{Z}/{X}/{Y}.png'
+    'https://stamen-tiles.a.ssl.fastly.net/toner-background/{Z}/{X}/{Y}.png'
   ),
   'stamen-toner-lite' => array(
-    'http://tile.stamen.com/toner-lite/{Z}/{X}/{Y}.png'
+    'https://stamen-tiles.a.ssl.fastly.net/toner-lite/{Z}/{X}/{Y}.png'
   ),
   'stamen-terrain' => array(
-    'http://tile.stamen.com/terrain/{Z}/{X}/{Y}.png'
+    'https://stamen-tiles.a.ssl.fastly.net/terrain/{Z}/{X}/{Y}.png'
   ),
   'stamen-terrain-background' => array(
-    'http://tile.stamen.com/terrain-background/{Z}/{X}/{Y}.png'
+    'https://stamen-tiles.a.ssl.fastly.net/terrain-background/{Z}/{X}/{Y}.png'
   ),
   'stamen-watercolor' => array(
-    'http://tile.stamen.com/watercolor/{Z}/{X}/{Y}.png'
+    'https://stamen-tiles.a.ssl.fastly.net/watercolor/{Z}/{X}/{Y}.png'
   )
 );
 
