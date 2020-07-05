@@ -314,7 +314,7 @@ for($x = $swTile['x']; $x <= $neTile['x']; $x++) {
     $chs["$x"]["$y"] = curl_init($url);
     curl_setopt($chs["$x"]["$y"], CURLOPT_RETURNTRANSFER, TRUE);
     curl_multi_add_handle($mh, $chs["$x"]["$y"]);
-
+    curl_setopt($chs["$x"]["$y"], CURLOPT_USERAGENT, 'Static Maps API/ github.com/aaronpk/Static-Maps-API-PHP');
     if($overlayURL) {
       $url = urlForTile($x, $y, $zoom, $overlayURL);
       $overlays["$x"]["$y"] = false;
