@@ -225,6 +225,9 @@ $tileServices = array(
   'osm' => array(
     'https://tile.openstreetmap.org/{Z}/{X}/{Y}.png'
   ),
+  'otm' => array(
+    'https://tile.opentopomap.org/{Z}/{X}/{Y}.png'
+  ),
   'stamen-toner' => array(
     'https://stamen-tiles.a.ssl.fastly.net/toner/{Z}/{X}/{Y}.png'
   ),
