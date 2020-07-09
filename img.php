@@ -474,7 +474,14 @@ foreach($markers as $marker) {
 
 
 
-if(request('attribution') != 'none') {
+if( 'mapbox' === request('attribution') ) {
+  $logo = imagecreatefrompng('./images/mapbox-attribution.png');
+  imagecopy($im, $logo, $width-imagesx($logo), $height-imagesy($logo), 0,0, imagesx($logo),imagesy($logo));
+} elseif ( 'mapbox-small' === request('attribution') ) {
+  $logo = imagecreatefrompng($assetPath . '/mapbox-attribution.png');
+  $shrinkFactor = 2;
+  imagecopyresampled($im, $logo, $width-round(imagesx($logo)/$shrinkFactor), $height-round(imagesy($logo)/$shrinkFactor), 0,0, round(imagesx($logo)/$shrinkFactor),round(imagesy($logo)/$shrinkFactor), imagesx($logo),imagesy($logo));
+} elseif(request('attribution') != 'none') {
   $logo = imagecreatefrompng('./images/powered-by-esri.png');
 
   // Shrink the esri logo if the image is small
