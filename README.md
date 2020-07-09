@@ -26,6 +26,7 @@ Parameters can be sent in either the query string or in the POST body.
   * `stamen-terrain` - [Stamen Terrain](http://maps.stamen.com/terrain/) with labels
   * `stamen-terrain-background` - [Stamen Terrain](http://maps.stamen.com/terrain-background/) without labels
   * `stamen-watercolor` - [Stamen Watercolor](http://maps.stamen.com/watercolor/)
+  * `custom` - Pass through the tile URL using parameter `tileurl`
 * `attribution` - default "esri" - "esri" or "none" - If you add attribution on the image in some other way, you can set this to "none" to hide the Esri logo
 * `latitude` - optional - Latitude to center the map at. Not needed if using the location parameter, or if specifying one or more markers.
 * `longitude` - optional - Longitude to center the map at.

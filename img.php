@@ -248,14 +248,17 @@ $tileServices = array(
   )
 );
 
-if(request('basemap')) {
+if( (request('basemap')) && array_key_exists( request('basemap'), $tileServices ) ) {
   $tileURL = $tileServices[request('basemap')][0];
   if(array_key_exists(1, $tileServices[request('basemap')]))
     $overlayURL = $tileServices[request('basemap')][1];
   else
     $overlayURL = 0;
+} elseif ('custom' === request('basemap') ) {
+    $tileURL = request('tileurl');
+    $overlayURL = false;
 } else {
-  $tileURL = $tileServices['streets'][0];
+  $tileURL = $tileServices['osm'][0];
   $overlayURL = false;
 }
 
