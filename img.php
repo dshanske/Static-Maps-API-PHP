@@ -481,6 +481,10 @@ if( 'mapbox' === request('attribution') ) {
   $logo = imagecreatefrompng($assetPath . '/mapbox-attribution.png');
   $shrinkFactor = 2;
   imagecopyresampled($im, $logo, $width-round(imagesx($logo)/$shrinkFactor), $height-round(imagesy($logo)/$shrinkFactor), 0,0, round(imagesx($logo)/$shrinkFactor),round(imagesy($logo)/$shrinkFactor), imagesx($logo),imagesy($logo));
+} elseif ('osm' === request('attribution') ) {
+  $logo = imagecreatefrompng('./images/osm-attribution.png');
+  $shrinkFactor = 4;
+  imagecopyresampled($im, $logo, $width-round(imagesx($logo)/$shrinkFactor), $height-round(imagesy($logo)/$shrinkFactor), 0,0, round(imagesx($logo)/$shrinkFactor),round(imagesy($logo)/$shrinkFactor), imagesx($logo),imagesy($logo));
 } elseif(request('attribution') != 'none') {
   $logo = imagecreatefrompng('./images/powered-by-esri.png');
 
