@@ -249,6 +249,12 @@ $tileServices = array(
   ),
   'stamen-watercolor' => array(
     'https://stamen-tiles.a.ssl.fastly.net/watercolor/{Z}/{X}/{Y}.png'
+  ),
+  'carto-light' => array(
+    'https://cartodb-basemaps-a.global.ssl.fastly.net/light_all/{Z}/{X}/{Y}.png'
+  ),
+  'carto-dark' => array(
+    'https://cartodb-basemaps-a.global.ssl.fastly.net/dark_all/{Z}/{X}/{Y}.png'
   )
 );
 
