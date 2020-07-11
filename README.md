@@ -30,7 +30,7 @@ Parameters can be sent in either the query string or in the POST body.
   * `carto-dark` -  [Carto](https://carto.com/location-data-services/basemaps/) Free usage for up to 75,000 mapviews per month, non-commercial services only.
   * `carto-voyager` - [Carto](https://carto.com/location-data-services/basemaps/) Free usage for up to 75,000 mapviews per month, non-commercial services only. 
   * `custom` - Pass through the tile URL using parameter `tileurl`
-* `attribution` - default "osm" - "esri", "osm", "mapbox" or "none" - If you add attribution on the image in some other way, you can set this to "none" to hide all logos.
+* `attribution` - default "osm" - "esri", "osm", "mapbox" or "none" or specify a full URL to a png image - If you add attribution on the image in some other way, you can set this to "none" to hide all logos.
 * `latitude` - optional - Latitude to center the map at. Not needed if using the location parameter, or if specifying one or more markers.
 * `longitude` - optional - Longitude to center the map at.
 * `location` - optional - Free-form text that will be geocoded to center the map. Not needed if specifying a location with the latitude and longitude parameters, or if a marker is specified.

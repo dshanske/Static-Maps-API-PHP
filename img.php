@@ -543,8 +543,14 @@ foreach($markers as $marker) {
 
 
 
-
-if( 'mapbox' === request('attribution') ) {
+if(preg_match('/https?:\/\/(.+)/', request('attribution'), $match)) {
+  // Looks like an external image, attempt to download it
+  $ch = curl_init(request('attribution'));
+  curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+  $img = curl_exec($ch);
+  $logo = @imagecreatefromstring($img);
+  imagecopy($im, $logo, $width-imagesx($logo), $height-imagesy($logo), 0,0, imagesx($logo),imagesy($logo));
+} elseif ( 'mapbox' === request('attribution') ) {
   $logo = imagecreatefrompng('./images/mapbox-attribution.png');
   imagecopy($im, $logo, $width-imagesx($logo), $height-imagesy($logo), 0,0, imagesx($logo),imagesy($logo));
 } elseif ( 'mapbox-small' === request('attribution') ) {
@@ -567,7 +573,7 @@ if( 'mapbox' === request('attribution') ) {
   $logo = imagecreatefrompng('./images/osm-attribution.png');
   $shrinkFactor = 4;
   imagecopyresampled($im, $logo, $width-round(imagesx($logo)/$shrinkFactor), $height-round(imagesy($logo)/$shrinkFactor), 0,0, round(imagesx($logo)/$shrinkFactor),round(imagesy($logo)/$shrinkFactor), imagesx($logo),imagesy($logo));
-
+}
 #header('Cache-Control: max-age=' . (60*60*24*30) . ', public');
 
 #header('X-Tiles-Downloaded: ' . $numTiles);
