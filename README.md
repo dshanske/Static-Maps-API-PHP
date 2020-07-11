@@ -26,13 +26,17 @@ Parameters can be sent in either the query string or in the POST body.
   * `stamen-terrain` - [Stamen Terrain](http://maps.stamen.com/terrain/) with labels
   * `stamen-terrain-background` - [Stamen Terrain](http://maps.stamen.com/terrain-background/) without labels
   * `stamen-watercolor` - [Stamen Watercolor](http://maps.stamen.com/watercolor/)
+  * `carto-light` -  [Carto](https://carto.com/location-data-services/basemaps/) Free usage for up to 75,000 mapviews per month, non-commercial services only. 
+  * `carto-dark` -  [Carto](https://carto.com/location-data-services/basemaps/) Free usage for up to 75,000 mapviews per month, non-commercial services only.
+  * `carto-voyager` - [Carto](https://carto.com/location-data-services/basemaps/) Free usage for up to 75,000 mapviews per month, non-commercial services only. 
   * `custom` - Pass through the tile URL using parameter `tileurl`
-* `attribution` - default "esri" - "esri" or "none" - If you add attribution on the image in some other way, you can set this to "none" to hide the Esri logo
+* `attribution` - default "osm" - "esri", "osm", "mapbox" or "none" - If you add attribution on the image in some other way, you can set this to "none" to hide all logos.
 * `latitude` - optional - Latitude to center the map at. Not needed if using the location parameter, or if specifying one or more markers.
 * `longitude` - optional - Longitude to center the map at.
 * `location` - optional - Free-form text that will be geocoded to center the map. Not needed if specifying a location with the latitude and longitude parameters, or if a marker is specified.
-* `marker[]` - Specify one or more markers to overlay on the map. Parameters are specified as: `key:value;`. See below for the full list of parameters.
+* `marker[]` - Specify one or more markers to overlay on the map. Parameters are specified as: `key:value;`. See below for the full list of parameters. 
 * `path[]` - Specify one or more paths to draw on the map. See below for the full list of parameters to draw a path.
+* `bezier` - Specify a bezier curve to your path. 25 will give you a nicely curved line. [More Info](https://aaronparecki.com/2017/01/02/6/day-13-curved-map-lines)
 
 ## Markers
 
@@ -159,7 +163,7 @@ How to install on a blank Ubuntu 14.10 image on Amazon
 
 ```
 sudo apt-get update
-sudo apt-get install git build-essential make bison flex gcc patch autoconf locate libssl-dev curl cmake libjpeg-dev libpng-dev libgif-dev libfreetype6 libfreetype6-dev imagemagick libmagickwand-dev libyaml-dev lynx htop 
+sudo apt-get install git build-essential make bison flex gcc patch autoconf locate libssl-dev curl cmake libjpeg-dev libpng-dev libgif-dev libfreetype6 libfreetype6-dev imagemagick libmagickwand-dev libyaml-dev lynx htop
 ```
 
 ### Install nginx
@@ -226,7 +230,7 @@ Add `user www-data` at the top of `nginx.conf`.
 sudo mkdir -p /var/www/static-maps-api
 sudo chown -R ubuntu: /var/www
 cd /var/www/static-maps-api
-git clone git@github.com:esripdx/Static-Maps-API-PHP.git .
+git clone git@github.com:aaronpk/Static-Maps-API-PHP.git .
 ```
 
 

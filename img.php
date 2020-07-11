@@ -255,6 +255,9 @@ $tileServices = array(
   ),
   'carto-dark' => array(
     'https://cartodb-basemaps-a.global.ssl.fastly.net/dark_all/{Z}/{X}/{Y}.png'
+  ),
+  'carto-voyager' => array(
+    'https://cartodb-basemaps-a.global.ssl.fastly.net/rastertiles/voyager/{Z}/{X}/{Y}.png'
   )
 );
 
@@ -548,11 +551,7 @@ if( 'mapbox' === request('attribution') ) {
   $logo = imagecreatefrompng($assetPath . '/mapbox-attribution.png');
   $shrinkFactor = 2;
   imagecopyresampled($im, $logo, $width-round(imagesx($logo)/$shrinkFactor), $height-round(imagesy($logo)/$shrinkFactor), 0,0, round(imagesx($logo)/$shrinkFactor),round(imagesy($logo)/$shrinkFactor), imagesx($logo),imagesy($logo));
-} elseif ('osm' === request('attribution') ) {
-  $logo = imagecreatefrompng('./images/osm-attribution.png');
-  $shrinkFactor = 4;
-  imagecopyresampled($im, $logo, $width-round(imagesx($logo)/$shrinkFactor), $height-round(imagesy($logo)/$shrinkFactor), 0,0, round(imagesx($logo)/$shrinkFactor),round(imagesy($logo)/$shrinkFactor), imagesx($logo),imagesy($logo));
-} elseif(request('attribution') != 'none') {
+} elseif('esri' === request('attribution') ) {
   $logo = imagecreatefrompng('./images/powered-by-esri.png');
 
   // Shrink the esri logo if the image is small
@@ -564,7 +563,10 @@ if( 'mapbox' === request('attribution') ) {
       imagecopy($im, $logo, $width-imagesx($logo)-4, $height-imagesy($logo)-4, 0,0, imagesx($logo),imagesy($logo));
     }
   }
-}
+} elseif ('osm' === request('attribution') ) {
+  $logo = imagecreatefrompng('./images/osm-attribution.png');
+  $shrinkFactor = 4;
+  imagecopyresampled($im, $logo, $width-round(imagesx($logo)/$shrinkFactor), $height-round(imagesy($logo)/$shrinkFactor), 0,0, round(imagesx($logo)/$shrinkFactor),round(imagesy($logo)/$shrinkFactor), imagesx($logo),imagesy($logo));
 
 #header('Cache-Control: max-age=' . (60*60*24*30) . ', public');
 
