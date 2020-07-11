@@ -193,6 +193,10 @@ if(request('maxzoom') && request('maxzoom') < $zoom) {
   $zoom = request('maxzoom');
 }
 
+$minZoom = 2;
+if($zoom < $minZoom)
+  $zoom = $minZoom;
+
 
 
 $tileServices = array(
@@ -406,14 +410,71 @@ if(count($paths)) {
 
     $draw->setStrokeColor(new ImagickPixel('#'.$path['color']));
     $draw->setStrokeWidth($path['weight']);
+    $draw->setFillOpacity(0);
+    $draw->setStrokeLineCap(Imagick::LINECAP_ROUND);
+    $draw->setStrokeLineJoin(Imagick::LINEJOIN_ROUND);
 
     $previous = false;
     foreach($path['path'] as $point) {
       if($previous) {
         $from = $webmercator->latLngToPixels($previous[1], $previous[0], $zoom);
         $to = $webmercator->latLngToPixels($point[1], $point[0], $zoom);
-        $draw->line($from['x'] - $leftEdge,$from['y']-$topEdge, $to['x']-$leftEdge,$to['y']-$topEdge);
-      }
+
+        if( request('bezier') ) {
+          $x_dist = abs($from['x'] - $to['x']);
+	  $y_dist = abs($from['y'] - $to['y']);
+
+	  // If the X distance is longer than Y distance, draw from left to right
+	  if($x_dist > $y_dist) {
+	    // Draw from left to right
+	    if($from['x'] > $to['x']) {
+	      $tmpFrom = $from;
+	      $tmpTo = $to;
+	      $from = $tmpTo;
+	      $to = $tmpFrom;
+	      unset($tmp);
+	     }
+	  } else {
+	    // Draw from top to bottom
+	    if($from['y'] > $to['y']) {
+	      $tmpFrom = $from;
+	      $tmpTo = $to;
+	      $from = $tmpTo;
+	      $to = $tmpFrom;
+	      unset($tmp);
+	    }
+	  }
+
+          $angle = 1 * request('bezier');
+
+	  // Midpoint between the two ends
+	  $M = array(
+	  	'x' => ($from['x'] + $to['x']) / 2,
+		'y' => ($from['y'] + $to['y']) / 2
+	  );
+
+	  // Derived from http://math.stackexchange.com/a/383648 and http://www.wolframalpha.com/input/?i=triangle+%5B1,1%5D+%5B5,2%5D+%5B1-1%2Fsqrt(3),1%2B4%2Fsqrt(3)%5D
+          // See  for details
+          $A = $from;
+          $B = $to;
+
+          $P = array(
+		'x' => ($M['x']) - (($A['y']-$M['y']) * tan(deg2rad($angle))),
+		'y' => ($M['y']) + (($A['x']-$M['x']) * tan(deg2rad($angle)))
+	  );
+
+          $draw->pathStart();
+	  $draw->pathMoveToAbsolute($A['x']-$leftEdge,$A['y']-$topEdge);
+	  $draw->pathCurveToQuadraticBezierAbsolute(
+		$P['x']-$leftEdge, $P['y']-$topEdge,
+		$B['x']-$leftEdge, $B['y']-$topEdge
+	  );
+	
+	  $draw->pathFinish();
+        } else {
+         $draw->line($from['x']-$leftEdge,$from['y']-$topEdge, $to['x']-$leftEdge,$to['y']-$topEdge);
+        }
+    }
       $previous = $point;
     }
   }
@@ -499,9 +560,9 @@ if( 'mapbox' === request('attribution') ) {
   }
 }
 
-header('Cache-Control: max-age=' . (60*60*24*30) . ', public');
+#header('Cache-Control: max-age=' . (60*60*24*30) . ', public');
 
-header('X-Tiles-Downloaded: ' . $numTiles);
+#header('X-Tiles-Downloaded: ' . $numTiles);
 
 $fmt = request('format', "png");
 switch($fmt) {
