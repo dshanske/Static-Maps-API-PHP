@@ -1,6 +1,7 @@
 <?php
 include('include/WebMercator.php');
 include('include/ArcGISGeocoder.php');
+include('include/Polyline.php');
 
 define('TILE_SIZE', 256);
 
@@ -121,12 +122,33 @@ if($pathsTemp=request('path')) {
           $bounds['maxLng'] = $point[0];
       }
     }
-
     if(array_key_exists('path', $properties))
       $paths[] = $properties;
-  }
-}
 
+  }
+} else if($pathsTemp=request('polyline')) {
+      $properties = array(
+			'color' => '333333',
+			'weight' => 3,
+    			'path' => Polyline::pair( Polyline::decode( $pathsTemp ) )
+		);
+      foreach($properties['path'] as $point) {
+        if($point[1] < $bounds['minLat'])
+           $bounds['minLat'] = $point[1];
+
+        if($point[1] > $bounds['maxLat'])
+              $bounds['maxLat'] = $point[1];
+
+        if($point[0] < $bounds['minLng'])
+          $bounds['minLng'] = $point[0];
+
+        if($point[0] > $bounds['maxLng'])
+          $bounds['maxLng'] = $point[0];
+      }
+
+      $paths[] = $properties;
+	
+}
 
 $defaultLatitude = $bounds['minLat'] + (($bounds['maxLat'] - $bounds['minLat']) / 2);
 $defaultLongitude = $bounds['minLng'] + (($bounds['maxLng'] - $bounds['minLng']) / 2);
@@ -197,7 +219,9 @@ $minZoom = 2;
 if($zoom < $minZoom)
   $zoom = $minZoom;
 
-
+$maxZoom = 18;
+if ($zoom > $maxZoom)
+  $zoom = $maxZoom;
 
 $tileServices = array(
   'streets' => array(
@@ -569,7 +593,7 @@ if(preg_match('/https?:\/\/(.+)/', request('attribution'), $match)) {
       imagecopy($im, $logo, $width-imagesx($logo)-4, $height-imagesy($logo)-4, 0,0, imagesx($logo),imagesy($logo));
     }
   }
-} elseif ('osm' === request('attribution') ) {
+} else {
   $logo = imagecreatefrompng('./images/osm-attribution.png');
   $shrinkFactor = 4;
   imagecopyresampled($im, $logo, $width-round(imagesx($logo)/$shrinkFactor), $height-round(imagesy($logo)/$shrinkFactor), 0,0, round(imagesx($logo)/$shrinkFactor),round(imagesy($logo)/$shrinkFactor), imagesx($logo),imagesy($logo));
