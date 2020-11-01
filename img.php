@@ -127,26 +127,36 @@ if($pathsTemp=request('path')) {
 
   }
 } else if($pathsTemp=request('polyline')) {
-      $properties = array(
-			'color' => '333333',
-			'weight' => 3,
-    			'path' => Polyline::pair( Polyline::decode( $pathsTemp ) )
-		);
-      foreach($properties['path'] as $point) {
-        if($point[1] < $bounds['minLat'])
-           $bounds['minLat'] = $point[1];
+    $properties = array();
+    if(preg_match_all('/(?P<k>[a-z]+):(?P<v>[^;]+)/', $pathsTemp, $matches)) {
+      foreach($matches['k'] as $j=>$key) {
+        $properties[$key] = $matches['v'][$j];
+      }
+    }
 
-        if($point[1] > $bounds['maxLat'])
+    // Set default color and weight if none specified
+    if(!array_key_exists('color', $properties))
+      $properties['color'] = '333333';
+    if(!array_key_exists('weight', $properties))
+      $properties['weight'] = 3;
+      if ( array_key_exists( 'enc', $properties ) ) {
+      	    $properties['path'] = Polyline::pair( Polyline::decode( $properties['enc'] ) );
+            foreach($properties['path'] as $point) {
+            if($point[1] < $bounds['minLat'])
+               $bounds['minLat'] = $point[1];
+
+            if($point[1] > $bounds['maxLat'])
               $bounds['maxLat'] = $point[1];
 
-        if($point[0] < $bounds['minLng'])
-          $bounds['minLng'] = $point[0];
+            if($point[0] < $bounds['minLng'])
+              $bounds['minLng'] = $point[0];
 
-        if($point[0] > $bounds['maxLng'])
-          $bounds['maxLng'] = $point[0];
-      }
+            if($point[0] > $bounds['maxLng'])
+              $bounds['maxLng'] = $point[0];
+            }
 
       $paths[] = $properties;
+    }
 	
 }
 

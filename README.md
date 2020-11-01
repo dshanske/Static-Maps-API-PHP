@@ -36,6 +36,7 @@ Parameters can be sent in either the query string or in the POST body.
 * `location` - optional - Free-form text that will be geocoded to center the map. Not needed if specifying a location with the latitude and longitude parameters, or if a marker is specified.
 * `marker[]` - Specify one or more markers to overlay on the map. Parameters are specified as: `key:value;`. See below for the full list of parameters. 
 * `path[]` - Specify one or more paths to draw on the map. See below for the full list of parameters to draw a path.
+* `polyline` - Alternative to path, this allows for a path to be specified as an encoded polyline, allowing for shorter URLs.
 * `bezier` - Specify a bezier curve to your path. 25 will give you a nicely curved line. [More Info](https://aaronparecki.com/2017/01/02/6/day-13-curved-map-lines)
 
 ## Markers
@@ -127,6 +128,25 @@ Specifying the color and weight of the path.
 path[]=[-122.651082,45.508543],[-122.653617,45.506468],[-122.654183,45.506756];weight:6;color:0033ff
 ```
 
+## Polylines
+
+A polyline is an encoded string representing a set of points, as well as optional properties to specify the weight and color of the path.
+
+The encoded polyline first value of the property, followed by the optional color and weight.
+
+### Examples
+
+Simple path with default color and weight.
+
+```
+polyline=enc:abcdethtihwithieht3
+```
+
+Specifying the color and weight of the path.
+
+```
+polyline=enc:abcdefghghgk;weight:6;color:0033ff
+```
 
 ## Examples
 
