@@ -1,6 +1,7 @@
 <?php
 include('include/WebMercator.php');
 include('include/ArcGISGeocoder.php');
+include('include/Polyline.php');
 
 define('TILE_SIZE', 256);
 
@@ -121,12 +122,43 @@ if($pathsTemp=request('path')) {
           $bounds['maxLng'] = $point[0];
       }
     }
-
     if(array_key_exists('path', $properties))
       $paths[] = $properties;
-  }
-}
 
+  }
+} else if($pathsTemp=request('polyline')) {
+    $properties = array();
+    if(preg_match_all('/(?P<k>[a-z]+):(?P<v>[^;]+)/', $pathsTemp, $matches)) {
+      foreach($matches['k'] as $j=>$key) {
+        $properties[$key] = $matches['v'][$j];
+      }
+    }
+
+    // Set default color and weight if none specified
+    if(!array_key_exists('color', $properties))
+      $properties['color'] = '333333';
+    if(!array_key_exists('weight', $properties))
+      $properties['weight'] = 3;
+      if ( array_key_exists( 'enc', $properties ) ) {
+      	    $properties['path'] = Polyline::pair( Polyline::decode( $properties['enc'] ) );
+            foreach($properties['path'] as $point) {
+            if($point[1] < $bounds['minLat'])
+               $bounds['minLat'] = $point[1];
+
+            if($point[1] > $bounds['maxLat'])
+              $bounds['maxLat'] = $point[1];
+
+            if($point[0] < $bounds['minLng'])
+              $bounds['minLng'] = $point[0];
+
+            if($point[0] > $bounds['maxLng'])
+              $bounds['maxLng'] = $point[0];
+            }
+
+      $paths[] = $properties;
+    }
+	
+}
 
 $defaultLatitude = $bounds['minLat'] + (($bounds['maxLat'] - $bounds['minLat']) / 2);
 $defaultLongitude = $bounds['minLng'] + (($bounds['maxLng'] - $bounds['minLng']) / 2);
@@ -193,66 +225,87 @@ if(request('maxzoom') && request('maxzoom') < $zoom) {
   $zoom = request('maxzoom');
 }
 
+$minZoom = 2;
+if($zoom < $minZoom)
+  $zoom = $minZoom;
 
+$maxZoom = 18;
+if ($zoom > $maxZoom)
+  $zoom = $maxZoom;
 
 $tileServices = array(
   'streets' => array(
-    'http://services.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{Z}/{Y}/{X}'
+    'https://services.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{Z}/{Y}/{X}'
   ),
   'satellite' => array(
-    'http://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{Z}/{Y}/{X}'
+    'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{Z}/{Y}/{X}'
   ),
   'hybrid' => array(
-    'http://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{Z}/{Y}/{X}',
-    'http://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{Z}/{Y}/{X}'
+    'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{Z}/{Y}/{X}',
+    'https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{Z}/{Y}/{X}'
   ),
   'topo' => array(
-    'http://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{Z}/{Y}/{X}'
+    'https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{Z}/{Y}/{X}'
   ),
   'gray' => array(
-    'http://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer/tile/{Z}/{Y}/{X}',
-    'http://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Reference/MapServer/tile/{Z}/{Y}/{X}'
+    'https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer/tile/{Z}/{Y}/{X}',
+    'https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Reference/MapServer/tile/{Z}/{Y}/{X}'
   ),
   'gray-background' => array(
-    'http://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer/tile/{Z}/{Y}/{X}',
+    'https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer/tile/{Z}/{Y}/{X}',
   ),
   'oceans' => array(
-    'http://server.arcgisonline.com/ArcGIS/rest/services/Ocean_Basemap/MapServer/tile/{Z}/{Y}/{X}'
+    'https://server.arcgisonline.com/ArcGIS/rest/services/Ocean_Basemap/MapServer/tile/{Z}/{Y}/{X}'
   ),
   'national-geographic' => array(
-    'http://server.arcgisonline.com/ArcGIS/rest/services/NatGeo_World_Map/MapServer/tile/{Z}/{Y}/{X}'
+    'https://server.arcgisonline.com/ArcGIS/rest/services/NatGeo_World_Map/MapServer/tile/{Z}/{Y}/{X}'
   ),
   'osm' => array(
-    'http://tile.openstreetmap.org/{Z}/{X}/{Y}.png'
+    'https://tile.openstreetmap.org/{Z}/{X}/{Y}.png'
+  ),
+  'otm' => array(
+    'https://tile.opentopomap.org/{Z}/{X}/{Y}.png'
   ),
   'stamen-toner' => array(
-    'http://tile.stamen.com/toner/{Z}/{X}/{Y}.png'
+    'https://stamen-tiles.a.ssl.fastly.net/toner/{Z}/{X}/{Y}.png'
   ),
   'stamen-toner-background' => array(
-    'http://tile.stamen.com/toner-background/{Z}/{X}/{Y}.png'
+    'https://stamen-tiles.a.ssl.fastly.net/toner-background/{Z}/{X}/{Y}.png'
   ),
   'stamen-toner-lite' => array(
-    'http://tile.stamen.com/toner-lite/{Z}/{X}/{Y}.png'
+    'https://stamen-tiles.a.ssl.fastly.net/toner-lite/{Z}/{X}/{Y}.png'
   ),
   'stamen-terrain' => array(
-    'http://tile.stamen.com/terrain/{Z}/{X}/{Y}.png'
+    'https://stamen-tiles.a.ssl.fastly.net/terrain/{Z}/{X}/{Y}.png'
   ),
   'stamen-terrain-background' => array(
-    'http://tile.stamen.com/terrain-background/{Z}/{X}/{Y}.png'
+    'https://stamen-tiles.a.ssl.fastly.net/terrain-background/{Z}/{X}/{Y}.png'
   ),
   'stamen-watercolor' => array(
-    'http://tile.stamen.com/watercolor/{Z}/{X}/{Y}.png'
+    'https://stamen-tiles.a.ssl.fastly.net/watercolor/{Z}/{X}/{Y}.png'
+  ),
+  'carto-light' => array(
+    'https://cartodb-basemaps-a.global.ssl.fastly.net/light_all/{Z}/{X}/{Y}.png'
+  ),
+  'carto-dark' => array(
+    'https://cartodb-basemaps-a.global.ssl.fastly.net/dark_all/{Z}/{X}/{Y}.png'
+  ),
+  'carto-voyager' => array(
+    'https://cartodb-basemaps-a.global.ssl.fastly.net/rastertiles/voyager/{Z}/{X}/{Y}.png'
   )
 );
 
-if(request('basemap')) {
+if( (request('basemap')) && array_key_exists( request('basemap'), $tileServices ) ) {
   $tileURL = $tileServices[request('basemap')][0];
   if(array_key_exists(1, $tileServices[request('basemap')]))
     $overlayURL = $tileServices[request('basemap')][1];
   else
     $overlayURL = 0;
+} elseif ('custom' === request('basemap') ) {
+    $tileURL = request('tileurl');
+    $overlayURL = false;
 } else {
-  $tileURL = $tileServices['streets'][0];
+  $tileURL = $tileServices['osm'][0];
   $overlayURL = false;
 }
 
@@ -314,7 +367,7 @@ for($x = $swTile['x']; $x <= $neTile['x']; $x++) {
     $chs["$x"]["$y"] = curl_init($url);
     curl_setopt($chs["$x"]["$y"], CURLOPT_RETURNTRANSFER, TRUE);
     curl_multi_add_handle($mh, $chs["$x"]["$y"]);
-
+    curl_setopt($chs["$x"]["$y"], CURLOPT_USERAGENT, 'Static Maps API/ github.com/aaronpk/Static-Maps-API-PHP');
     if($overlayURL) {
       $url = urlForTile($x, $y, $zoom, $overlayURL);
       $overlays["$x"]["$y"] = false;
@@ -400,14 +453,71 @@ if(count($paths)) {
 
     $draw->setStrokeColor(new ImagickPixel('#'.$path['color']));
     $draw->setStrokeWidth($path['weight']);
+    $draw->setFillOpacity(0);
+    $draw->setStrokeLineCap(Imagick::LINECAP_ROUND);
+    $draw->setStrokeLineJoin(Imagick::LINEJOIN_ROUND);
 
     $previous = false;
     foreach($path['path'] as $point) {
       if($previous) {
         $from = $webmercator->latLngToPixels($previous[1], $previous[0], $zoom);
         $to = $webmercator->latLngToPixels($point[1], $point[0], $zoom);
-        $draw->line($from['x'] - $leftEdge,$from['y']-$topEdge, $to['x']-$leftEdge,$to['y']-$topEdge);
-      }
+
+        if( request('bezier') ) {
+          $x_dist = abs($from['x'] - $to['x']);
+	  $y_dist = abs($from['y'] - $to['y']);
+
+	  // If the X distance is longer than Y distance, draw from left to right
+	  if($x_dist > $y_dist) {
+	    // Draw from left to right
+	    if($from['x'] > $to['x']) {
+	      $tmpFrom = $from;
+	      $tmpTo = $to;
+	      $from = $tmpTo;
+	      $to = $tmpFrom;
+	      unset($tmp);
+	     }
+	  } else {
+	    // Draw from top to bottom
+	    if($from['y'] > $to['y']) {
+	      $tmpFrom = $from;
+	      $tmpTo = $to;
+	      $from = $tmpTo;
+	      $to = $tmpFrom;
+	      unset($tmp);
+	    }
+	  }
+
+          $angle = 1 * request('bezier');
+
+	  // Midpoint between the two ends
+	  $M = array(
+	  	'x' => ($from['x'] + $to['x']) / 2,
+		'y' => ($from['y'] + $to['y']) / 2
+	  );
+
+	  // Derived from http://math.stackexchange.com/a/383648 and http://www.wolframalpha.com/input/?i=triangle+%5B1,1%5D+%5B5,2%5D+%5B1-1%2Fsqrt(3),1%2B4%2Fsqrt(3)%5D
+          // See  for details
+          $A = $from;
+          $B = $to;
+
+          $P = array(
+		'x' => ($M['x']) - (($A['y']-$M['y']) * tan(deg2rad($angle))),
+		'y' => ($M['y']) + (($A['x']-$M['x']) * tan(deg2rad($angle)))
+	  );
+
+          $draw->pathStart();
+	  $draw->pathMoveToAbsolute($A['x']-$leftEdge,$A['y']-$topEdge);
+	  $draw->pathCurveToQuadraticBezierAbsolute(
+		$P['x']-$leftEdge, $P['y']-$topEdge,
+		$B['x']-$leftEdge, $B['y']-$topEdge
+	  );
+	
+	  $draw->pathFinish();
+        } else {
+         $draw->line($from['x']-$leftEdge,$from['y']-$topEdge, $to['x']-$leftEdge,$to['y']-$topEdge);
+        }
+    }
       $previous = $point;
     }
   }
@@ -467,8 +577,21 @@ foreach($markers as $marker) {
 
 
 
-
-if(request('attribution') != 'none') {
+if(preg_match('/https?:\/\/(.+)/', request('attribution'), $match)) {
+  // Looks like an external image, attempt to download it
+  $ch = curl_init(request('attribution'));
+  curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+  $img = curl_exec($ch);
+  $logo = @imagecreatefromstring($img);
+  imagecopy($im, $logo, $width-imagesx($logo), $height-imagesy($logo), 0,0, imagesx($logo),imagesy($logo));
+} elseif ( 'mapbox' === request('attribution') ) {
+  $logo = imagecreatefrompng('./images/mapbox-attribution.png');
+  imagecopy($im, $logo, $width-imagesx($logo), $height-imagesy($logo), 0,0, imagesx($logo),imagesy($logo));
+} elseif ( 'mapbox-small' === request('attribution') ) {
+  $logo = imagecreatefrompng($assetPath . '/mapbox-attribution.png');
+  $shrinkFactor = 2;
+  imagecopyresampled($im, $logo, $width-round(imagesx($logo)/$shrinkFactor), $height-round(imagesy($logo)/$shrinkFactor), 0,0, round(imagesx($logo)/$shrinkFactor),round(imagesy($logo)/$shrinkFactor), imagesx($logo),imagesy($logo));
+} elseif('esri' === request('attribution') ) {
   $logo = imagecreatefrompng('./images/powered-by-esri.png');
 
   // Shrink the esri logo if the image is small
@@ -480,11 +603,14 @@ if(request('attribution') != 'none') {
       imagecopy($im, $logo, $width-imagesx($logo)-4, $height-imagesy($logo)-4, 0,0, imagesx($logo),imagesy($logo));
     }
   }
+} else {
+  $logo = imagecreatefrompng('./images/osm-attribution.png');
+  $shrinkFactor = 4;
+  imagecopyresampled($im, $logo, $width-round(imagesx($logo)/$shrinkFactor), $height-round(imagesy($logo)/$shrinkFactor), 0,0, round(imagesx($logo)/$shrinkFactor),round(imagesy($logo)/$shrinkFactor), imagesx($logo),imagesy($logo));
 }
+#header('Cache-Control: max-age=' . (60*60*24*30) . ', public');
 
-header('Cache-Control: max-age=' . (60*60*24*30) . ', public');
-
-header('X-Tiles-Downloaded: ' . $numTiles);
+#header('X-Tiles-Downloaded: ' . $numTiles);
 
 $fmt = request('format', "png");
 switch($fmt) {

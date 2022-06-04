@@ -10,27 +10,34 @@ Parameters can be sent in either the query string or in the POST body.
 * `width` - default 300 - Width in pixels of the final image
 * `height` - default 300 - Height in pixels of the final image
 * `basemap` - default "streets" - Select the basemap
-  * `streets` - Default [Esri street basemap](http://www.arcgis.com/home/webmap/viewer.html?webmap=7990d7ea55204450b8110d57e20c99ab)
-  * `satellite` - Esri's [satellite basemap](http://www.arcgis.com/home/webmap/viewer.html?webmap=d802f08316e84c6592ef681c50178f17&center=-71.055499,42.364247&level=15)
+  * `streets` - Default [Esri street basemap](https://www.arcgis.com/home/webmap/viewer.html?webmap=7990d7ea55204450b8110d57e20c99ab)
+  * `satellite` - Esri's [satellite basemap](https://www.arcgis.com/home/webmap/viewer.html?webmap=d802f08316e84c6592ef681c50178f17&center=-71.055499,42.364247&level=15)
   * `hybrid` - Satellite basemap with labels
-  * `topo` - Esri [topographic map](http://www.arcgis.com/home/webmap/viewer.html?webmap=a72b0766aea04b48bf7a0e8c27ccc007)
+  * `topo` - Esri [topographic map](https://www.arcgis.com/home/webmap/viewer.html?webmap=a72b0766aea04b48bf7a0e8c27ccc007)
   * `gray` - Esri gray canvas with labels
-  * `gray-background` - Esri [gray canvas](http://www.arcgis.com/home/webmap/viewer.html?webmap=8b3d38c0819547faa83f7b7aca80bd76) without labels
-  * `oceans` - Esri [ocean basemap](http://www.arcgis.com/home/webmap/viewer.html?webmap=5ae9e138a17842688b0b79283a4353f6&center=-122.255816,36.573652&level=8)
-  * `national-geographic` - [National Geographic basemap](http://www.arcgis.com/home/webmap/viewer.html?webmap=d94dcdbe78e141c2b2d3a91d5ca8b9c9)
-  * `osm` - [Open Street Map](http://www.openstreetmap.org/)
+  * `gray-background` - Esri [gray canvas](https://www.arcgis.com/home/webmap/viewer.html?webmap=8b3d38c0819547faa83f7b7aca80bd76) without labels
+  * `oceans` - Esri [ocean basemap](https://www.arcgis.com/home/webmap/viewer.html?webmap=5ae9e138a17842688b0b79283a4353f6&center=-122.255816,36.573652&level=8)
+  * `national-geographic` - [National Geographic basemap](https://www.arcgis.com/home/webmap/viewer.html?webmap=d94dcdbe78e141c2b2d3a91d5ca8b9c9)
+  * `osm` - [Open Street Map](https://www.openstreetmap.org/)
+  * `otm` - [OpenTopoMap](https://www.opentopomap.org/)
   * `stamen-toner` - [Stamen Toner](http://maps.stamen.com/toner/) black and white map with labels
   * `stamen-toner-background` - [Stamen Toner](http://maps.stamen.com/toner-background/) map without labels
   * `stamen-toner-lite` - [Stamen Toner Light](http://maps.stamen.com/toner-lite/) with labels
   * `stamen-terrain` - [Stamen Terrain](http://maps.stamen.com/terrain/) with labels
   * `stamen-terrain-background` - [Stamen Terrain](http://maps.stamen.com/terrain-background/) without labels
   * `stamen-watercolor` - [Stamen Watercolor](http://maps.stamen.com/watercolor/)
-* `attribution` - default "esri" - "esri" or "none" - If you add attribution on the image in some other way, you can set this to "none" to hide the Esri logo
+  * `carto-light` -  [Carto](https://carto.com/location-data-services/basemaps/) Free usage for up to 75,000 mapviews per month, non-commercial services only. 
+  * `carto-dark` -  [Carto](https://carto.com/location-data-services/basemaps/) Free usage for up to 75,000 mapviews per month, non-commercial services only.
+  * `carto-voyager` - [Carto](https://carto.com/location-data-services/basemaps/) Free usage for up to 75,000 mapviews per month, non-commercial services only. 
+  * `custom` - Pass through the tile URL using parameter `tileurl`
+* `attribution` - default "osm" - "esri", "osm", "mapbox" or "none" or specify a full URL to a png image - If you add attribution on the image in some other way, you can set this to "none" to hide all logos.
 * `latitude` - optional - Latitude to center the map at. Not needed if using the location parameter, or if specifying one or more markers.
 * `longitude` - optional - Longitude to center the map at.
 * `location` - optional - Free-form text that will be geocoded to center the map. Not needed if specifying a location with the latitude and longitude parameters, or if a marker is specified.
-* `marker[]` - Specify one or more markers to overlay on the map. Parameters are specified as: `key:value;`. See below for the full list of parameters.
+* `marker[]` - Specify one or more markers to overlay on the map. Parameters are specified as: `key:value;`. See below for the full list of parameters. 
 * `path[]` - Specify one or more paths to draw on the map. See below for the full list of parameters to draw a path.
+* `polyline` - Alternative to path, this allows for a path to be specified as an encoded polyline, allowing for shorter URLs.
+* `bezier` - Specify a bezier curve to your path. 25 will give you a nicely curved line. [More Info](https://aaronparecki.com/2017/01/02/6/day-13-curved-map-lines)
 
 ## Markers
 
@@ -121,6 +128,25 @@ Specifying the color and weight of the path.
 path[]=[-122.651082,45.508543],[-122.653617,45.506468],[-122.654183,45.506756];weight:6;color:0033ff
 ```
 
+## Polylines
+
+A polyline is an encoded string representing a set of points, as well as optional properties to specify the weight and color of the path.
+
+The encoded polyline first value of the property, followed by the optional color and weight.
+
+### Examples
+
+Simple path with default color and weight.
+
+```
+polyline=enc:abcdethtihwithieht3
+```
+
+Specifying the color and weight of the path.
+
+```
+polyline=enc:abcdefghghgk;weight:6;color:0033ff
+```
 
 ## Examples
 
@@ -157,7 +183,7 @@ How to install on a blank Ubuntu 14.10 image on Amazon
 
 ```
 sudo apt-get update
-sudo apt-get install git build-essential make bison flex gcc patch autoconf locate libssl-dev curl cmake libjpeg-dev libpng-dev libgif-dev libfreetype6 libfreetype6-dev imagemagick libmagickwand-dev libyaml-dev lynx htop 
+sudo apt-get install git build-essential make bison flex gcc patch autoconf locate libssl-dev curl cmake libjpeg-dev libpng-dev libgif-dev libfreetype6 libfreetype6-dev imagemagick libmagickwand-dev libyaml-dev lynx htop
 ```
 
 ### Install nginx
@@ -224,7 +250,7 @@ Add `user www-data` at the top of `nginx.conf`.
 sudo mkdir -p /var/www/static-maps-api
 sudo chown -R ubuntu: /var/www
 cd /var/www/static-maps-api
-git clone git@github.com:esripdx/Static-Maps-API-PHP.git .
+git clone git@github.com:aaronpk/Static-Maps-API-PHP.git .
 ```
 
 
