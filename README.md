@@ -2,7 +2,6 @@ Static Maps API
 ===============
 
 
-
 ## Parameters
 
 Parameters can be sent in either the query string or in the POST body.
@@ -244,7 +243,8 @@ git clone git@github.com:dshanske/Static-Maps-API-PHP.git .
 
 ```
 
-Original version of code was noted copyright 2013 Esri, Inc.
+Original version of code was noted copyright 2013 Esri, Inc. The original version was created by [Aaron Parecki](https://github.com/aaronpk) who has moved on to a newer version of the code in his
+[Atlas API](https://github.com/aaronpk/Atlas). Maintenance of the original project, including the backporting of features as well as some additional tweaks, was taken on in 2022 by David Shanske.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
