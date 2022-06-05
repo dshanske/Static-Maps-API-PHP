@@ -356,26 +356,30 @@ $mh = curl_multi_init();
 $numTiles = 0;
 
 for($x = $swTile['x']; $x <= $neTile['x']; $x++) {
-  if(!array_key_exists("$x", $tiles)) {
-    $tiles["$x"] = array();
-    $overlays["$x"] = array();
-    $chs["$x"] = array();
-    $ochs["$x"] = array();
+  $x = (int)$x;
+  if(!array_key_exists($x, $tiles)) {
+    $tiles[$x] = array();
+    $overlays[$x] = array();
+    $chs[$x] = array();
+    $ochs[$x] = array();
   }
 
   for($y = $swTile['y']; $y <= $neTile['y']; $y++) {
+    $y = (int)$y;
     $url = urlForTile($x, $y, $zoom, $tileURL);
-    $tiles["$x"]["$y"] = false;
-    $chs["$x"]["$y"] = curl_init($url);
-    curl_setopt($chs["$x"]["$y"], CURLOPT_RETURNTRANSFER, TRUE);
-    curl_multi_add_handle($mh, $chs["$x"]["$y"]);
-    curl_setopt($chs["$x"]["$y"], CURLOPT_USERAGENT, 'Static Maps API/ github.com/aaronpk/Static-Maps-API-PHP');
+    $tiles[$x][$y] = false;
+    $chs[$x][$y] = curl_init($url);
+    curl_setopt($chs[$x][$y], CURLOPT_RETURNTRANSFER, TRUE);
+    curl_setopt($chs[$x][$y], CURLOPT_FOLLOWLOCATION, TRUE);
+    curl_multi_add_handle($mh, $chs[$x][$y]);
+    curl_setopt($chs[$x][$y], CURLOPT_USERAGENT, 'Static Maps API/ github.com/dshanske/Static-Maps-API-PHP');
     if($overlayURL) {
       $url = urlForTile($x, $y, $zoom, $overlayURL);
-      $overlays["$x"]["$y"] = false;
-      $ochs["$x"]["$y"] = curl_init($url);
-      curl_setopt($ochs["$x"]["$y"], CURLOPT_RETURNTRANSFER, TRUE);
-      curl_multi_add_handle($mh, $ochs["$x"]["$y"]);
+      $overlays[$x][$y] = false;
+      $ochs[$x][$y] = curl_init($url);
+      curl_setopt($ochs[$x][$y], CURLOPT_RETURNTRANSFER, TRUE);
+      curl_setopt($ochs[$x][$y], CURLOPT_FOLLOWLOCATION, TRUE);
+      curl_multi_add_handle($mh, $ochs[$x][$y]);
     }
 
     $numTiles++;
@@ -396,10 +400,9 @@ imagefill($blank, 0,0, $grey);
 foreach($chs as $x=>$yTiles) {
   foreach($yTiles as $y=>$ch) {
     $content = curl_multi_getcontent($ch);
-    if($content)
-      $tiles["$x"]["$y"] = @imagecreatefromstring($content);
-    else
-      $tiles["$x"]["$y"] = $blank;
+    $tiles[$x][$y] = @imagecreatefromstring($content);
+    if(!$tiles[$x][$y]) 
+      $tiles[$x][$y] = $blank;
   }
 }
 
@@ -407,10 +410,9 @@ if($overlayURL) {
   foreach($ochs as $x=>$yTiles) {
     foreach($yTiles as $y=>$ch) {
       $content = curl_multi_getcontent($ch);
-      if($content)
-        $overlays["$x"]["$y"] = @imagecreatefromstring($content);
-      else
-        $overlays["$x"]["$y"] = $blank;
+      $overlays[$x][$y] = @imagecreatefromstring($content);
+      if(!$overlays[$x][$y])
+        $overlays[$x][$y] = $blank;
     }
   }
 }
@@ -583,6 +585,7 @@ if(preg_match('/https?:\/\/(.+)/', request('attribution'), $match)) {
   // Looks like an external image, attempt to download it
   $ch = curl_init(request('attribution'));
   curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+  curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
   $img = curl_exec($ch);
   $logo = @imagecreatefromstring($img);
   imagecopy($im, $logo, $width-imagesx($logo), $height-imagesy($logo), 0,0, imagesx($logo),imagesy($logo));
