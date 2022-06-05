@@ -1,6 +1,8 @@
 Static Maps API
 ===============
 
+
+
 ## Parameters
 
 Parameters can be sent in either the query string or in the POST body.
@@ -9,7 +11,8 @@ Parameters can be sent in either the query string or in the POST body.
 * `maxzoom` - optional - When a zoom level is chosen automatically, this sets an upper limit on the zoom level that will be chosen. Useful if you know your basemaps don't have imagery past a certain zoom level.
 * `width` - default 300 - Width in pixels of the final image
 * `height` - default 300 - Height in pixels of the final image
-* `basemap` - default "streets" - Select the basemap
+* `basemap` - default "osm" - Select the basemap
+  * `osm` - [Open Street Map](https://www.openstreetmap.org/)
   * `streets` - Default [Esri street basemap](https://www.arcgis.com/home/webmap/viewer.html?webmap=7990d7ea55204450b8110d57e20c99ab)
   * `satellite` - Esri's [satellite basemap](https://www.arcgis.com/home/webmap/viewer.html?webmap=d802f08316e84c6592ef681c50178f17&center=-71.055499,42.364247&level=15)
   * `hybrid` - Satellite basemap with labels
@@ -18,7 +21,6 @@ Parameters can be sent in either the query string or in the POST body.
   * `gray-background` - Esri [gray canvas](https://www.arcgis.com/home/webmap/viewer.html?webmap=8b3d38c0819547faa83f7b7aca80bd76) without labels
   * `oceans` - Esri [ocean basemap](https://www.arcgis.com/home/webmap/viewer.html?webmap=5ae9e138a17842688b0b79283a4353f6&center=-122.255816,36.573652&level=8)
   * `national-geographic` - [National Geographic basemap](https://www.arcgis.com/home/webmap/viewer.html?webmap=d94dcdbe78e141c2b2d3a91d5ca8b9c9)
-  * `osm` - [Open Street Map](https://www.openstreetmap.org/)
   * `otm` - [OpenTopoMap](https://www.opentopomap.org/)
   * `stamen-toner` - [Stamen Toner](http://maps.stamen.com/toner/) black and white map with labels
   * `stamen-toner-background` - [Stamen Toner](http://maps.stamen.com/toner-background/) map without labels
@@ -177,45 +179,28 @@ http://static-maps.pdx.esri.com/img.php?basemap=gray&width=400&height=240&zoom=1
 
 ## How to install
 
-How to install on a blank Ubuntu 14.10 image on Amazon
+How to install on a Debian or Ubuntu Server
 
 ### Install base packages
 
 ```
-sudo apt-get update
-sudo apt-get install git build-essential make bison flex gcc patch autoconf locate libssl-dev curl cmake libjpeg-dev libpng-dev libgif-dev libfreetype6 libfreetype6-dev imagemagick libmagickwand-dev libyaml-dev lynx htop
+sudo apt update
+sudo apt install git build-essential make bison flex gcc patch autoconf locate libssl-dev curl cmake libjpeg-dev libpng-dev libgif-dev libfreetype6 libfreetype6-dev imagemagick libmagickwand-dev libyaml-dev lynx htop nginx
 ```
 
-### Install nginx
+
+### Install and Configure PHP
 
 ```
-wget http://nginx.org/download/nginx-1.7.3.tar.gz
-tar -xzf nginx-1.7.3.tar.gz
-cd nginx-1.7.3/
-./configure --with-http_stub_status_module
-make && sudo make install
+sudo apt update
+sudo apt install php-fpm php-cli php-curl php-memcache php-dev php-imagick
 ```
 
-Start nginx when the machine boots
+Edit `/etc/php7.4/fpm/pool.d/www.conf` and uncomment the line `listen.mode = 0660`.
 
-```
-sudo sh -c 'cat << ''EOF'' >> /etc/rc.local
-/usr/local/nginx/sbin/nginx
-EOF'
-```
+You may have to replace 7.4 with installed version
 
-### Install PHP
-
-```
-sudo apt-get install python-software-properties
-sudo add-apt-repository ppa:ondrej/php5
-sudo apt-get update
-sudo apt-get install php5-fpm php5-cli php5-curl php5-memcache php5-dev php5-imagick
-```
-
-Edit `/etc/php5/fpm/pool.d/www.conf` and uncomment the line `listen.mode = 0660`.
-
-Restart PHP `sudo service php5-fpm restart`
+Restart PHP `sudo service php7.4-fpm restart`
 
 ### Configure the virtual host for nginx
 
@@ -224,16 +209,12 @@ Add the below server block to /usr/local/nginx/conf/nginx.conf and remove the de
 ```
     server {
         listen 80;
-        location / {
-           root /var/www/static-maps-api;
+        root /var/www/static-maps-api/public;
+	try_files $uri /img.php?$args;
 
-           location / {
-               index index.php;
-           }
-
-           location ~ \.php$ {
-               fastcgi_pass    unix:/var/run/php5-fpm.sock;
-               fastcgi_index   index.php;
+	location ~ \.php$ {
+	       fastcgi_pass    unix:/var/run/php7.4-fpm.sock;
+	       fastcgi_index   index.php;
                fastcgi_split_path_info ^(.+\.php)(.*)$;
                include fastcgi_params;
                fastcgi_param   SCRIPT_FILENAME $document_root$fastcgi_script_name;
@@ -242,22 +223,21 @@ Add the below server block to /usr/local/nginx/conf/nginx.conf and remove the de
     }
 ```
 
-Add `user www-data` at the top of `nginx.conf`.
-
 ### Clone the source
 
 ```
 sudo mkdir -p /var/www/static-maps-api
 sudo chown -R ubuntu: /var/www
 cd /var/www/static-maps-api
-git clone git@github.com:aaronpk/Static-Maps-API-PHP.git .
+git clone git@github.com:dshanske/Static-Maps-API-PHP.git .
 ```
-
 
 ## License
 
+
 ```
-Copyright 2013 Esri, Inc
+
+Original version of code was noted copyright 2013 Esri, Inc.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.

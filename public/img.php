@@ -1,7 +1,7 @@
 <?php
-include('include/WebMercator.php');
-include('include/ArcGISGeocoder.php');
-include('include/Polyline.php');
+include('../include/WebMercator.php');
+include('../include/ArcGISGeocoder.php');
+include('../include/Polyline.php');
 
 define('TILE_SIZE', 256);
 
