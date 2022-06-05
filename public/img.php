@@ -2,6 +2,7 @@
 include('../include/WebMercator.php');
 include('../include/ArcGISGeocoder.php');
 include('../include/Polyline.php');
+include('../include/helpers.php');
 
 define('TILE_SIZE', 256);
 
@@ -15,6 +16,8 @@ $bounds = array(
   'minLng' => 180,
   'maxLng' => -180
 );
+
+$is_authenticated = is_authenticated( request('token' ) );
 
 $markers = array();
 if($markersTemp=request('marker')) {
@@ -640,7 +643,4 @@ function pa($a) {
   echo '</pre>';
 }
 
-function request($k, $default=false) {
-  return array_key_exists($k, $_REQUEST) ? $_REQUEST[$k] : $default;
-}
 
