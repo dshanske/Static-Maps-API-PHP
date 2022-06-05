@@ -31,7 +31,7 @@ Parameters can be sent in either the query string or in the POST body.
   * `carto-light` -  [Carto](https://carto.com/location-data-services/basemaps/) Free usage for up to 75,000 mapviews per month, non-commercial services only. 
   * `carto-dark` -  [Carto](https://carto.com/location-data-services/basemaps/) Free usage for up to 75,000 mapviews per month, non-commercial services only.
   * `carto-voyager` - [Carto](https://carto.com/location-data-services/basemaps/) Free usage for up to 75,000 mapviews per month, non-commercial services only. 
-  * `custom` - Pass through the tile URL using parameter `tileurl`
+  * `custom` - Pass through the tile URL using parameter `tileurl`, requires authentication
 * `attribution` - default "osm" - "esri", "osm", "mapbox" or "none" or specify a full URL to a png image - If you add attribution on the image in some other way, you can set this to "none" to hide all logos.
 * `latitude` - optional - Latitude to center the map at. Not needed if using the location parameter, or if specifying one or more markers.
 * `longitude` - optional - Longitude to center the map at.
@@ -46,20 +46,20 @@ Parameters can be sent in either the query string or in the POST body.
 * `location` - Free-form text that will be geocoded to place the pin
 * `lat` - If a `location` is not provided, you can specify the location with the `lat` and `lng` parameters.
 * `lng` - See above
-* `icon` - Icon to use for the marker. Must choose one of the icons provided in this library, or specify a full URL to a png image. If an invalid icon is specified, the marker will not be rendered.
+* `icon` - Icon to use for the marker. Must choose one of the icons provided in this library, or specify a full URL to a png image. If an invalid icon is specified, the marker will not be rendered. Using a URL required authentication.
 
 
 ### Built-In Marker Images
 
-* ![dot-large-blue](images/dot-large-blue.png) `dot-large-blue`
-* ![dot-large-gray](images/dot-large-gray.png) `dot-large-gray`
-* ![dot-large-green](images/dot-large-green.png) `dot-large-green`
-* ![dot-large-orange](images/dot-large-orange.png) `dot-large-orange`
-* ![dot-large-pink](images/dot-large-pink.png) `dot-large-pink`
-* ![dot-large-purple](images/dot-large-purple.png) `dot-large-purple`
-* ![dot-large-red](images/dot-large-red.png) `dot-large-red`
-* ![dot-large-yellow](images/dot-large-yellow.png) `dot-large-yellow`
-* ![dot-small-blue](images/dot-small-blue.png) `dot-small-blue`
+* ![dot-large-blue](public/images/dot-large-blue.png) `dot-large-blue`
+* ![dot-large-gray](public/images/dot-large-gray.png) `dot-large-gray`
+* ![dot-large-green](public/images/dot-large-green.png) `dot-large-green`
+* ![dot-large-orange](public/images/dot-large-orange.png) `dot-large-orange`
+* ![dot-large-pink](public/images/dot-large-pink.png) `dot-large-pink`
+* ![dot-large-purple](public/images/dot-large-purple.png) `dot-large-purple`
+* ![dot-large-red](public/images/dot-large-red.png) `dot-large-red`
+* ![dot-large-yellow](public/images/dot-large-yellow.png) `dot-large-yellow`
+* ![dot-small-blue](public/images/dot-small-blue.png) `dot-small-blue`
 * ![dot-small-gray](images/dot-small-gray.png) `dot-small-gray`
 * ![dot-small-green](images/dot-small-green.png) `dot-small-green`
 * ![dot-small-orange](images/dot-small-orange.png) `dot-small-orange`
@@ -109,6 +109,13 @@ Parameters can be sent in either the query string or in the POST body.
 * ![small-yellow-blank](images/small-yellow-blank.png) `small-yellow-blank`
 * ![small-yellow-cutout](images/small-yellow-cutout.png) `small-yellow-cutout`
 * ![small-yellow-user](images/small-yellow-user.png) `small-yellow-user`
+
+
+## Authentication
+
+To be able to use externally-referenced icons or tile URLs, you will need to configure API keys and provide a token in the request. This locks down the ability to fetch external resources to only trusted users of the system.
+
+Create a file data/apikeys.txt and generate a random string with a tool of your choosing, and with one API key per line. Any value passed in the parameter token that matches the text in a line in this file will enable the request to use the restricted features that reference external URLs.
 
 ## Paths
 

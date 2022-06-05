@@ -52,14 +52,13 @@ if($markersTemp=request('marker')) {
         }
 
         if(preg_match('/https?:\/\/(.+)/', $properties['icon'], $match)) {
+	  if ($is_authenticated) {
           // Looks like an external image, attempt to download it
           $ch = curl_init($properties['icon']);
           curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
           $img = curl_exec($ch);
           $properties['iconImg'] = @imagecreatefromstring($img);
-          if(!$properties['iconImg']) {
-            $properties['iconImg'] = false;
-          }
+	  }
         } else {
           $properties['iconImg'] = imagecreatefrompng('./images/' . $properties['icon'] . '.png');
         }
@@ -304,7 +303,7 @@ if( (request('basemap')) && array_key_exists( request('basemap'), $tileServices 
     $overlayURL = $tileServices[request('basemap')][1];
   else
     $overlayURL = 0;
-} elseif ('custom' === request('basemap') ) {
+} elseif ('custom' === request('basemap') && $is_authenticated ) {
     $tileURL = request('tileurl');
     $overlayURL = false;
 } else {

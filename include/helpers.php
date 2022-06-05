@@ -5,7 +5,7 @@ function request($k, $default=false) {
 }
 
 function is_authenticated($token) {
-  if( ! $token ) )
+  if( ! $token )
     return false;
 
   $token_file = __DIR__.'/../data/apikeys.txt';
