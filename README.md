@@ -199,7 +199,7 @@ sudo apt install git build-essential make bison flex gcc patch autoconf locate l
 
 ```
 sudo apt update
-sudo apt install php-fpm php-cli php-curl php-memcache php-dev php-imagick
+sudo apt install php-fpm php-cli php-curl php-memcache php-dev php-imagick php-gd
 ```
 
 Edit `/etc/php7.4/fpm/pool.d/www.conf` and uncomment the line `listen.mode = 0660`.
@@ -224,7 +224,6 @@ Add the below server block to /usr/local/nginx/conf/nginx.conf and remove the de
                fastcgi_split_path_info ^(.+\.php)(.*)$;
                include fastcgi_params;
                fastcgi_param   SCRIPT_FILENAME $document_root$fastcgi_script_name;
-           }
         }
     }
 ```
