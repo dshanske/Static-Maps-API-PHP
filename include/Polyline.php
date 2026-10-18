@@ -65,13 +65,13 @@ class Polyline
      *
      * @return string encoded string
      */
-    final public static function encode( $points )
+    final public static function encode($points)
     {
         $points = self::flatten($points);
         $encodedString = '';
         $index = 0;
         $previous = array(0,0);
-        foreach ( $points as $number ) {
+        foreach ($points as $number) {
             $number = (float)($number);
             $number = (int)round($number * pow(10, static::$precision));
             $diff = $number - $previous[$index % 2];
@@ -80,7 +80,7 @@ class Polyline
             $index++;
             $number = ($number < 0) ? ~($number << 1) : ($number << 1);
             $chunk = '';
-            while ( $number >= 0x20 ) {
+            while ($number >= 0x20) {
                 $chunk .= chr((0x20 | ($number & 0x1f)) + 63);
                 $number >>= 5;
             }
@@ -97,7 +97,7 @@ class Polyline
      *
      * @return array points
      */
-    final public static function decode( $string )
+    final public static function decode($string)
     {
         $points = array();
         $index = $i = 0;
@@ -126,7 +126,7 @@ class Polyline
      *
      * @return array flattened
      */
-    final public static function flatten( $array )
+    final public static function flatten($array)
     {
         $flatten = array();
         array_walk_recursive(
@@ -145,7 +145,7 @@ class Polyline
      *
      * @return array pairs
      */
-    final public static function pair( $list )
+    final public static function pair($list)
     {
         return is_array($list) ? array_chunk($list, 2) : array();
     }
