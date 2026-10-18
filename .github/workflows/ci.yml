@@ -1,0 +1,61 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  lint:
+    name: Lint (PHP ${{ matrix.php }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        php: ['8.1', '8.2', '8.3', '8.4', '8.5']
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          extensions: curl, gd, imagick
+          coverage: none
+
+      - uses: ramsey/composer-install@v4
+
+      - name: Syntax check
+        run: composer lint
+
+  analyse:
+    name: Coding standard & static analysis
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.5'
+          extensions: curl, gd, imagick
+          coverage: none
+          tools: cs2pr
+
+      - uses: ramsey/composer-install@v4
+
+      - name: PHPCS (PSR-12 + PHPCompatibility 8.1+)
+        run: vendor/bin/phpcs -q --report-checkstyle=${{ runner.temp }}/phpcs-report.xml --report-full
+
+      - name: Annotate PHPCS results
+        if: ${{ always() }}
+        run: test -f "${{ runner.temp }}/phpcs-report.xml" && cs2pr --graceful-warnings "${{ runner.temp }}/phpcs-report.xml" || true
+
+      - name: PHPStan
+        run: vendor/bin/phpstan analyse --no-progress --memory-limit=1G --error-format=github
