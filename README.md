@@ -1,6 +1,8 @@
 Static Maps API
 ===============
 
+[![CI](https://github.com/dshanske/Static-Maps-API-PHP/actions/workflows/ci.yml/badge.svg)](https://github.com/dshanske/Static-Maps-API-PHP/actions/workflows/ci.yml)
+
 
 ## Parameters
 
