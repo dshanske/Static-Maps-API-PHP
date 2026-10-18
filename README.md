@@ -118,6 +118,47 @@ To be able to use externally-referenced icons or tile URLs, you will need to con
 
 Create a file data/apikeys.txt and generate a random string with a tool of your choosing, and with one API key per line. Any value passed in the parameter token that matches the text in a line in this file will enable the request to use the restricted features that reference external URLs.
 
+## Configuration
+
+Settings such as the basemaps, default image size, zoom limits and the User-Agent sent to tile servers are in two PHP files that each return an array:
+
+| File | Purpose |
+|---|---|
+| `config/defaults.php` | The shipped defaults. Every setting is documented here. **Don't edit this file**: it's part of the code and is replaced when you update. |
+| `data/config.php` | Your install's settings. Not part of the repository, so it survives updates. Start by copying `data/config.example.php`. |
+
+```
+cp data/config.example.php data/config.php
+```
+
+Put only the settings you want to change in `data/config.php`. It is merged over the defaults: arrays with named keys (such as `defaults`, `zoom`, `basemaps` and each basemap) are merged key by key, and everything else, including lists such as a basemap's `layers`, replaces the default. For example:
+
+```php
+<?php
+return [
+    'defaults'   => ['width' => 600, 'height' => 400],
+    'user_agent' => 'Static Maps API/ maps.example.com (admin@example.com)',
+    'basemaps'   => [
+        // Switch a basemap off
+        'national-geographic' => ['enabled' => false],
+        // Limit a basemap's zoom range
+        'otm' => ['maxzoom' => 17],
+        // Add a basemap that needs an API key ({key} is replaced with 'key')
+        'stadia-toner' => [
+            'name'   => 'Stamen Toner (Stadia Maps)',
+            'layers' => ['https://tiles.stadiamaps.com/tiles/stamen_toner/{z}/{x}/{y}.png?api_key={key}'],
+            'key'    => 'your-stadia-api-key',
+        ],
+    ],
+];
+```
+
+Each basemap has a `name` and a list of one or two tile URL `layers` (a base map and an optional overlay drawn on top). It can also set a default `attribution`, `minzoom` / `maxzoom`, `requires_auth` (only usable with a valid token), `enabled`, `alias_of` (serve another basemap under this id) and `key`. See `config/defaults.php` for details.
+
+To keep the file somewhere else, set the `STATIC_MAPS_CONFIG` environment variable to its full path, for example with `env[STATIC_MAPS_CONFIG] = /etc/static-maps/config.php` in your PHP-FPM pool.
+
+If the configuration is invalid, every request returns HTTP 500 and the reason is written to the PHP error log.
+
 ## Paths
 
 A path is specified as a list of longitude and latitudes, as well as optional properties to specify the weight and color of the path.

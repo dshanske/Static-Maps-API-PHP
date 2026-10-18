@@ -6,3 +6,5 @@ parameters:
     paths:
         - include
         - public
+        - config
+        - data/config.example.php

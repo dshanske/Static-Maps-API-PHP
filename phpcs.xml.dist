@@ -4,6 +4,8 @@
 
     <file>include</file>
     <file>public</file>
+    <file>config</file>
+    <file>data/config.example.php</file>
 
     <arg name="extensions" value="php"/>
     <arg name="colors"/>
@@ -22,6 +24,11 @@
         <exclude name="PSR1.Classes.ClassDeclaration.MultipleClasses"/>
         <exclude name="PSR1.Files.SideEffects.FoundWithSymbols"/>
         <exclude name="PSR2.Methods.MethodDeclaration.Underscore"/>
+    </rule>
+
+    <!-- Tile URL templates in the config can't be wrapped. -->
+    <rule ref="Generic.Files.LineLength">
+        <exclude-pattern>config/defaults\.php</exclude-pattern>
     </rule>
 
     <config name="testVersion" value="8.1-"/>
