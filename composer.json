@@ -1,0 +1,43 @@
+{
+    "name": "dshanske/static-maps-api-php",
+    "description": "Static map image API: renders PNG/JPEG maps from raster tiles with markers and paths.",
+    "type": "project",
+    "license": "Apache-2.0",
+    "require": {
+        "php": ">=8.1",
+        "ext-curl": "*",
+        "ext-gd": "*",
+        "ext-imagick": "*"
+    },
+    "require-dev": {
+        "dealerdirect/phpcodesniffer-composer-installer": "^1.2",
+        "php-parallel-lint/php-parallel-lint": "^1.4",
+        "phpcompatibility/php-compatibility": "^10.0@alpha",
+        "phpstan/phpstan": "^2.3",
+        "squizlabs/php_codesniffer": "^4.0"
+    },
+    "config": {
+        "allow-plugins": {
+            "dealerdirect/phpcodesniffer-composer-installer": true
+        },
+        "sort-packages": true
+    },
+    "scripts": {
+        "lint": "parallel-lint --exclude vendor .",
+        "cs": "phpcs",
+        "cs-fix": "phpcbf",
+        "stan": "phpstan analyse --memory-limit=1G",
+        "check": [
+            "@lint",
+            "@cs",
+            "@stan"
+        ]
+    },
+    "scripts-descriptions": {
+        "lint": "Check every PHP file for syntax errors",
+        "cs": "Check coding standard (PSR-12) and PHP 8.1+ compatibility",
+        "cs-fix": "Automatically fix coding standard violations where possible",
+        "stan": "Run PHPStan static analysis",
+        "check": "Run lint, cs and stan"
+    }
+}

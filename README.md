@@ -237,6 +237,27 @@ cd /var/www/static-maps-api
 git clone git@github.com:dshanske/Static-Maps-API-PHP.git .
 ```
 
+## Development
+
+Requires PHP 8.1 or later with the `curl`, `gd` and `imagick` extensions, and [Composer](https://getcomposer.org/) for the development tools. The service itself has no Composer dependencies at runtime.
+
+```
+composer install
+composer check     # runs all of the below
+composer lint      # syntax check of every PHP file
+composer cs        # PSR-12 coding standard and PHP 8.1+ compatibility (PHP_CodeSniffer)
+composer cs-fix    # fix coding standard violations automatically
+composer stan      # static analysis (PHPStan)
+```
+
+Known PHPStan errors are recorded in `phpstan-baseline.neon` until they are fixed. When you fix one, regenerate the baseline with `vendor/bin/phpstan analyse --generate-baseline`.
+
+To run the service locally:
+
+```
+php -S localhost:8000 -t public
+```
+
 ## License
 
 
