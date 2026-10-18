@@ -4,8 +4,20 @@ include('../include/WebMercator.php');
 include('../include/ArcGISGeocoder.php');
 include('../include/Polyline.php');
 include('../include/helpers.php');
+include('../include/Config.php');
 
 define('TILE_SIZE', 256);
+define('ATTRIBUTION_DIR', __DIR__ . '/../assets/attribution');
+
+try {
+    $config = Config::load();
+} catch (RuntimeException $e) {
+    error_log('Static Maps API: ' . $e->getMessage());
+    http_response_code(500);
+    header('Content-Type: text/plain');
+    echo 'Server configuration error';
+    exit;
+}
 
 $webmercator = new WebMercator();
 
@@ -108,10 +120,10 @@ if ($pathsTemp = request('path')) {
 
       // Set default color and weight if none specified
         if (!array_key_exists('color', $properties)) {
-            $properties['color'] = '333333';
+            $properties['color'] = $config['defaults']['path_color'];
         }
         if (!array_key_exists('weight', $properties)) {
-            $properties['weight'] = 3;
+            $properties['weight'] = $config['defaults']['path_weight'];
         }
 
       // Now parse the points into an array
@@ -151,10 +163,10 @@ if ($pathsTemp = request('path')) {
 
     // Set default color and weight if none specified
     if (!array_key_exists('color', $properties)) {
-        $properties['color'] = '333333';
+        $properties['color'] = $config['defaults']['path_color'];
     }
     if (!array_key_exists('weight', $properties)) {
-        $properties['weight'] = 3;
+        $properties['weight'] = $config['defaults']['path_weight'];
     }
     if (array_key_exists('enc', $properties)) {
           $properties['path'] = Polyline::pair(Polyline::decode($properties['enc']));
@@ -206,8 +218,24 @@ if (request('latitude') !== false) {
 
 
 
-$width = request('width', 300);
-$height = request('height', 300);
+$width = request('width', $config['defaults']['width']);
+$height = request('height', $config['defaults']['height']);
+
+// Choose the basemap: a configured one, a custom tile URL (token required), or the default
+$basemap = is_string(request('basemap')) ? Config::basemap($config, request('basemap'), $is_authenticated) : null;
+if ($basemap === null && 'custom' === request('basemap') && $is_authenticated && is_string(request('tileurl'))) {
+    $basemap = array(
+        'layers'  => array(request('tileurl')),
+        'minzoom' => $config['zoom']['min'],
+        'maxzoom' => $config['zoom']['max'],
+    );
+}
+if ($basemap === null) {
+    $basemap = Config::basemap($config, $config['defaults']['basemap'], $is_authenticated);
+}
+$tileURL = $basemap['layers'][0];
+$overlayURL = $basemap['layers'][1] ?? false;
+$tileKey = $basemap['key'] ?? null;
 
 
 // If no zoom is specified, choose a zoom level that will fit all the markers and the path
@@ -244,104 +272,15 @@ if (request('maxzoom') && request('maxzoom') < $zoom) {
     $zoom = request('maxzoom');
 }
 
-$minZoom = 2;
+$minZoom = $basemap['minzoom'];
 if ($zoom < $minZoom) {
     $zoom = $minZoom;
 }
 
-$maxZoom = 18;
+$maxZoom = $basemap['maxzoom'];
 if ($zoom > $maxZoom) {
     $zoom = $maxZoom;
 }
-
-$tileServices = array(
-  'streets' => array(
-    'https://services.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{Z}/{Y}/{X}'
-  ),
-  'satellite' => array(
-    'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{Z}/{Y}/{X}'
-  ),
-  'hybrid' => array(
-    'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{Z}/{Y}/{X}',
-    'https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{Z}/{Y}/{X}'
-  ),
-  'topo' => array(
-    'https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{Z}/{Y}/{X}'
-  ),
-  'gray' => array(
-    'https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer/tile/{Z}/{Y}/{X}',
-    'https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Reference/MapServer/tile/{Z}/{Y}/{X}'
-  ),
-  'gray-background' => array(
-    'https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer/tile/{Z}/{Y}/{X}',
-  ),
-  'oceans' => array(
-    'https://server.arcgisonline.com/ArcGIS/rest/services/Ocean_Basemap/MapServer/tile/{Z}/{Y}/{X}'
-  ),
-  'national-geographic' => array(
-    'https://server.arcgisonline.com/ArcGIS/rest/services/NatGeo_World_Map/MapServer/tile/{Z}/{Y}/{X}'
-  ),
-  'osm' => array(
-    'https://tile.openstreetmap.org/{Z}/{X}/{Y}.png'
-  ),
-  'otm' => array(
-    'https://tile.opentopomap.org/{Z}/{X}/{Y}.png'
-  ),
-  'stamen-toner' => array(
-    'https://stamen-tiles.a.ssl.fastly.net/toner/{Z}/{X}/{Y}.png'
-  ),
-  'stamen-toner-background' => array(
-    'https://stamen-tiles.a.ssl.fastly.net/toner-background/{Z}/{X}/{Y}.png'
-  ),
-  'stamen-toner-lite' => array(
-    'https://stamen-tiles.a.ssl.fastly.net/toner-lite/{Z}/{X}/{Y}.png'
-  ),
-  'stamen-terrain' => array(
-    'https://stamen-tiles.a.ssl.fastly.net/terrain/{Z}/{X}/{Y}.png'
-  ),
-  'stamen-terrain-background' => array(
-    'https://stamen-tiles.a.ssl.fastly.net/terrain-background/{Z}/{X}/{Y}.png'
-  ),
-  'stamen-watercolor' => array(
-    'https://stamen-tiles.a.ssl.fastly.net/watercolor/{Z}/{X}/{Y}.png'
-  ),
-  'carto-light' => array(
-    'https://cartodb-basemaps-a.global.ssl.fastly.net/light_all/{Z}/{X}/{Y}.png'
-  ),
-  'carto-dark' => array(
-    'https://cartodb-basemaps-a.global.ssl.fastly.net/dark_all/{Z}/{X}/{Y}.png'
-  ),
-  'carto-voyager' => array(
-    'https://cartodb-basemaps-a.global.ssl.fastly.net/rastertiles/voyager/{Z}/{X}/{Y}.png'
-  )
-);
-
-if ((request('basemap')) && array_key_exists(request('basemap'), $tileServices)) {
-    $tileURL = $tileServices[request('basemap')][0];
-    if (array_key_exists(1, $tileServices[request('basemap')])) {
-        $overlayURL = $tileServices[request('basemap')][1];
-    } else {
-        $overlayURL = 0;
-    }
-} elseif ('custom' === request('basemap') && $is_authenticated) {
-    $tileURL = request('tileurl');
-    $overlayURL = false;
-} else {
-    $tileURL = $tileServices['osm'][0];
-    $overlayURL = false;
-}
-
-function urlForTile($x, $y, $z, $tileURL)
-{
-    return str_replace(array(
-    '{X}', '{Y}', '{Z}'
-    ), array(
-    $x, $y, $z
-    ), $tileURL);
-}
-
-
-
 
 $im = imagecreatetruecolor($width, $height);
 
@@ -387,15 +326,15 @@ for ($x = $swTile['x']; $x <= $neTile['x']; $x++) {
 
     for ($y = $swTile['y']; $y <= $neTile['y']; $y++) {
         $y = (int)$y;
-        $url = urlForTile($x, $y, $zoom, $tileURL);
+        $url = Config::tileUrl($tileURL, $x, $y, $zoom, $tileKey);
         $tiles[$x][$y] = false;
         $chs[$x][$y] = curl_init($url);
         curl_setopt($chs[$x][$y], CURLOPT_RETURNTRANSFER, true);
         curl_setopt($chs[$x][$y], CURLOPT_FOLLOWLOCATION, true);
         curl_multi_add_handle($mh, $chs[$x][$y]);
-        curl_setopt($chs[$x][$y], CURLOPT_USERAGENT, 'Static Maps API/ github.com/dshanske/Static-Maps-API-PHP');
+        curl_setopt($chs[$x][$y], CURLOPT_USERAGENT, $config['user_agent']);
         if ($overlayURL) {
-            $url = urlForTile($x, $y, $zoom, $overlayURL);
+            $url = Config::tileUrl($overlayURL, $x, $y, $zoom, $tileKey);
             $overlays[$x][$y] = false;
             $ochs[$x][$y] = curl_init($url);
             curl_setopt($ochs[$x][$y], CURLOPT_RETURNTRANSFER, true);
@@ -605,23 +544,29 @@ foreach ($markers as $marker) {
 
 
 
-if (preg_match('/https?:\/\/(.+)/', request('attribution'), $match)) {
+// The request's attribution, else the basemap's default, else the global default
+$attribution = request('attribution');
+if ($attribution === false) {
+    $attribution = $basemap['attribution'] ?? $config['defaults']['attribution'];
+}
+
+if (preg_match('/https?:\/\/(.+)/', $attribution, $match)) {
   // Looks like an external image, attempt to download it
-    $ch = curl_init(request('attribution'));
+    $ch = curl_init($attribution);
     curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
     curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
     $img = curl_exec($ch);
     $logo = @imagecreatefromstring($img);
     imagecopy($im, $logo, $width - imagesx($logo), $height - imagesy($logo), 0, 0, imagesx($logo), imagesy($logo));
-} elseif ('mapbox' === request('attribution')) {
-    $logo = imagecreatefrompng('./images/mapbox-attribution.png');
+} elseif ('mapbox' === $attribution) {
+    $logo = imagecreatefrompng(ATTRIBUTION_DIR . '/mapbox-attribution.png');
     imagecopy($im, $logo, $width - imagesx($logo), $height - imagesy($logo), 0, 0, imagesx($logo), imagesy($logo));
-} elseif ('mapbox-small' === request('attribution')) {
+} elseif ('mapbox-small' === $attribution) {
     $logo = imagecreatefrompng($assetPath . '/mapbox-attribution.png');
     $shrinkFactor = 2;
     imagecopyresampled($im, $logo, $width - round(imagesx($logo) / $shrinkFactor), $height - round(imagesy($logo) / $shrinkFactor), 0, 0, round(imagesx($logo) / $shrinkFactor), round(imagesy($logo) / $shrinkFactor), imagesx($logo), imagesy($logo));
-} elseif ('esri' === request('attribution')) {
-    $logo = imagecreatefrompng('./images/powered-by-esri.png');
+} elseif ('esri' === $attribution) {
+    $logo = imagecreatefrompng(ATTRIBUTION_DIR . '/powered-by-esri.png');
 
   // Shrink the esri logo if the image is small
     if ($width > 120) {
@@ -633,7 +578,7 @@ if (preg_match('/https?:\/\/(.+)/', request('attribution'), $match)) {
         }
     }
 } else {
-    $logo = imagecreatefrompng('./images/osm-attribution.png');
+    $logo = imagecreatefrompng(ATTRIBUTION_DIR . '/osm-attribution.png');
     $shrinkFactor = 4;
     imagecopyresampled($im, $logo, $width - round(imagesx($logo) / $shrinkFactor), $height - round(imagesy($logo) / $shrinkFactor), 0, 0, round(imagesx($logo) / $shrinkFactor), round(imagesy($logo) / $shrinkFactor), imagesx($logo), imagesy($logo));
 }
@@ -641,12 +586,12 @@ if (preg_match('/https?:\/\/(.+)/', request('attribution'), $match)) {
 
 #header('X-Tiles-Downloaded: ' . $numTiles);
 
-$fmt = request('format', "png");
+$fmt = request('format', $config['defaults']['format']);
 switch ($fmt) {
     case "jpg":
     case "jpeg":
         header('Content-type: image/jpg');
-        $quality = request('quality', 75);
+        $quality = request('quality', $config['defaults']['jpeg_quality']);
         imagejpeg($im, null, $quality);
         break;
     case "png":
