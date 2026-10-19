@@ -440,6 +440,9 @@ class Config
         if (!in_array($config['access']['mode'] ?? null, Access::MODES, true)) {
             throw new RuntimeException("Setting 'access.mode' must be 'open' or 'restricted'");
         }
+        if (!in_array($config['access']['credentials'] ?? null, Access::CREDENTIALS, true)) {
+            throw new RuntimeException("Setting 'access.credentials' must be 'key', 'signed' or 'either'");
+        }
         if (!is_string($config['access']['clients_file'] ?? null)) {
             throw new RuntimeException("Setting 'access.clients_file' must be a path");
         }
@@ -451,6 +454,12 @@ class Config
             }
             if (isset($client['providers']) && !is_array($client['providers'])) {
                 throw new RuntimeException("Client '$id' providers must be a list of provider ids");
+            }
+            if (isset($client['secret']) && (!is_string($client['secret']) || strlen($client['secret']) < 16)) {
+                throw new RuntimeException("Client '$id' secret must be a string of at least 16 characters");
+            }
+            if (isset($client['must_sign']) && !is_bool($client['must_sign'])) {
+                throw new RuntimeException("Client '$id' must_sign must be true or false");
             }
         }
 

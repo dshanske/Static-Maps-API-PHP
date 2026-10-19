@@ -13,19 +13,29 @@ final class Request
 {
     /**
      * @param array<string, mixed> $params Parameters, normally `$_REQUEST`.
+     * @param string               $uri    The request's path and query string exactly as sent
+     *                                     (for checking signed URLs).
+     * @param string               $method HTTP method.
      */
-    public function __construct(private array $params)
-    {
+    public function __construct(
+        private array $params,
+        public readonly string $uri = '',
+        public readonly string $method = 'GET'
+    ) {
     }
 
     /**
      * Build a request from the current PHP request.
      *
-     * @return self The request for `$_REQUEST`.
+     * @return self The request for `$_REQUEST`, with REQUEST_URI and REQUEST_METHOD.
      */
     public static function fromGlobals(): self
     {
-        return new self($_REQUEST);
+        return new self(
+            $_REQUEST,
+            (string) ($_SERVER['REQUEST_URI'] ?? ''),
+            strtoupper((string) ($_SERVER['REQUEST_METHOD'] ?? 'GET'))
+        );
     }
 
     /**

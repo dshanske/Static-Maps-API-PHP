@@ -13,14 +13,16 @@ use RuntimeException;
  *
  * Commands:
  *
- *     add <id> [--providers=a,b] [--no-external-urls]   issue a key to a new client
+ *     add <id> [--providers=a,b] [--no-external-urls] [--must-sign]   issue a key and secret
  *     list                                              show the clients
- *     set <id> [--providers=a,b|all] [--external-urls=yes|no] [--enable|--disable]
- *     rotate <id>                                       replace a client's key
+ *     set <id> [--providers=a,b|all] [--external-urls=yes|no] [--must-sign=yes|no] [--enable|--disable]
+ *     rotate <id> [--key|--secret]                      replace a client's key and/or secret
  *     revoke <id>                                       remove a client
  *     import [file]                                     move the deprecated token file's tokens in
  *
- * Keys are random, shown once, and stored only as SHA-256 hashes.
+ * Keys are random, shown once, and stored only as SHA-256 hashes. Signing
+ * secrets have to be stored as they are (the server needs them to check
+ * signatures), so keep the clients file readable only by PHP.
  */
 final class ClientsCommand
 {
@@ -68,7 +70,7 @@ final class ClientsCommand
                 'add'    => $this->add($positional[0] ?? '', $options),
                 'list'   => $this->list(),
                 'set'    => $this->set($positional[0] ?? '', $options),
-                'rotate' => $this->rotate($positional[0] ?? ''),
+                'rotate' => $this->rotate($positional[0] ?? '', $options),
                 'revoke' => $this->revoke($positional[0] ?? ''),
                 'import' => $this->import($positional[0] ?? (string) ($this->config['token_file'] ?? '')),
                 'help', '--help', '-h' => $this->help(),
@@ -84,7 +86,7 @@ final class ClientsCommand
      * Issue a key to a new client.
      *
      * @param string               $id      Client id.
-     * @param array<string, mixed> $options Options: --providers, --no-external-urls.
+     * @param array<string, mixed> $options Options: --providers, --no-external-urls, --must-sign.
      *
      * @return int Exit status.
      */
@@ -99,15 +101,20 @@ final class ClientsCommand
         }
 
         $key = Clients::generateKey();
+        $secret = Clients::generateSecret();
         $clients[$id] = [
             'key_sha256'    => Clients::hashKey($key),
+            'secret'        => $secret,
+            'must_sign'     => isset($options['must-sign']),
             'created'       => gmdate('c'),
             'external_urls' => !isset($options['no-external-urls']),
             'providers'     => $this->providers($options['providers'] ?? null),
         ];
         $this->write($clients);
         fwrite($this->out, "Added client '$id'. Its key (shown only now, keep it safe):\n\n    $key\n\n");
-        fwrite($this->out, "Send it as the `key` parameter, e.g. /?key=$key&latitude=…\n");
+        fwrite($this->out, "Send it as the `key` parameter, e.g. /?key=$key&latitude=…\n\n");
+        fwrite($this->out, "To sign URLs instead (key=$id plus &signature=…; see the README), its secret is:\n\n");
+        fwrite($this->out, "    $secret\n\n");
 
         return 0;
     }
@@ -126,9 +133,10 @@ final class ClientsCommand
         }
         foreach ($clients as $id => $client) {
             fwrite($this->out, sprintf(
-                "%-24s %-8s urls:%-3s providers:%s  created %s\n",
+                "%-24s %-8s %-8s urls:%-3s providers:%s  created %s\n",
                 $id,
                 ($client['enabled'] ?? true) ? 'enabled' : 'DISABLED',
+                ($client['must_sign'] ?? false) ? 'signed' : (isset($client['secret']) ? 'key|sign' : 'key'),
                 ($client['external_urls'] ?? true) ? 'yes' : 'no',
                 isset($client['providers']) ? implode(',', (array) $client['providers']) : 'all',
                 $client['created'] ?? '?'
@@ -143,7 +151,7 @@ final class ClientsCommand
      *
      * @param string               $id      Client id.
      * @param array<string, mixed> $options Options: --providers=a,b|all, --external-urls=yes|no,
-     *                                      --enable, --disable.
+     *                                      --must-sign=yes|no, --enable, --disable.
      *
      * @return int Exit status.
      */
@@ -159,6 +167,9 @@ final class ClientsCommand
         if (isset($options['external-urls'])) {
             $clients[$id]['external_urls'] = in_array($options['external-urls'], ['yes', 'true', '1', true], true);
         }
+        if (isset($options['must-sign'])) {
+            $clients[$id]['must_sign'] = in_array($options['must-sign'], ['yes', 'true', '1', true], true);
+        }
         if (isset($options['enable']) || isset($options['disable'])) {
             $clients[$id]['enabled'] = isset($options['enable']);
         }
@@ -169,23 +180,32 @@ final class ClientsCommand
     }
 
     /**
-     * Give a client a new key; the old one stops working at once.
+     * Give a client a new key and/or signing secret; the old ones stop working at once.
      *
-     * @param string $id Client id.
+     * @param string               $id      Client id.
+     * @param array<string, mixed> $options Options: --key or --secret to replace only one (default both).
      *
      * @return int Exit status.
      */
-    private function rotate(string $id): int
+    private function rotate(string $id, array $options): int
     {
         $clients = $this->read();
         if (!isset($clients[$id])) {
             throw new RuntimeException("No client '$id'");
         }
-        $key = Clients::generateKey();
-        $clients[$id]['key_sha256'] = Clients::hashKey($key);
+        $both = !isset($options['key']) && !isset($options['secret']);
+        if ($both || isset($options['key'])) {
+            $key = Clients::generateKey();
+            $clients[$id]['key_sha256'] = Clients::hashKey($key);
+            fwrite($this->out, "New key for '$id' (the old one no longer works):\n\n    $key\n\n");
+        }
+        if ($both || isset($options['secret'])) {
+            $secret = Clients::generateSecret();
+            $clients[$id]['secret'] = $secret;
+            fwrite($this->out, "New signing secret for '$id' (old signatures no longer work):\n\n    $secret\n\n");
+        }
         $clients[$id]['rotated'] = gmdate('c');
         $this->write($clients);
-        fwrite($this->out, "New key for '$id' (the old one no longer works):\n\n    $key\n\n");
 
         return 0;
     }
@@ -262,10 +282,12 @@ final class ClientsCommand
         fwrite($this->out, <<<'TXT'
             Usage: php bin/clients.php <command>
 
-              add <id> [--providers=a,b] [--no-external-urls]   issue a key to a new client
+              add <id> [--providers=a,b] [--no-external-urls] [--must-sign]
+                                                                issue a key and signing secret
               list                                              show the clients
-              set <id> [--providers=a,b|all] [--external-urls=yes|no] [--enable|--disable]
-              rotate <id>                                       give a client a new key
+              set <id> [--providers=a,b|all] [--external-urls=yes|no] [--must-sign=yes|no]
+                       [--enable|--disable]
+              rotate <id> [--key|--secret]                      new key and/or secret
               revoke <id>                                       remove a client
               import [file]                                     move the old token file (data/apikeys.txt) in
 

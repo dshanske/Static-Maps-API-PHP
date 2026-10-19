@@ -100,7 +100,10 @@ final class AccessTest extends RenderTestCase
     public function testApi(): void
     {
         $root = (array) json_decode(self::$app->get('/api/v1/')->body, true);
-        $this->assertSame(['mode' => 'open', 'key_required' => false, 'key_valid' => false], $root['access']);
+        $this->assertSame(
+            ['mode' => 'open', 'credentials' => 'either', 'key_required' => false, 'key_valid' => false],
+            $root['access']
+        );
 
         $ids = static fn (string $q): array => array_column(
             (array) json_decode(self::$app->get('/api/v1/providers' . $q)->body, true)['providers'],

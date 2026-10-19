@@ -313,7 +313,37 @@ php bin/clients.php revoke blog
 
 **From the old token file.** `data/apikeys.txt` (`token_file`) and the `token` parameter still work but are deprecated: run `php bin/clients.php import` to turn each line into a client (`token-1`, …) whose key is the old token, then delete the file and send `key` instead of `token`. Until then each request logs a deprecation message, and requests that send `token` get `Deprecation` headers.
 
-Keys appear in the URL of every image that uses them, so a key embedded in a public page is visible to anyone who looks; give each site its own key so it can be revoked on its own. (Signed URLs, which keep the secret out of the URL, are planned: #12.) Keys are compared exactly and in constant time.
+A plain key appears in the URL of every image that uses it, so a key embedded in a public page is visible to anyone who looks. For maps published in pages, use **signed URLs** instead (below). Give each site its own client either way, so it can be revoked on its own. Keys are compared exactly and in constant time.
+
+### Signed URLs
+
+Every client also gets a **signing secret** (shown by `bin/clients.php add`). Instead of the key, a signed URL carries the client's id as `key` and, as its **last** parameter, a signature of everything before it:
+
+```
+signature = base64url( HMAC-SHA256( secret, <path and query, exactly as sent, up to "&signature"> ) )
+```
+
+base64url means `+` → `-`, `/` → `_` and no `=` padding. The secret never appears in the URL, and changing any parameter breaks the signature, so a signed URL can be published in an `<img>` tag. Signed map images are also cacheable like free maps, whereas maps for plain keys are `private`. In PHP:
+
+```php
+function sign_map_url(string $base, string $pathAndQuery, string $secret): string
+{
+    $signature = rtrim(strtr(base64_encode(hash_hmac('sha256', $pathAndQuery, $secret, true)), '+/', '-_'), '=');
+    return $base . $pathAndQuery . '&signature=' . $signature;
+}
+
+echo sign_map_url(
+    'https://maps.example.com',
+    '/?latitude=45.5165&longitude=-122.6764&zoom=14&provider=stadia&key=my-blog',
+    'the-client-secret'
+);
+```
+
+- Sign the path and query string exactly as you send them, including their URL-encoding; the host isn't signed, so the same URL works behind a proxy or CDN.
+- Add `expires=<Unix time>` before signing for a URL that stops working after that time. Without it, signed URLs don't expire, because published posts keep their map URLs indefinitely.
+- Signed URLs must be `GET` (or `HEAD`) requests.
+- An invalid or expired signature gets `403` with the reason, rather than the free map.
+- `access.credentials` decides what is accepted: `key` (plain keys only), `signed` (signed URLs only) or `either` (default). `php bin/clients.php add <id> --must-sign` (or `set <id> --must-sign=yes`) makes one client signed-only, so its plain key is refused. `rotate <id> --secret` replaces just the secret.
 
 Every download from another server, for tiles too, is limited by the `remote` setting: http and https only, at most 3 redirects, 10 seconds and 5 MB by default.
 

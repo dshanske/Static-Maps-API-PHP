@@ -48,9 +48,11 @@ if ($base !== '' && str_starts_with($path, $base)) {
 }
 
 if (Api::handles($path)) {
-    [$client, $keyHeaders] = $access->client($request);
+    [$client, $keyHeaders, $keyError] = $access->client($request);
     $api = new Api($config, $client, $base);
-    $response = $api->handle((string) ($_SERVER['REQUEST_METHOD'] ?? 'GET'), $path, $request)->withHeaders($keyHeaders);
+    $response = $keyError !== null
+        ? Response::error(403, $keyError, $keyHeaders)
+        : $api->handle((string) ($_SERVER['REQUEST_METHOD'] ?? 'GET'), $path, $request)->withHeaders($keyHeaders);
 } elseif ($request->isEmpty()) {
     // No parameters at all (someone opened the address in a browser): say what this is.
     try {

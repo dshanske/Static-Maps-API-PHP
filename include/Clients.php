@@ -95,14 +95,96 @@ final class Clients
         foreach ($this->clients as $id => $settings) {
             $matches = hash_equals((string) ($settings['key_sha256'] ?? ''), $hash);
             if ($matches && ($settings['enabled'] ?? true) !== false) {
-                $providers = isset($settings['providers'])
-                    ? array_values(array_map('strval', (array) $settings['providers']))
-                    : null;
-                $found ??= new Client((string) $id, (bool) ($settings['external_urls'] ?? true), $providers);
+                $found ??= self::client((string) $id, $settings, false);
             }
         }
 
         return $found;
+    }
+
+    /**
+     * A client's signing secret, for checking a signed URL.
+     *
+     * @param mixed $id The client id (the `key` parameter of a signed URL).
+     *
+     * @return string|null The secret, or null for an unknown or disabled client, or one
+     *                     without a secret.
+     */
+    public function secret(mixed $id): ?string
+    {
+        $settings = is_string($id) ? ($this->clients[$id] ?? null) : null;
+        if (!is_array($settings) || ($settings['enabled'] ?? true) === false) {
+            return null;
+        }
+        $secret = $settings['secret'] ?? null;
+
+        return is_string($secret) && $secret !== '' ? $secret : null;
+    }
+
+    /**
+     * Whether a client may only use signed URLs (`must_sign`).
+     *
+     * @param string $id Client id.
+     *
+     * @return bool True if its plain key isn't accepted.
+     */
+    public function mustSign(string $id): bool
+    {
+        return ($this->clients[$id]['must_sign'] ?? false) === true;
+    }
+
+    /**
+     * The Client for a client id whose signature was checked.
+     *
+     * @param string $id Client id.
+     *
+     * @return Client The client, marked as signed.
+     */
+    public function signedClient(string $id): Client
+    {
+        return self::client($id, $this->clients[$id] ?? [], true);
+    }
+
+    /**
+     * Build a Client from its settings.
+     *
+     * @param string               $id       Client id.
+     * @param array<string, mixed> $settings Its settings.
+     * @param bool                 $signed   Whether the request was signed.
+     *
+     * @return Client The client.
+     */
+    private static function client(string $id, array $settings, bool $signed): Client
+    {
+        $providers = isset($settings['providers'])
+            ? array_values(array_map('strval', (array) $settings['providers']))
+            : null;
+
+        return new Client($id, (bool) ($settings['external_urls'] ?? true), $providers, $signed);
+    }
+
+    /**
+     * A new random signing secret.
+     *
+     * @return string 43 URL-safe characters (256 random bits).
+     */
+    public static function generateSecret(): string
+    {
+        return rtrim(strtr(base64_encode(random_bytes(32)), '+/', '-_'), '=');
+    }
+
+    /**
+     * The signature of a URL, as clients compute it.
+     *
+     * @param string $pathAndQuery The path and query string exactly as sent, without the
+     *                             `&signature=…` at the end.
+     * @param string $secret       The client's signing secret.
+     *
+     * @return string The signature: base64url (no padding) of HMAC-SHA256.
+     */
+    public static function sign(string $pathAndQuery, string $secret): string
+    {
+        return rtrim(strtr(base64_encode(hash_hmac('sha256', $pathAndQuery, $secret, true)), '+/', '-_'), '=');
     }
 
     /**

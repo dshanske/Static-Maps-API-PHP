@@ -36,7 +36,9 @@ return [
     'token_file' => __DIR__ . '/no-such-tokens.txt',
     'access'     => ['clients_file' => __DIR__ . '/no-such-clients.json'],
     'clients'    => [
-        'test'    => ['key' => 'test-token'],
+        'test'    => ['key' => 'test-token', 'secret' => 'test-signing-secret'],
+        // Only signed URLs.
+        'signer'  => ['key' => 'signer-key', 'secret' => 'signer-signing-secret', 'must_sign' => true],
         // Limited: only the `keyed` provider among those needing a key, no external URLs.
         'limited' => ['key' => 'limited-key', 'providers' => ['keyed'], 'external_urls' => false],
         'off'     => ['key' => 'disabled-key', 'enabled' => false],

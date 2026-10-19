@@ -191,15 +191,22 @@ return [
      *                 API stay open.)
      *                 An install that only offers free maps simply issues no
      *                 client keys.
+     * 'credentials'   How clients prove who they are:
+     *                 'key':    the plain key in the `key` parameter;
+     *                 'signed': only signed URLs (`key=<client id>`, then
+     *                           `&signature=…`, made with the client's secret;
+     *                           see the README). The secret never appears in the
+     *                           URL, so signed URLs can be published in pages;
+     *                 'either' (default): both. A client with `must_sign`
+     *                           can still only use signed URLs.
      * 'clients_file'  Where bin/clients.php keeps the clients it issues keys to.
      *                 Default: data/clients.json.
      *
-     * Clients send their key in the `key` request parameter.
-     *
-     * Example override: 'access' => ['mode' => 'restricted'],
+     * Example override: 'access' => ['mode' => 'restricted', 'credentials' => 'signed'],
      */
     'access' => [
         'mode'         => 'open',
+        'credentials'  => 'either',
         'clients_file' => __DIR__ . '/../data/clients.json',
     ],
 
@@ -211,6 +218,8 @@ return [
      *
      * Each client, keyed by its id (a-z, 0-9 and -), has:
      *   'key' or 'key_sha256' The key, or its SHA-256 hash (hex).
+     *   'secret'              Signing secret for signed URLs (optional).
+     *   'must_sign'           Only accept signed URLs from it. Default: false.
      *   'external_urls'       May it use icon, attribution and tile URLs? Default: true.
      *   'providers'           Providers it may use among those that need a key;
      *                         default: all.

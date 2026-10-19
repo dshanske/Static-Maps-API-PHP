@@ -152,6 +152,33 @@ final class ClientsCommandTest extends TestCase
     }
 
     /**
+     * add issues a signing secret; --must-sign, set --must-sign and rotate --key/--secret.
+     *
+     * @return void
+     */
+    public function testSigning(): void
+    {
+        $this->command('add', 'site', '--must-sign');
+        $this->assertStringContainsString('its secret is', $this->output);
+        $secret = $this->clients()['site']['secret'];
+        $this->assertMatchesRegularExpression('/^[A-Za-z0-9_-]{43}$/', $secret);
+        $this->assertTrue((new Clients($this->clients()))->mustSign('site'));
+
+        $this->command('set', 'site', '--must-sign=no');
+        $this->assertFalse((new Clients($this->clients()))->mustSign('site'));
+
+        $hash = $this->clients()['site']['key_sha256'];
+        $this->command('rotate', 'site', '--secret');
+        $this->assertNotSame($secret, $this->clients()['site']['secret']);
+        $this->assertSame($hash, $this->clients()['site']['key_sha256'], 'key kept');
+
+        $secret = $this->clients()['site']['secret'];
+        $this->command('rotate', 'site', '--key');
+        $this->assertSame($secret, $this->clients()['site']['secret'], 'secret kept');
+        $this->assertNotSame($hash, $this->clients()['site']['key_sha256']);
+    }
+
+    /**
      * help and unknown commands.
      *
      * @return void

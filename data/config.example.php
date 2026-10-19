@@ -88,6 +88,7 @@ return [
     // Issue client keys with: php bin/clients.php add <id>
     // 'access' => [
     //     'mode'         => 'open',
+    //     'credentials'  => 'either',   // 'key', 'signed' (signed URLs only) or 'either'
     //     'clients_file' => __DIR__ . '/clients.json',
     // ],
 

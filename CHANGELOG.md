@@ -54,6 +54,13 @@ stable interface; pin a commit if you need a fixed point.
   days. Providers with `cache => 'off'` are never cached. New `cache.tiles`
   settings, and `bin/prune-cache.php` to run from cron or a systemd timer,
   which keeps the cache under `cache.tiles.max_size` (1 GB by default).
+- Signed URLs (#12): a client can send `key=<client id>` and a final
+  `signature=` (base64url HMAC-SHA256 of the path and query, made with the
+  client's secret) instead of its plain key, so the secret never appears in
+  published pages. Optional signed `expires`. The new `access.credentials`
+  setting accepts `key`, `signed` or `either` (default), and a client can be
+  made signed-only (`must_sign`). `bin/clients.php` now also issues and
+  rotates signing secrets. Signed map images are cacheable like free maps.
 - Client keys and access modes (#28). Callers send a client key as the new
   `key` parameter. `access.mode = 'open'` (default) keeps free maps open to
   everyone and requires a client key for maps whose tiles use a provider key

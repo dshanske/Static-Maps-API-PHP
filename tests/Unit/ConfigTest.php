@@ -60,7 +60,11 @@ final class ConfigTest extends TestCase
         return [
             'defaults'        => ['provider' => 'one', 'style' => 'base', 'format' => 'png'],
             'zoom'            => ['min' => 2, 'max' => 18],
-            'access'          => ['mode' => 'open', 'clients_file' => '/nonexistent/clients.json'],
+            'access'          => [
+                'mode'         => 'open',
+                'credentials'  => 'either',
+                'clients_file' => '/nonexistent/clients.json',
+            ],
             'clients'         => [],
             'limits'          => ['max_width' => 1280, 'max_height' => 1280],
             'cache'           => [
@@ -397,6 +401,9 @@ final class ConfigTest extends TestCase
             'remote timeout'        => [['remote' => ['timeout' => 0]], "'remote.timeout' must be"],
             'remote redirects'      => [['remote' => ['max_redirects' => -1]], "'remote.max_redirects' must be"],
             'unknown format'        => [['defaults' => ['format' => 'gif']], "'defaults.format' must be"],
+            'unknown credentials'   => [['access' => ['credentials' => 'any']], "'access.credentials' must be"],
+            'short secret'          => [['clients' => ['c' => ['key' => 'k', 'secret' => 'short']]], 'at least 16'],
+            'must_sign not bool'    => [['clients' => ['c' => ['key' => 'k', 'must_sign' => 'yes']]], 'must_sign'],
             'max_limit not int'     => [['zoom' => ['max_limit' => '15']], "'zoom.max_limit' must be null or"],
             'max_limit negative'    => [['zoom' => ['max_limit' => -1]], "'zoom.max_limit' must be null or"],
             'provider text'         => [['providers' => ['one' => ['attribution_text' => 5]]], 'must be a string'],
