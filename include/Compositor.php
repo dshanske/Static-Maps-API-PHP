@@ -119,32 +119,64 @@ final class Compositor
         $draw = new ImagickDraw();
 
         foreach ($paths as $path) {
-            $draw->setStrokeColor(new ImagickPixel('#' . $path['color']));
-            $draw->setStrokeWidth($path['weight'] * $scale);
+            // Each path's settings (dashes, fill) end with it.
+            $draw->push();
+            $weight = (float) $path['weight'] * $scale;
+            // Opacity is set separately: ImageMagick's opacity settings replace a colour's own alpha.
+            [$stroke, $strokeOpacity] = self::color((string) $path['color']);
+            $draw->setStrokeColor($stroke);
+            $draw->setStrokeOpacity($weight > 0 ? $strokeOpacity : 0);
+            $draw->setStrokeWidth($weight);
             $draw->setFillOpacity(0);
             $draw->setStrokeLineCap(Imagick::LINECAP_ROUND);
             $draw->setStrokeLineJoin(Imagick::LINEJOIN_ROUND);
+            $linestyle = $path['linestyle'] ?? 'solid';
+            if ($linestyle === 'dashed') {
+                $draw->setStrokeDashArray([max(1.0, $weight * 3), max(1.0, $weight * 2)]);
+            } elseif ($linestyle === 'dotted') {
+                // Round caps turn very short dashes into dots.
+                $draw->setStrokeDashArray([0.1, max(2.0, $weight * 2)]);
+            }
 
             // The first point on the copy of the world nearest the map centre, each
             // following one the short way round from the one before (#35).
+            $pixels = [];
             $from = null;
             foreach ($path['path'] as $point) {
                 $to = $this->webmercator->latLngToPixels($point[1], $point[0], $zoom);
                 $to['x'] = Viewport::nearest($to['x'], $from['x'] ?? $leftEdge + $width / 2, $zoom);
-                if ($from !== null) {
-                    if ($bezier) {
-                        $this->drawCurve($draw, $from, $to, $bezier, $leftEdge, $topEdge);
-                    } else {
-                        $draw->line(
-                            $from['x'] - $leftEdge,
-                            $from['y'] - $topEdge,
-                            $to['x'] - $leftEdge,
-                            $to['y'] - $topEdge
-                        );
-                    }
-                }
+                $pixels[] = ['x' => $to['x'] - $leftEdge, 'y' => $to['y'] - $topEdge];
                 $from = $to;
             }
+
+            if ($path['closed'] ?? false) {
+                // Polygons, circles and rectangles (#36): closed, filled if they have a fillcolor.
+                if (isset($path['fill'])) {
+                    [$fill, $fillOpacity] = self::color((string) $path['fill']);
+                    $draw->setFillColor($fill);
+                    $draw->setFillOpacity($fillOpacity);
+                }
+                $draw->polygon($pixels);
+            } elseif ($bezier && !($path['geodesic'] ?? false)) {
+                for ($i = 1, $n = count($pixels); $i < $n; $i++) {
+                    $this->drawCurve(
+                        $draw,
+                        ['x' => $pixels[$i - 1]['x'] + $leftEdge, 'y' => $pixels[$i - 1]['y'] + $topEdge],
+                        ['x' => $pixels[$i]['x'] + $leftEdge, 'y' => $pixels[$i]['y'] + $topEdge],
+                        $bezier,
+                        $leftEdge,
+                        $topEdge
+                    );
+                }
+            } elseif ($linestyle !== 'solid') {
+                // One line, so the dash pattern runs on round corners.
+                $draw->polyline($pixels);
+            } else {
+                for ($i = 1, $n = count($pixels); $i < $n; $i++) {
+                    $draw->line($pixels[$i - 1]['x'], $pixels[$i - 1]['y'], $pixels[$i]['x'], $pixels[$i]['y']);
+                }
+            }
+            $draw->pop();
         }
 
         $mg->drawImage($draw);
@@ -152,6 +184,20 @@ final class Compositor
 
         $pathImg = imagecreatefromstring($mg);
         imagecopy($im, $pathImg, 0, 0, 0, 0, $width, $height);
+    }
+
+    /**
+     * A path colour as an ImageMagick colour and an opacity.
+     *
+     * @param string $hex RRGGBB, or RRGGBBAA where AA is the opacity (00 transparent, ff opaque).
+     *
+     * @return array{ImagickPixel, float} The colour without alpha, and the opacity from 0 to 1.
+     */
+    private static function color(string $hex): array
+    {
+        $opacity = strlen($hex) === 8 ? hexdec(substr($hex, 6, 2)) / 255 : 1.0;
+
+        return [new ImagickPixel('#' . substr($hex, 0, 6)), (float) $opacity];
     }
 
     /**

@@ -96,10 +96,11 @@ class Polyline
      * Reverse Google Polyline algorithm on encoded string.
      *
      * @param string $string Encoded string to extract points from.
+     * @param int|null $precision Decimal places encoded: 5 (Google), 6 (OSRM, Valhalla); null for 5.
      *
      * @return list<float|int> points, as a flat list of numbers
      */
-    final public static function decode(string $string): array
+    final public static function decode(string $string, ?int $precision = null): array
     {
         $points = array();
         $index = $i = 0;
@@ -118,7 +119,7 @@ class Polyline
             $number = $previous[$index % 2] + $diff;
             $previous[$index % 2] = $number;
             $index++;
-            $points[] = $number * 1 / pow(10, static::$precision);
+            $points[] = $number * 1 / pow(10, $precision ?? static::$precision);
         }
         return $points;
     }
