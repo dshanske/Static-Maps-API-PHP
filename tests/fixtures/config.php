@@ -98,6 +98,13 @@ return [
                 ],
             ],
         ],
+        // Needs an API key that isn't set, like CARTO without one.
+        'needs-key' => [
+            'name'   => 'Keyed provider without a key',
+            'styles' => [
+                'base' => ['name' => 'Base', 'layers' => [$tiles . '/overlay/{z}/{x}/{y}.png?key={key}']],
+            ],
+        ],
         'switched-off' => [
             'name'    => 'Disabled provider',
             'enabled' => false,

@@ -70,6 +70,9 @@ return [
     //     'carto'  => ['enabled' => false],
     //     'esri'   => ['styles' => ['natgeo' => ['enabled' => false]]],
     //
+    //     // Turn on a provider that needs an API key (its styles are unavailable without one).
+    //     'carto' => ['key' => 'your-carto-key'],
+    //
     //     // Narrow the zoom range of a provider.
     //     'opentopomap' => ['maxzoom' => 17],
     //

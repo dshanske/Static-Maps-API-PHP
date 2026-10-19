@@ -486,6 +486,7 @@ final class RenderTest extends RenderTestCase
             'disabled provider'    => [['provider' => 'switched-off'], 'unavailable; requested=switched-off/base' . $d],
             'token-only, no token' => [['provider' => 'secret'], 'unavailable; requested=secret/only' . $d],
             'custom without token' => [['provider' => 'custom'], 'unavailable; requested=custom' . $d],
+            'needs a key, unset'   => [['provider' => 'needs-key'], 'unavailable; requested=needs-key/base' . $d],
             'odd characters'       => [['provider' => 'Bad<id>'], 'unavailable; requested=?' . $d],
             'array parameter'      => [['provider' => ['x']], 'unavailable; requested=?' . $d],
         ];

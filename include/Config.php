@@ -100,7 +100,8 @@ class Config
      * @return array<string, mixed>|null The style's settings (`name`, `layers`, the
      *         inherited keys, with `minzoom` and `maxzoom` always filled in, plus
      *         `provider` and `style` ids), or null if the provider or style is
-     *         unknown, disabled, or needs a token the request doesn't have.
+     *         unknown, disabled, needs an API key that isn't set, or needs a
+     *         token the request doesn't have.
      */
     public static function resolve(array $config, string $provider, string $style, bool $authenticated): ?array
     {
@@ -120,6 +121,10 @@ class Config
         if (($resolved['enabled'] ?? true) === false) {
             return null;
         }
+        // A style that needs an API key is unavailable until one is set.
+        if (self::needsKey($resolved) && !(is_string($resolved['key'] ?? null) && $resolved['key'] !== '')) {
+            return null;
+        }
         if (($resolved['requires_auth'] ?? false) && !$authenticated) {
             return null;
         }
@@ -135,6 +140,24 @@ class Config
         $resolved['style'] = $style;
 
         return $resolved;
+    }
+
+    /**
+     * Whether any of a style's tile URLs has a {key} placeholder.
+     *
+     * @param array<string, mixed> $style Style settings with `layers`.
+     *
+     * @return bool True if the style needs an API key.
+     */
+    private static function needsKey(array $style): bool
+    {
+        foreach ((array) ($style['layers'] ?? []) as $layer) {
+            if (is_string($layer) && str_contains($layer, '{key}')) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /**

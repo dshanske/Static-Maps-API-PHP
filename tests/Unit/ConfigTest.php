@@ -108,7 +108,10 @@ final class ConfigTest extends TestCase
      */
     public function testShippedAttribution(): void
     {
-        $config = Config::load(null, $this->configFile(['defaults' => ['attribution' => 'mapbox']]));
+        $config = Config::load(null, $this->configFile([
+            'defaults'  => ['attribution' => 'mapbox'],
+            'providers' => ['carto' => ['key' => 'k']],
+        ]));
 
         $expected = ['osm' => 'osm', 'esri' => 'esri', 'opentopomap' => 'osm', 'carto' => 'osm'];
         $this->assertSame(array_keys($expected), array_keys($config['providers']));
@@ -127,7 +130,10 @@ final class ConfigTest extends TestCase
      */
     public function testShippedZoomRanges(): void
     {
-        $config = Config::load(null, $this->configFile(['zoom' => ['max' => 5]]));
+        $config = Config::load(null, $this->configFile([
+            'zoom'      => ['max' => 5],
+            'providers' => ['carto' => ['key' => 'k']],
+        ]));
         $expected = [
             'osm/streets'         => 19,
             'esri/streets'        => 19,
@@ -183,6 +189,49 @@ final class ConfigTest extends TestCase
     }
 
     /**
+     * A style whose layers use {key} is unavailable until a key is set (#17).
+     *
+     * @return void
+     */
+    public function testStyleNeedingAKeyIsUnavailableWithoutOne(): void
+    {
+        $keyed = 'https://t.example/{z}/{x}/{y}.png?key={key}';
+        $providers = ['providers' => [
+            'p'     => ['styles' => ['s' => ['layers' => [$keyed]]]],
+            'empty' => ['key' => '', 'styles' => ['s' => ['layers' => [$keyed]]]],
+            'set'   => ['key' => 'abc', 'styles' => ['s' => ['layers' => [$keyed]]]],
+            'own'   => ['styles' => ['s' => ['layers' => ['a', $keyed], 'key' => 'x']]],
+        ]];
+        $config = $this->loadMinimal($providers);
+
+        $this->assertNull(Config::resolve($config, 'p', 's', true));
+        $this->assertNull(Config::resolve($config, 'empty', 's', true));
+        $this->assertSame('abc', Config::resolve($config, 'set', 's', false)['key']);
+        $this->assertSame('x', Config::resolve($config, 'own', 's', false)['key']);
+    }
+
+    /**
+     * The shipped CARTO styles need a key; with one they use CARTO's keyed URLs (#17).
+     *
+     * @return void
+     */
+    public function testCartoNeedsAKey(): void
+    {
+        $without = Config::load(null, '/nonexistent/config.php');
+        foreach (['light', 'dark', 'streets'] as $style) {
+            $this->assertNull(Config::resolve($without, 'carto', $style, true), $style);
+        }
+
+        $with = Config::load(null, $this->configFile(['providers' => ['carto' => ['key' => 'my-key']]]));
+        $light = Config::resolve($with, 'carto', 'light', false);
+        $this->assertSame('my-key', $light['key']);
+        $this->assertSame(
+            'https://basemaps.cartocdn.com/light_all/3/1/2.png?key=my-key',
+            Config::tileUrl($light['layers'][0], 1, 2, 3, $light['key'])
+        );
+    }
+
+    /**
      * The oceans style uses Esri's current ocean services, whose detailed data ends at zoom 13 (#17).
      *
      * @return void
@@ -204,7 +253,8 @@ final class ConfigTest extends TestCase
      */
     public function testEveryOldBasemapIdResolves(): void
     {
-        $config = Config::load(null, '/nonexistent/config.php');
+        // CARTO's styles need a key (#17), so give it one for this test.
+        $config = Config::load(null, $this->configFile(['providers' => ['carto' => ['key' => 'k']]]));
 
         $this->assertCount(13, $config['basemap_aliases']);
         foreach (array_keys($config['basemap_aliases']) as $id) {
@@ -313,6 +363,10 @@ final class ConfigTest extends TestCase
             'unknown default'       => [['defaults' => ['provider' => 'nope']], 'Default provider and style'],
             'unknown defaults.style' => [['defaults' => ['style' => 'nope']], 'Default provider and style'],
             'default needs token'   => [['providers' => ['one' => ['requires_auth' => true]]], 'Default provider'],
+            'default needs a key'   => [
+                ['providers' => ['one' => ['styles' => ['base' => ['layers' => ['t?key={key}']]]]]],
+                'Default provider and style',
+            ],
             'default disabled'      => [['providers' => ['one' => ['enabled' => false]]], 'Default provider and style'],
             'default style off'     => [
                 ['providers' => ['one' => ['styles' => ['base' => ['enabled' => false]]]]],
@@ -483,8 +537,8 @@ final class ConfigTest extends TestCase
      */
     public function testLegacyDefaultBasemapIsTranslated(): void
     {
-        $config = Config::load(null, $this->configFile(['defaults' => ['basemap' => 'carto-dark']]));
-        $this->assertSame(['carto', 'dark'], [$config['defaults']['provider'], $config['defaults']['style']]);
+        $config = Config::load(null, $this->configFile(['defaults' => ['basemap' => 'otm']]));
+        $this->assertSame(['opentopomap', 'topo'], [$config['defaults']['provider'], $config['defaults']['style']]);
         $this->assertArrayNotHasKey('basemap', $config['defaults']);
         $this->assertSame(
             ["Setting 'defaults.basemap' is deprecated; use 'defaults.provider' and 'defaults.style'"],
