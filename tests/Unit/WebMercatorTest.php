@@ -8,7 +8,7 @@ namespace StaticMaps\Tests\Unit;
 
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
-use WebMercator;
+use StaticMaps\WebMercator;
 
 /**
  * Pixel and tile maths for 256px Web Mercator tiles.

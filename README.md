@@ -116,7 +116,7 @@ Parameters can be sent in either the query string or in the POST body.
 
 To be able to use externally-referenced icons or tile URLs, you will need to configure API keys and provide a token in the request. This locks down the ability to fetch external resources to only trusted users of the system.
 
-Create a file data/apikeys.txt and generate a random string with a tool of your choosing, and with one API key per line. Any value passed in the parameter token that matches the text in a line in this file will enable the request to use the restricted features that reference external URLs.
+Create a file data/apikeys.txt and generate a random string with a tool of your choosing, and with one API key per line. Any value passed in the parameter token that matches the text in a line in this file will enable the request to use the restricted features that reference external URLs. To keep the file somewhere else, set `token_file` in `data/config.php` (see Configuration).
 
 ## Configuration
 
@@ -293,6 +293,8 @@ composer cs-fix    # fix coding standard violations automatically
 composer stan      # static analysis (PHPStan)
 composer test      # PHPUnit test suite
 ```
+
+The code lives in `include/` as classes in the `StaticMaps` namespace (loaded by `include/autoload.php`). `public/img.php` only loads the configuration and hands the request to `StaticMaps\Renderer`, which runs the stages in order: `MarkerParser` and `PathParser` (overlays and their `Bounds`) → `Viewport` (centre and zoom) → `TileFetcher` → `Compositor` (tiles, paths, markers) → `Attribution` → image encoding.
 
 Known PHPStan errors are recorded in `phpstan-baseline.neon` until they are fixed. When you fix one, regenerate the baseline with `vendor/bin/phpstan analyse --generate-baseline`.
 

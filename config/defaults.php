@@ -81,6 +81,16 @@ return [
     'user_agent' => 'Static Maps API/ github.com/dshanske/Static-Maps-API-PHP',
 
     /*
+     * File with the access tokens, one per line. A request whose `token`
+     * parameter matches a line may use external marker icon URLs,
+     * `basemap=custom` with `tileurl`, and basemaps with `requires_auth`.
+     * If the file doesn't exist, no token is valid.
+     * Default: data/apikeys.txt.
+     * Example override: 'token_file' => '/etc/static-maps/tokens.txt',
+     */
+    'token_file' => __DIR__ . '/../data/apikeys.txt',
+
+    /*
      * Basemaps, keyed by the id used in the `basemap` request parameter.
      *
      * Each basemap supports these keys:

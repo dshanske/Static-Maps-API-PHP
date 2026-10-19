@@ -7,6 +7,7 @@
  * Switches off every shipped basemap, so a test can never reach a real tile
  * host, and adds basemaps that point at the fake tile server
  * (tests/fixtures/tile-server.php), whose base URL comes from TILE_SERVER_URL.
+ * The only valid access token is `test-token` (tests/fixtures/tokens.txt).
  */
 
 $tiles = (string) getenv('TILE_SERVER_URL');
@@ -21,6 +22,7 @@ return [
         'basemap' => 'fixture',
     ],
     'user_agent' => 'Static Maps API tests',
+    'token_file' => __DIR__ . '/tokens.txt',
     'basemaps' => $basemaps + [
         'fixture' => [
             'name'   => 'Fixture base',

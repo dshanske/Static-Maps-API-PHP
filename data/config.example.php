@@ -52,6 +52,9 @@ return [
     // Identify your install to tile providers (OpenStreetMap requires this).
     // 'user_agent' => 'Static Maps API/ maps.example.com (admin@example.com)',
 
+    // File with access tokens, one per line (default: data/apikeys.txt).
+    // 'token_file' => '/etc/static-maps/tokens.txt',
+
     // Change, add or switch off basemaps. Only list what you change.
     // 'basemaps' => [
     //

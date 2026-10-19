@@ -6,10 +6,10 @@
 
 namespace StaticMaps\Tests\Unit;
 
-use Config;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 use RuntimeException;
+use StaticMaps\Config;
 
 /**
  * Loading, merging, validating and querying the configuration.
@@ -59,6 +59,7 @@ final class ConfigTest extends TestCase
         return [
             'defaults' => ['basemap' => 'one'],
             'zoom'     => ['min' => 2, 'max' => 18],
+            'token_file' => '/nonexistent/tokens.txt',
             'basemaps' => [
                 'one' => ['name' => 'One', 'layers' => ['https://tiles.example/{z}/{x}/{y}.png']],
             ],

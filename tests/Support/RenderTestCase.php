@@ -169,7 +169,7 @@ abstract class RenderTestCase extends TestCase
     /**
      * The colour the fake tile server fills a base tile with.
      *
-     * Same formula as tileColor() in tests/fixtures/tile-server.php.
+     * Same formula as in tests/fixtures/tile-server.php.
      *
      * @param int $x Tile column.
      * @param int $y Tile row.
