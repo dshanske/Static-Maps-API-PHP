@@ -121,6 +121,7 @@ final class Api
             'attribution_positions' => Attribution::POSITIONS,
             'access'       => [
                 'mode'         => $this->config['access']['mode'],
+                'credentials'  => $this->config['access']['credentials'],
                 'key_required' => $this->config['access']['mode'] === 'restricted',
                 'key_valid'    => $this->client !== null,
             ],

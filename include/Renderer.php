@@ -50,7 +50,10 @@ final class Renderer
     public function render(Request $request): Response
     {
         // The key first: in restricted mode, a request without one learns nothing else.
-        [$client, $keyHeaders] = $this->access->client($request);
+        [$client, $keyHeaders, $keyError] = $this->access->client($request);
+        if ($keyError !== null) {
+            return Response::error(403, $keyError, $keyHeaders);
+        }
         if ($this->access->restricted && $client === null) {
             return Response::error(403, 'A valid key is required to draw maps on this server', $keyHeaders);
         }
@@ -166,7 +169,7 @@ final class Renderer
         (new Attribution($remote))->draw($im, $attribution, $text, $position, $width, $height);
 
         [$formatHeaders, $body] = $this->encode($im, $request, $params->quality);
-        $cacheHeaders = $this->cacheHeaders($headers, $basemap, $client !== null, $body);
+        $cacheHeaders = $this->cacheHeaders($headers, $basemap, $client !== null && !$client->signed, $body);
         $headers = array_merge($headers, $formatHeaders, $cacheHeaders);
 
         return new Response($headers, $body);
@@ -177,12 +180,14 @@ final class Renderer
      *
      * Shared caches may keep the image for `cache.max_age` seconds. A map drawn
      * instead of the requested one gets `cache.fallback_max_age`. Images for
-     * requests with a valid token, or from a provider with `cache => 'off'`,
-     * are private. The ETag is a hash of the image.
+     * requests with a plain client key, or from a provider with `cache => 'off'`,
+     * are private; signed URLs are cacheable like free maps. The ETag is a hash of the image.
      *
      * @param list<string>         $headers          Headers collected so far (for X-Map-Fallback).
      * @param array<string, mixed> $basemap          The map drawn (for its `cache` policy).
-     * @param bool                 $is_authenticated Whether the request has a valid key.
+     * @param bool                 $is_authenticated Whether the request used a plain key (a signed
+     *                                              URL is meant to be published, so it may be
+     *                                              cached like any other).
      * @param string               $body             The encoded image.
      *
      * @return list<string> Cache-Control and ETag header lines.

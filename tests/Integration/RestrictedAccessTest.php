@@ -60,7 +60,7 @@ final class RestrictedAccessTest extends RenderTestCase
         $root = self::$app->get('/api/v1/');
         $this->assertSame(200, $root->status);
         $this->assertSame(
-            ['mode' => 'restricted', 'key_required' => true, 'key_valid' => false],
+            ['mode' => 'restricted', 'credentials' => 'either', 'key_required' => true, 'key_valid' => false],
             ((array) json_decode($root->body, true))['access']
         );
         $providers = (array) json_decode(self::$app->get('/api/v1/providers')->body, true);

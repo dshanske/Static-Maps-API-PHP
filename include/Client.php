@@ -17,11 +17,14 @@ final class Client
      *                                        custom tile URLs (the server downloads those).
      * @param list<string>|null $providers    Providers it may use among those that need a key,
      *                                        or null for all of them.
+     * @param bool              $signed       Whether this request came with a valid signature
+     *                                        (rather than the plain key).
      */
     public function __construct(
         public readonly string $id,
         public readonly bool $externalUrls = true,
-        public readonly ?array $providers = null
+        public readonly ?array $providers = null,
+        public readonly bool $signed = false
     ) {
     }
 
