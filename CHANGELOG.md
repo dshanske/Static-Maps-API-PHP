@@ -40,9 +40,20 @@ stable interface; pin a commit if you need a fixed point.
 - Attribution logos moved from `public/images/` to `assets/attribution/`, which
   is not served to the web. (#27)
 - The code is now organised as classes in the `StaticMaps` namespace in
-  `include/`; `public/img.php` only loads the settings and runs the renderer.
+  `include/`; the entry point only loads the settings and runs the renderer.
   It no longer depends on being run from `public/`. Rendered maps are
   unchanged. (#14, #44)
+- The renderer is now `public/index.php`, so maps are served from the site
+  root: `/?latitude=...&longitude=...`. In nginx, change
+  `try_files $uri /img.php?$args;` to `try_files $uri /index.php?$args;`.
+  A request for `/` without parameters now returns a map instead of a
+  placeholder page. (#24)
+
+### Deprecated
+
+- `/img.php`. It still renders the same map, with `Deprecation` and `Link`
+  headers; use `/` with the same parameters. Removed no earlier than 2.0.0.
+  (#24)
 
 ### Removed
 

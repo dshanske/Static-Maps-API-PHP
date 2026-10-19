@@ -1,29 +1,15 @@
 <?php
 
 /**
- * Entry point: renders a static map image for the request parameters.
+ * Deprecated entry point, kept so existing `/img.php?...` map URLs keep working.
  *
- * All the work happens in StaticMaps\Renderer; this file loads the
- * configuration and sends the result. See README.md for the parameters.
+ * The renderer moved to index.php (#24); request `/?...` instead. This file
+ * renders exactly the same map and adds `Deprecation` (RFC 9745) and `Link`
+ * headers. It will be removed in a future major version, 2.0.0 at the earliest.
+ * See "Versioning and deprecation" in README.md.
  */
 
-require __DIR__ . '/../include/autoload.php';
+header('Deprecation: @1792281600'); // 2026-10-18
+header('Link: <https://github.com/dshanske/Static-Maps-API-PHP#deprecated>; rel="deprecation"');
 
-use StaticMaps\Config;
-use StaticMaps\Renderer;
-use StaticMaps\Request;
-use StaticMaps\Tokens;
-
-try {
-    $config = Config::load();
-} catch (RuntimeException $e) {
-    error_log('Static Maps API: ' . $e->getMessage());
-    http_response_code(500);
-    header('Content-Type: text/plain');
-    echo 'Server configuration error';
-    exit;
-}
-
-(new Renderer($config, new Tokens($config['token_file'])))
-    ->render(Request::fromGlobals())
-    ->send();
+require __DIR__ . '/index.php';

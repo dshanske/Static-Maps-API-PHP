@@ -1,7 +1,7 @@
 <?php
 
 /**
- * End-to-end render tests for public/img.php.
+ * End-to-end render tests for public/index.php.
  */
 
 namespace StaticMaps\Tests\Integration;
@@ -65,6 +65,45 @@ final class RenderTest extends RenderTestCase
         $this->assertSame(['Static Maps API tests'], array_values($userAgents));
 
         $this->assertMatchesSnapshot('center-zoom.png', $response->body);
+    }
+
+    /**
+     * The renderer answers at /, at /index.php and at the deprecated /img.php
+     * with the same image; only /img.php adds deprecation headers (#24).
+     *
+     * @return void
+     */
+    public function testEntryPoints(): void
+    {
+        $root = $this->render(self::PORTLAND);
+        $index = $this->render(self::PORTLAND, '/index.php');
+        $legacy = $this->render(self::PORTLAND, '/img.php');
+
+        $this->assertSame('image/png', $root->header('Content-Type'));
+        $this->assertSame($root->body, $index->body);
+        $this->assertSame($root->body, $legacy->body);
+
+        $this->assertNull($root->header('Deprecation'));
+        $this->assertNull($index->header('Deprecation'));
+        $this->assertSame('@1792281600', $legacy->header('Deprecation'));
+        $this->assertSame(
+            '<https://github.com/dshanske/Static-Maps-API-PHP#deprecated>; rel="deprecation"',
+            $legacy->header('Link')
+        );
+    }
+
+    /**
+     * A request without parameters renders the default map.
+     *
+     * @return void
+     */
+    public function testRootWithoutParameters(): void
+    {
+        $response = $this->render([]);
+
+        $this->assertSame(200, $response->status);
+        $this->assertSame('image/png', $response->header('Content-Type'));
+        $this->assertSame([300, 300], [imagesx($response->image()), imagesy($response->image())]);
     }
 
     /**
