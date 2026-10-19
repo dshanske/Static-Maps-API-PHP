@@ -280,6 +280,31 @@ cd /var/www/static-maps-api
 git clone git@github.com:dshanske/Static-Maps-API-PHP.git .
 ```
 
+## Versioning and deprecation
+
+Releases follow [Semantic Versioning](https://semver.org/). The version numbers cover what users and installs depend on:
+
+- the request parameters and what they do,
+- the response: image formats, status codes and headers,
+- the install settings in `data/config.php`,
+- the query API (once it exists, #25), which also has its own version in its URL (`/api/v1/`). That number only changes when the query API itself breaks.
+
+A **major** release (2.0.0) removes or changes any of these. A **minor** release (1.1.0) adds parameters, basemaps or settings, or deprecates something; the old way keeps working. A **patch** release (1.0.1) fixes bugs without changing documented behaviour.
+
+The first release will be **1.0.0**, once the first phase of the rewrite is complete (the [1.0 milestone](https://github.com/dshanske/Static-Maps-API-PHP/milestone/1)). There are no releases before it; `main` may change at any time until then. Every change is listed in [CHANGELOG.md](CHANGELOG.md).
+
+**Deprecation.** A deprecated feature keeps working for at least the **three releases after the one that deprecates it** (minor and major releases count, patch releases don't), and is removed only in a major release. For example, something deprecated in 1.0.0 still works in 1.1, 1.2 and 1.3, and can be removed in 2.0.0 at the earliest. While it still works:
+
+- responses that use it carry a `Deprecation` header ([RFC 9745](https://www.rfc-editor.org/rfc/rfc9745)) and a `Link` header pointing to this section (`rel="deprecation"`); a `Sunset` header ([RFC 8594](https://www.rfc-editor.org/rfc/rfc8594)) is added once a removal version is set,
+- deprecated install settings keep working and log a warning,
+- it is listed in the table below with its replacement and the earliest version that can remove it.
+
+### Deprecated
+
+| Deprecated | Use instead | Deprecated in | Removed no earlier than |
+|---|---|---|---|
+| *(nothing yet)* | | | |
+
 ## Development
 
 Requires PHP 8.1 or later with the `curl`, `gd` and `imagick` extensions, and [Composer](https://getcomposer.org/) for the development tools. The service itself has no Composer dependencies at runtime.
@@ -297,6 +322,10 @@ composer test      # PHPUnit test suite
 The code lives in `include/` as classes in the `StaticMaps` namespace (loaded by `include/autoload.php`). `public/img.php` only loads the configuration and hands the request to `StaticMaps\Renderer`, which runs the stages in order: `MarkerParser` and `PathParser` (overlays and their `Bounds`) → `Viewport` (centre and zoom) → `TileFetcher` → `Compositor` (tiles, paths, markers) → `Attribution` → image encoding.
 
 Known PHPStan errors are recorded in `phpstan-baseline.neon` until they are fixed. When you fix one, regenerate the baseline with `vendor/bin/phpstan analyse --generate-baseline`.
+
+### Changelog
+
+Every pull request that changes something users or installs can notice (request parameters, responses, settings, requirements) adds a line to the `Unreleased` section of [CHANGELOG.md](CHANGELOG.md), with its issue or PR number. Deprecations also add a row to the table under [Deprecated](#deprecated). Internal changes (tests, tooling, refactoring with no visible effect) don't need an entry.
 
 ### Tests
 
