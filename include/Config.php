@@ -20,6 +20,7 @@ class Config
         'attribution',
         'attribution_text',
         'attribution_html',
+        'cache',
         'minzoom',
         'maxzoom',
         'requires_auth',
@@ -353,7 +354,8 @@ class Config
      */
     private static function validate(array $config): void
     {
-        foreach (['defaults', 'limits', 'remote', 'zoom', 'providers', 'basemap_aliases', 'removed'] as $section) {
+        $sections = ['defaults', 'limits', 'cache', 'remote', 'zoom', 'providers', 'basemap_aliases', 'removed'];
+        foreach ($sections as $section) {
             if (!isset($config[$section]) || !is_array($config[$section])) {
                 throw new RuntimeException("Configuration setting '$section' must be an array");
             }
@@ -376,6 +378,12 @@ class Config
             foreach (['attribution_text', 'attribution_html'] as $key) {
                 if (isset($provider[$key]) && !is_string($provider[$key])) {
                     throw new RuntimeException("Provider '$id' $key must be a string");
+                }
+            }
+            foreach (array_merge([$provider], array_values($styles)) as $settings) {
+                $policy = is_array($settings) ? ($settings['cache'] ?? 'headers') : 'headers';
+                if (!in_array($policy, ['headers', 'off'], true)) {
+                    throw new RuntimeException("Provider '$id' has a cache setting that isn't 'headers' or 'off'");
                 }
             }
             foreach ($styles as $styleId => $style) {
@@ -406,6 +414,12 @@ class Config
             $parts = is_string($target) ? explode('/', $target) : [];
             if (count($parts) !== 2 || !isset($config['providers'][$parts[0]]['styles'][$parts[1]])) {
                 throw new RuntimeException("Basemap alias '$old' must point to an existing 'provider/style'");
+            }
+        }
+
+        foreach (['max_age', 'fallback_max_age'] as $setting) {
+            if (!is_int($config['cache'][$setting] ?? null) || $config['cache'][$setting] < 0) {
+                throw new RuntimeException("Setting 'cache.$setting' must be a whole number of 0 or more");
             }
         }
 

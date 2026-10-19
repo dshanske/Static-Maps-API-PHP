@@ -34,7 +34,11 @@ final class Response
      */
     public static function error(int $status, string $message, array $headers = []): self
     {
-        return new self(array_merge($headers, ['Content-Type: text/plain; charset=utf-8']), $message . "\n", $status);
+        return new self(
+            array_merge($headers, ['Content-Type: text/plain; charset=utf-8', 'Cache-Control: no-store']),
+            $message . "\n",
+            $status
+        );
     }
 
     /**
@@ -51,6 +55,47 @@ final class Response
             header($header, stripos($header, 'Link:') !== 0);
         }
         echo $this->body;
+    }
+
+    /**
+     * Answer a conditional request: a 304 without a body if the client already has this version.
+     *
+     * Applies to 200 responses with an `ETag` header. The 304 keeps the other
+     * headers (Cache-Control, ETag, notices) and drops Content-Type.
+     *
+     * @param string|null $ifNoneMatch The request's If-None-Match header, or null.
+     *
+     * @return self This response, or the 304.
+     */
+    public function conditional(?string $ifNoneMatch): self
+    {
+        if ($this->status !== 200 || $ifNoneMatch === null || $ifNoneMatch === '') {
+            return $this;
+        }
+        $etag = null;
+        foreach ($this->headers as $header) {
+            if (stripos($header, 'ETag:') === 0) {
+                $etag = trim(substr($header, 5));
+            }
+        }
+        if ($etag === null) {
+            return $this;
+        }
+
+        $tags = array_map(
+            static fn (string $tag): string => preg_replace('/^W\//', '', trim($tag)) ?? '',
+            explode(',', $ifNoneMatch)
+        );
+        if (!in_array($etag, $tags, true) && !in_array('*', $tags, true)) {
+            return $this;
+        }
+
+        $headers = array_values(array_filter(
+            $this->headers,
+            static fn (string $h): bool => stripos($h, 'Content-type:') !== 0
+        ));
+
+        return new self($headers, '', 304);
     }
 
     /**

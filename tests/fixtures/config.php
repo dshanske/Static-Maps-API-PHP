@@ -121,6 +121,12 @@ return [
                 'base' => ['name' => 'Base', 'layers' => [$tiles . '/overlay/{z}/{x}/{y}.png?key={key}']],
             ],
         ],
+        // Terms forbid caching proxies (like Thunderforest): its images are private.
+        'no-proxy' => [
+            'name'   => 'Provider with cache off',
+            'cache'  => 'off',
+            'styles' => ['base' => ['name' => 'Base', 'layers' => [$tiles . '/base/{z}/{x}/{y}.png']]],
+        ],
         'switched-off' => [
             'name'    => 'Disabled provider',
             'enabled' => false,

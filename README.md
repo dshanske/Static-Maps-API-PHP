@@ -228,6 +228,18 @@ The API runs from the same `index.php` as the maps; the nginx configuration unde
 * ![small-yellow-user](images/small-yellow-user.png) `small-yellow-user`
 
 
+## Caching
+
+The same request always draws the same map until its tiles change, so map images can be cached:
+
+- `Cache-Control: public, max-age=604800` (7 days, the `cache.max_age` setting) on map images, so browsers, CDNs and proxies such as nginx (see [How to install](#cache-rendered-maps-in-nginx-optional)) can keep them.
+- `private` instead of `public` for maps drawn for a request with a valid token, and for providers whose terms don't allow caching proxies (`cache => 'off'` in their settings): browsers may keep those, shared caches shouldn't.
+- A shorter lifetime (`cache.fallback_max_age`, 5 minutes) when the default map was drawn instead of the requested one (`X-Map-Fallback`), since the requested map may become available later.
+- `Cache-Control: no-store` on errors.
+- An `ETag` on every map image; a request with a matching `If-None-Match` gets `304 Not Modified` without the image.
+
+The service sends headers that follow the providers' terms; what an install's own caches or CDN do with them is up to the install.
+
 ## Authentication
 
 Features that make the server download from an address given in the request need a valid `token`: marker icon URLs, attribution image URLs, and `provider=custom` with `tileurl`. So do providers and styles with `requires_auth`. This keeps the ability to fetch external resources to trusted users of the system. Without a valid token, those parts of the request are skipped and a header says why (`X-Marker-<n>`, `X-Map-Attribution`, `X-Map-Fallback`).
@@ -337,20 +349,6 @@ Characters such as `|` and `` ` `` must be URL-encoded in a query string (`%7C`,
 
 ## Examples
 
-Simple path with default color and weight.
-
-```
-polyline=enc:abcdethtihwithieht3
-```
-
-Specifying the color and weight of the path.
-
-```
-polyline=enc:abcdefghghgk;weight:6;color:0033ff
-```
-
-## Examples
-
 ### Simple map centered at a location
 
 ```
@@ -427,6 +425,25 @@ Add the below server block to /usr/local/nginx/conf/nginx.conf and remove the de
         }
     }
 ```
+
+### Cache rendered maps in nginx (optional)
+
+Map images are sent with `Cache-Control` and `ETag` headers (see [Caching](#caching)), so nginx can keep them and answer repeat requests without running PHP or downloading tiles. Add a cache zone in the `http` block and turn it on for PHP:
+
+```
+    # In the http block: up to 1 GB of cached maps, dropped after 7 days unused
+    fastcgi_cache_path /var/cache/nginx/static-maps levels=1:2 keys_zone=static_maps:10m
+                       max_size=1g inactive=7d use_temp_path=off;
+
+    # In the location ~ \.php$ block above:
+    fastcgi_cache           static_maps;
+    fastcgi_cache_key       "$request_method$host$request_uri";
+    fastcgi_cache_lock      on;
+    fastcgi_cache_use_stale error timeout updating;
+    add_header              X-Cache-Status $upstream_cache_status;
+```
+
+nginx follows the `Cache-Control` the service sends: maps are kept for `cache.max_age`, maps drawn for a request with a token (and maps from providers that don't allow shared caching) are `private` and not stored, and errors (`no-store`) are never stored.
 
 ### Clone the source
 

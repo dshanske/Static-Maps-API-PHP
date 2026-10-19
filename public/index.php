@@ -63,4 +63,5 @@ if (Api::handles($path)) {
     $response = (new Renderer($config, new Tokens($config['token_file'])))->render($request);
 }
 
-$response->withHeaders($entryHeaders)->send();
+$ifNoneMatch = isset($_SERVER['HTTP_IF_NONE_MATCH']) ? (string) $_SERVER['HTTP_IF_NONE_MATCH'] : null;
+$response->withHeaders($entryHeaders)->conditional($ifNoneMatch)->send();

@@ -60,6 +60,7 @@ final class ConfigTest extends TestCase
             'defaults'        => ['provider' => 'one', 'style' => 'base', 'format' => 'png'],
             'zoom'            => ['min' => 2, 'max' => 18],
             'limits'          => ['max_width' => 1280, 'max_height' => 1280],
+            'cache'           => ['max_age' => 604800, 'fallback_max_age' => 300],
             'remote'          => [
                 'timeout'         => 10,
                 'connect_timeout' => 5,
@@ -372,6 +373,12 @@ final class ConfigTest extends TestCase
             'alias malformed'       => [['basemap_aliases' => ['old' => 'one']], "alias 'old' must point"],
             'limit not int'         => [['limits' => ['max_width' => '1280']], "'limits.max_width' must be"],
             'limit zero'            => [['limits' => ['max_height' => 0]], "'limits.max_height' must be"],
+            'cache max_age'         => [['cache' => ['max_age' => '7d']], "'cache.max_age' must be"],
+            'cache policy'          => [['providers' => ['one' => ['cache' => 'sometimes']]], "isn't 'headers'"],
+            'style cache policy'    => [
+                ['providers' => ['one' => ['styles' => ['base' => ['cache' => true]]]]],
+                "isn't 'headers' or 'off'",
+            ],
             'remote timeout'        => [['remote' => ['timeout' => 0]], "'remote.timeout' must be"],
             'remote redirects'      => [['remote' => ['max_redirects' => -1]], "'remote.max_redirects' must be"],
             'unknown format'        => [['defaults' => ['format' => 'gif']], "'defaults.format' must be"],
