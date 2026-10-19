@@ -80,7 +80,7 @@ final class ApiTest extends RenderTestCase
         $byId = array_column($data['providers'], null, 'id');
         // Shipped providers are switched off in the test config; token-only, keyless and
         // disabled providers are left out.
-        $this->assertSame(['fixture', 'keyed'], array_keys($byId));
+        $this->assertSame(['fixture', 'keyed', 'no-proxy'], array_keys($byId));
 
         $styles = array_column($byId['fixture']['styles'], null, 'id');
         $this->assertSame(
@@ -122,7 +122,7 @@ final class ApiTest extends RenderTestCase
 
         $this->assertSame('private, no-store', $response->header('Cache-Control'));
         $byId = array_column($data['providers'], null, 'id');
-        $this->assertSame(['fixture', 'keyed', 'secret'], array_keys($byId));
+        $this->assertSame(['fixture', 'keyed', 'secret', 'no-proxy'], array_keys($byId));
         $styles = array_column($byId['fixture']['styles'], null, 'id');
         $this->assertTrue($styles['auth']['requires_auth']);
         $this->assertArrayHasKey('fixture-auth', $data['deprecated_basemaps']);

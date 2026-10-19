@@ -79,6 +79,28 @@ return [
     ],
 
     /*
+     * Caching.
+     *
+     * 'max_age'          How long browsers, CDNs and proxies may keep a map
+     *                    image, in seconds (sent as Cache-Control). The same
+     *                    request draws the same image until the tiles change.
+     *                    Default: 604800 (7 days).
+     * 'fallback_max_age' Lifetime for a map drawn instead of the requested one
+     *                    (X-Map-Fallback), which may become available later.
+     *                    Default: 300 (5 minutes).
+     *
+     * Maps drawn for a request with a valid token, and maps from providers with
+     * `cache => 'off'`, are marked private: browsers may keep them, shared
+     * caches should not. Errors are not cached.
+     *
+     * Example override: 'cache' => ['max_age' => 86400],
+     */
+    'cache' => [
+        'max_age'          => 604800,
+        'fallback_max_age' => 300,
+    ],
+
+    /*
      * Limits on every download from another server: tiles, icon URLs and
      * attribution image URLs. Only http and https are allowed.
      *
@@ -199,6 +221,10 @@ return [
      *                   Default: false.
      *   'enabled'       (bool) Set to false to switch it off on your install.
      *                   Default: true.
+     *   'cache'         (string) 'headers' (default): images and tiles may be
+     *                   cached as the provider's own HTTP headers allow.
+     *                   'off': for providers whose terms forbid caching proxies;
+     *                   their map images are sent as private.
      *   'key'           (string) API key inserted into {key}. Put keys in
      *                   data/config.php only, never in this file. A style
      *                   whose layers use {key} is unavailable (requests get the
@@ -240,6 +266,8 @@ return [
         // OpenStreetMap (https://operations.osmfoundation.org/policies/tiles/)
         'osm' => [
             'name'          => 'OpenStreetMap',
+            // The OSM tile policy asks for caching that follows its HTTP headers.
+            'cache'            => 'headers',
             // Credit text required by the OSM tile policy (no logo). Set here, not
             // left to defaults.attribution, so changing that default never takes
             // the OpenStreetMap credit off these maps.
@@ -260,6 +288,10 @@ return [
         // Esri basemaps (https://www.arcgis.com/home/group.html?id=702026e41f6641fb85da88efe79dc166)
         'esri' => [
             'name'          => 'Esri',
+            // Esri's tile responses carry Cache-Control: max-age=86400 and ETags,
+            // and its terms don't expressly forbid caching, so caching follows
+            // those headers (#11).
+            'cache'         => 'headers',
             // Esri's terms require "Powered by Esri" on or near the image, and the
             // data sources near the map or anywhere the user can find them
             // (https://developers.arcgis.com/documentation/esri-and-data-attribution/static-maps/).
@@ -359,6 +391,7 @@ return [
         // OpenTopoMap (https://opentopomap.org/about)
         'opentopomap' => [
             'name'          => 'OpenTopoMap',
+            'cache'            => 'headers',
             // Credit text as OpenTopoMap requires (no logo).
             'attribution'      => 'text',
             'attribution_text' => 'Map data: © OpenStreetMap contributors, SRTM | Map style: © OpenTopoMap (CC-BY-SA)',
@@ -382,6 +415,10 @@ return [
         // requests a month for non-commercial use, 1 million for commercial use.
         'carto' => [
             'name'          => 'CARTO',
+            // CARTO's tiles are sent with Cache-Control: public, max-age=2592000,
+            // immutable, and its terms don't expressly forbid caching, so caching
+            // follows those headers (#11).
+            'cache'            => 'headers',
             // Credit text as CARTO requires (no logo).
             'attribution'      => 'text',
             'attribution_text' => '© OpenStreetMap contributors, © CARTO',

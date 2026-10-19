@@ -50,6 +50,12 @@ return [
     //     'max_height' => 1280,   // pixels
     // ],
 
+    // How long browsers and caches may keep map images.
+    // 'cache' => [
+    //     'max_age'          => 604800,   // seconds (7 days)
+    //     'fallback_max_age' => 300,      // seconds, when the default map is drawn instead
+    // ],
+
     // Limits on downloads from other servers (tiles, icon and attribution URLs).
     // 'remote' => [
     //     'timeout'         => 10,        // seconds

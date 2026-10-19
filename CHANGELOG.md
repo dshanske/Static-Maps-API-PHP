@@ -47,6 +47,11 @@ stable interface; pin a commit if you need a fixed point.
   a `Link` to the README's list of removed maps) or `unavailable`, plus the
   requested and drawn ids. The `removed` setting lists removed ids; installs
   can add their own. (#52)
+- Cache headers on map images (#11): `Cache-Control` (7 days by default, the
+  new `cache.max_age` setting; `private` for requests with a token and for
+  providers with `cache => 'off'`; 5 minutes for fallback maps; `no-store` on
+  errors) and an `ETag`, with `304 Not Modified` for a matching
+  `If-None-Match`. The README shows how to cache maps in nginx.
 - Text attribution (#29): each provider or style can set `attribution_text`,
   the credit its terms require, drawn on a light strip in the attribution
   corner (wrapped to two lines, cut short with "…" on small images), with the

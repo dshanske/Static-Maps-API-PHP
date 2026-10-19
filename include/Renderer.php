@@ -157,8 +157,42 @@ final class Renderer
         (new Attribution($remote))->draw($im, $attribution, $text, $position, $width, $height);
 
         [$formatHeaders, $body] = $this->encode($im, $request, $params->quality);
+        $cacheHeaders = $this->cacheHeaders($headers, $basemap, $is_authenticated, $body);
+        $headers = array_merge($headers, $formatHeaders, $cacheHeaders);
 
-        return new Response(array_merge($headers, $formatHeaders), $body);
+        return new Response($headers, $body);
+    }
+
+    /**
+     * Cache headers for a map image (#11).
+     *
+     * Shared caches may keep the image for `cache.max_age` seconds. A map drawn
+     * instead of the requested one gets `cache.fallback_max_age`. Images for
+     * requests with a valid token, or from a provider with `cache => 'off'`,
+     * are private. The ETag is a hash of the image.
+     *
+     * @param list<string>         $headers          Headers collected so far (for X-Map-Fallback).
+     * @param array<string, mixed> $basemap          The map drawn (for its `cache` policy).
+     * @param bool                 $is_authenticated Whether the request has a valid token.
+     * @param string               $body             The encoded image.
+     *
+     * @return list<string> Cache-Control and ETag header lines.
+     */
+    private function cacheHeaders(array $headers, array $basemap, bool $is_authenticated, string $body): array
+    {
+        $fallback = false;
+        foreach ($headers as $header) {
+            if (stripos($header, 'X-Map-Fallback:') === 0) {
+                $fallback = true;
+            }
+        }
+        $private = $is_authenticated || ($basemap['cache'] ?? 'headers') === 'off';
+        $maxAge = (int) $this->config['cache'][$fallback ? 'fallback_max_age' : 'max_age'];
+
+        return [
+            'Cache-Control: ' . ($private ? 'private' : 'public') . ', max-age=' . $maxAge,
+            'ETag: "' . sha1($body) . '"',
+        ];
     }
 
     /**
