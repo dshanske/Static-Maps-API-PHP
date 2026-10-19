@@ -45,9 +45,23 @@ final class Response
     public function send(): void
     {
         http_response_code($this->status);
-        foreach ($this->headers as $header) {
-            header($header);
+        foreach (array_unique($this->headers) as $header) {
+            // A response can carry several Link headers (deprecation, help); other
+            // headers replace any earlier one of the same name.
+            header($header, stripos($header, 'Link:') !== 0);
         }
         echo $this->body;
+    }
+
+    /**
+     * A copy of this response with extra headers sent before its own.
+     *
+     * @param list<string> $headers Header lines to add.
+     *
+     * @return self The new response.
+     */
+    public function withHeaders(array $headers): self
+    {
+        return new self(array_merge($headers, $this->headers), $this->body, $this->status);
     }
 }

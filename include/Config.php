@@ -314,7 +314,7 @@ class Config
      */
     private static function validate(array $config): void
     {
-        foreach (['defaults', 'zoom', 'providers', 'basemap_aliases'] as $section) {
+        foreach (['defaults', 'zoom', 'providers', 'basemap_aliases', 'removed'] as $section) {
             if (!isset($config[$section]) || !is_array($config[$section])) {
                 throw new RuntimeException("Configuration setting '$section' must be an array");
             }
@@ -357,6 +357,12 @@ class Config
             $parts = is_string($target) ? explode('/', $target) : [];
             if (count($parts) !== 2 || !isset($config['providers'][$parts[0]]['styles'][$parts[1]])) {
                 throw new RuntimeException("Basemap alias '$old' must point to an existing 'provider/style'");
+            }
+        }
+
+        foreach ($config['removed'] as $key => $reason) {
+            if (!is_string($key) || !is_string($reason)) {
+                throw new RuntimeException("Setting 'removed' must map ids to reasons (strings)");
             }
         }
 

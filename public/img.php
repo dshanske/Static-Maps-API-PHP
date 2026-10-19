@@ -9,10 +9,6 @@
  * See "Versioning and deprecation" in README.md.
  */
 
-require_once __DIR__ . '/../include/autoload.php';
-
-foreach (StaticMaps\Deprecation::headers() as $header) {
-    header($header);
-}
-
+// index.php sees that the request came in through this file and adds the
+// Deprecation and Link headers to the response.
 require __DIR__ . '/index.php';

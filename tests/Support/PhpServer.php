@@ -118,7 +118,10 @@ final class PhpServer
             CURLOPT_HEADERFUNCTION => static function ($ch, string $line) use (&$headers): int {
                 $parts = explode(':', $line, 2);
                 if (count($parts) === 2) {
-                    $headers[strtolower(trim($parts[0]))] = trim($parts[1]);
+                    // Repeated headers (e.g. several Link lines) are joined, as HTTP allows.
+                    $name = strtolower(trim($parts[0]));
+                    $value = trim($parts[1]);
+                    $headers[$name] = isset($headers[$name]) ? $headers[$name] . ', ' . $value : $value;
                 }
                 return strlen($line);
             },

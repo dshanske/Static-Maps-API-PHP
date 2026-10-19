@@ -37,7 +37,7 @@ final class ConfigErrorTest extends RenderTestCase
         $response = self::$app->get('/?latitude=45&longitude=-122&zoom=10');
 
         $this->assertSame(500, $response->status);
-        $this->assertSame('Server configuration error', $response->body);
+        $this->assertSame("Server configuration error\n", $response->body);
         $this->assertSame([], $this->tileRequests());
 
         $errors = self::$app->errors();
@@ -62,7 +62,7 @@ final class ConfigErrorTest extends RenderTestCase
             foreach (['/', '/?latitude=45&longitude=-122&zoom=10'] as $path) {
                 $response = $missing->get($path);
                 $this->assertSame(500, $response->status, $path);
-                $this->assertSame('Server configuration error', $response->body, $path);
+                $this->assertSame("Server configuration error\n", $response->body, $path);
             }
             $errors = $missing->errors();
             $this->assertCount(2, $errors);

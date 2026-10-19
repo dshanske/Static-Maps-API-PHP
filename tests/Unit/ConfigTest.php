@@ -62,6 +62,7 @@ final class ConfigTest extends TestCase
             'token_file'      => '/nonexistent/tokens.txt',
             'home_page'       => __DIR__ . '/../../assets/home.html',
             'basemap_aliases' => ['old-one' => 'one/base'],
+            'removed'         => ['gone' => 'Shut down'],
             'providers'       => [
                 'one' => [
                     'name'   => 'One',
@@ -226,6 +227,8 @@ final class ConfigTest extends TestCase
             'reserved id'           => [['providers' => ['custom' => ['styles' => ['s' => $style]]]], 'is reserved'],
             'alias to nowhere'      => [['basemap_aliases' => ['old' => 'one/nope']], "alias 'old' must point"],
             'alias malformed'       => [['basemap_aliases' => ['old' => 'one']], "alias 'old' must point"],
+            'removed not array'     => [['removed' => 'x'], "'removed' must be an array"],
+            'removed reason'        => [['removed' => ['gone' => false]], "'removed' must map ids to reasons"],
             'home page not string'  => [['home_page' => false], "'home_page' must be a string"],
             'home page missing'     => [['home_page' => '/nonexistent/home.html'], 'must name a readable file'],
             'unknown default'       => [['defaults' => ['provider' => 'nope']], 'Default provider and style'],

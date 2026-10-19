@@ -15,7 +15,7 @@ Every map needs a location: `latitude` **and** `longitude`, or at least one vali
 * `width` - default 300 - Width in pixels of the final image
 * `height` - default 300 - Height in pixels of the final image
 * `provider` - default "osm" - The tile provider. See [Providers and styles](#providers-and-styles).
-* `style` - default: the provider's default style - The map style of that provider. With only `style`, the default provider's style of that name is used. An unknown, disabled or token-only (without a token) provider or style gets the default map.
+* `style` - default: the provider's default style - The map style of that provider. With only `style`, the default provider's style of that name is used. An unknown, disabled, removed or token-only (without a token) provider or style gets the default map, and the response says so in an `X-Map-Fallback` header (see [Providers and styles](#providers-and-styles)).
 * `tileurl` - With `provider=custom` and a valid `token`: a tile URL template (`{z}`, `{x}`, `{y}`) to draw instead of a provider.
 * `basemap` - **deprecated** - The old single-id way to pick a map; see [Deprecated basemap ids](#deprecated-basemap-ids). Ignored when `provider` or `style` is given.
 * `attribution` - default: the provider's, else "osm" - "esri", "osm", "mapbox" or "none" or specify a full URL to a png image - If you add attribution on the image in some other way, you can set this to "none" to hide all logos.
@@ -54,6 +54,23 @@ Shipped providers (the first style is the provider's default):
 Esri styles draw the "Powered by Esri" logo by default; the OpenStreetMap, OpenTopoMap and CARTO styles draw the OpenStreetMap logo. Each shipped provider sets this itself, so changing `defaults.attribution` only affects providers you add. The `attribution` parameter overrides either.
 
 Installs can switch providers or styles off, add their own, and set API keys; see [Configuration](#configuration).
+
+If the requested map can't be drawn, the default map is drawn instead and the response has an `X-Map-Fallback` header:
+
+```
+X-Map-Fallback: removed; requested=stamen-toner; drawn=osm/streets
+X-Map-Fallback: unavailable; requested=esri/nope; drawn=osm/streets
+```
+
+`removed` means the provider, style or basemap id was taken out because it stopped working (see [Removed providers and styles](#removed-providers-and-styles)); the response then also has `Link: <...#removed-providers-and-styles>; rel="help"`. `unavailable` covers everything else: unknown, switched off on this install, needs a token, or `provider=custom` without a token and `tileurl`. `requested` echoes the provider/style or basemap id (or `?` if it isn't a plain id), and `drawn` names the map drawn instead.
+
+### Removed providers and styles
+
+Maps whose tiles no longer exist are removed rather than deprecated, since they can't keep working. Requests for them get the default map with `X-Map-Fallback: removed`.
+
+| Removed | Why | Removed in | Instead |
+|---|---|---|---|
+| `basemap=stamen-toner`, `stamen-toner-background`, `stamen-toner-lite`, `stamen-terrain`, `stamen-terrain-background`, `stamen-watercolor` | Stamen's tile hosting shut down in 2023 | 1.0.0 | `carto` `light` / `dark` for a similar look; Stamen styles via Stadia Maps may be added later (#33) |
 
 ### Deprecated basemap ids
 
@@ -188,6 +205,8 @@ return [
     ],
 ];
 ```
+
+The `removed` setting lists removed provider, style and basemap ids for the `X-Map-Fallback` notice; an install can add its own when it takes a map out of service.
 
 Each provider has a `name`, an optional `default_style`, and `styles`. Each style has a `name` and a list of one or two tile URL `layers` (a base map and an optional overlay drawn on top). A provider can set a default `attribution`, `minzoom` / `maxzoom`, `requires_auth` (only usable with a valid token), `enabled` and an API `key`; its styles inherit these and can override any of them. See `config/defaults.php` for details.
 
@@ -332,6 +351,8 @@ Releases follow [Semantic Versioning](https://semver.org/). The version numbers 
 A **major** release (2.0.0) removes or changes any of these. A **minor** release (1.1.0) adds parameters, providers, styles or settings, or deprecates something; the old way keeps working. A **patch** release (1.0.1) fixes bugs without changing documented behaviour.
 
 The first release will be **1.0.0**, once the first phase of the rewrite is complete (the [1.0 milestone](https://github.com/dshanske/Static-Maps-API-PHP/milestone/1)). There are no releases before it; `main` may change at any time until then. Every change is listed in [CHANGELOG.md](CHANGELOG.md).
+
+**Maps that stop working** are the exception: a provider or style whose tiles no longer exist is removed in the next release (not deprecated, since it can't keep working), and requests for it get the default map with a notice; see [Removed providers and styles](#removed-providers-and-styles). Where the provider offers a working replacement, the style is repaired instead and keeps its id.
 
 **Deprecation.** A deprecated feature keeps working for at least the **three releases after the one that deprecates it** (minor and major releases count, patch releases don't), and is removed only in a major release. For example, something deprecated in 1.0.0 still works in 1.1, 1.2 and 1.3, and can be removed in 2.0.0 at the earliest. While it still works:
 

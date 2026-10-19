@@ -465,6 +465,87 @@ final class RenderTest extends RenderTestCase
     }
 
     /**
+     * Requests whose map can't be drawn, and the X-Map-Fallback notice they get (#52).
+     *
+     * @return array<string, array{array<string, mixed>, string}> Parameters and expected header.
+     */
+    public static function fallbackCases(): array
+    {
+        $d = '; drawn=fixture/base';
+
+        return [
+            'removed provider'     => [['provider' => 'retired'], 'removed; requested=retired' . $d],
+            'removed style'        => [['style' => 'retired'], 'removed; requested=fixture/retired' . $d],
+            'removed basemap id'   => [['basemap' => 'fixture-retired'], 'removed; requested=fixture-retired' . $d],
+            'removed shipped id'   => [['basemap' => 'stamen-toner'], 'removed; requested=stamen-toner' . $d],
+            'removed shipped one'  => [['provider' => 'stamen', 'style' => 'x'], 'removed; requested=stamen/x' . $d],
+            'unknown provider'     => [['provider' => 'nope'], 'unavailable; requested=nope' . $d],
+            'unknown style'        => [['style' => 'nope'], 'unavailable; requested=fixture/nope' . $d],
+            'unknown basemap id'   => [['basemap' => 'nope'], 'unavailable; requested=nope' . $d],
+            'disabled style'       => [['style' => 'off'], 'unavailable; requested=fixture/off' . $d],
+            'disabled provider'    => [['provider' => 'switched-off'], 'unavailable; requested=switched-off/base' . $d],
+            'token-only, no token' => [['provider' => 'secret'], 'unavailable; requested=secret/only' . $d],
+            'custom without token' => [['provider' => 'custom'], 'unavailable; requested=custom' . $d],
+            'odd characters'       => [['provider' => 'Bad<id>'], 'unavailable; requested=?' . $d],
+            'array parameter'      => [['provider' => ['x']], 'unavailable; requested=?' . $d],
+        ];
+    }
+
+    /**
+     * The default map is drawn, with a notice naming what was asked for.
+     *
+     * @param array<string, mixed> $params Request parameters.
+     * @param string               $header Expected X-Map-Fallback value.
+     *
+     * @return void
+     */
+    #[DataProvider('fallbackCases')]
+    public function testFallbackNotice(array $params, string $header): void
+    {
+        $response = $this->render(self::TILE_CENTER + $params);
+
+        $this->assertSame(200, $response->status);
+        $this->assertPixel(self::tileColor(2608, 5860), $response->image(), 150, 150);
+        $this->assertSame($header, $response->header('X-Map-Fallback'));
+
+        $help = '<https://github.com/dshanske/Static-Maps-API-PHP#removed-providers-and-styles>; rel="help"';
+        $links = (string) $response->header('Link');
+        $this->assertSame(str_starts_with($header, 'removed'), str_contains($links, $help), $links);
+    }
+
+    /**
+     * No notice when the requested map is drawn, or when no map was requested.
+     *
+     * @return void
+     */
+    public function testNoFallbackNotice(): void
+    {
+        $this->assertNull($this->render(self::TILE_CENTER)->header('X-Map-Fallback'));
+        $this->assertNull($this->render(self::TILE_CENTER + ['provider' => 'fixture'])->header('X-Map-Fallback'));
+        $old = $this->render(self::TILE_CENTER + ['basemap' => 'fixture-overlay']);
+        $this->assertNull($old->header('X-Map-Fallback'));
+        $withToken = $this->render(self::TILE_CENTER + ['provider' => 'secret', 'token' => 'test-token']);
+        $this->assertNull($withToken->header('X-Map-Fallback'));
+    }
+
+    /**
+     * A removed basemap id gets both Link headers: the deprecation notice and the removed list.
+     *
+     * @return void
+     */
+    public function testRemovedBasemapIdHasBothLinks(): void
+    {
+        $response = $this->render(self::TILE_CENTER + ['basemap' => 'stamen-toner'], '/img.php');
+        $links = (string) $response->header('Link');
+
+        $this->assertSame(
+            '<https://github.com/dshanske/Static-Maps-API-PHP#deprecated>; rel="deprecation", '
+            . '<https://github.com/dshanske/Static-Maps-API-PHP#removed-providers-and-styles>; rel="help"',
+            $links
+        );
+    }
+
+    /**
      * Styles inherit key, attribution and zoom range from their provider, and can override them.
      *
      * @return void
