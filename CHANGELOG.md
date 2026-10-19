@@ -80,7 +80,10 @@ stable interface; pin a commit if you need a fixed point.
   the OpenStreetMap logo themselves, so changing `defaults.attribution` no
   longer changes their credit. A request's `attribution` still overrides
   both. (#50)
-
+- The Esri `oceans` style (old `basemap=oceans`) draws tiles again. Esri
+  retired the Ocean_Basemap service; the style now uses World Ocean Base with
+  World Ocean Reference labels on top, up to zoom 13 (where Esri's detailed
+  ocean data ends). (#17)
 - A request that doesn't say where the map is (no `latitude` and
   `longitude`, no marker or path, no `location`) returns HTTP 400 with the
   reason, instead of a meaningless map centred on 0,0. So does a request with
