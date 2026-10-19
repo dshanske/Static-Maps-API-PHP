@@ -139,8 +139,9 @@ final class Renderer
      * - Otherwise the deprecated `basemap`: the provider/style its id maps to in
      *   `basemap_aliases`, or `basemap=custom` with `tileurl` and a token. Any use
      *   of `basemap` adds `Deprecation` and `Link` headers.
-     * - Anything unknown, disabled or token-only (without a token) gets the
-     *   default map, `defaults.provider` / `defaults.style`.
+     * - Anything unknown, disabled, removed or token-only (without a token) gets
+     *   the default map, `defaults.provider` / `defaults.style`, and an
+     *   `X-Map-Fallback` header saying so (#52).
      *
      * @param Request $request          The request.
      * @param bool    $is_authenticated Whether the request has a valid token.
@@ -157,31 +158,91 @@ final class Renderer
         $headers = $legacy === false ? [] : Deprecation::headers();
 
         $basemap = null;
+        // What was asked for, for the fallback notice: the id as shown to the
+        // client, and the `removed` keys that would explain a failure.
+        $requested = null;
+        $removedKeys = [];
         if ($provider !== false || $style !== false) {
             if ('custom' === $provider) {
+                $requested = 'custom';
                 $basemap = $this->customBasemap($request, $is_authenticated);
             } else {
                 $p = is_string($provider) ? $provider : $config['defaults']['provider'];
                 $s = is_string($style) ? $style : Config::defaultStyle($config, $p);
+                $requested = $s === null ? $p : "$p/$s";
+                $removedKeys = $s === null ? [$p] : ["$p/$s", $p];
                 $basemap = $s === null ? null : Config::resolve($config, $p, $s, $is_authenticated);
+                if ((!is_string($provider) && $provider !== false) || (!is_string($style) && $style !== false)) {
+                    // e.g. provider[]=x: not a usable id, so it's a fallback like an unknown one.
+                    $requested = '?';
+                    $basemap = null;
+                }
             }
-        } elseif ('custom' === $legacy) {
-            $basemap = $this->customBasemap($request, $is_authenticated);
-        } elseif (is_string($legacy) && ($alias = Config::alias($config, $legacy)) !== null) {
-            $basemap = Config::resolve($config, $alias[0], $alias[1], $is_authenticated);
+        } elseif ($legacy !== false) {
+            $requested = is_string($legacy) ? $legacy : '?';
+            $removedKeys = is_string($legacy) ? ["basemap:$legacy"] : [];
+            if ('custom' === $legacy) {
+                $basemap = $this->customBasemap($request, $is_authenticated);
+            } elseif (is_string($legacy) && ($alias = Config::alias($config, $legacy)) !== null) {
+                $basemap = Config::resolve($config, $alias[0], $alias[1], $is_authenticated);
+                $removedKeys = array_merge($removedKeys, ["$alias[0]/$alias[1]", $alias[0]]);
+            }
         }
 
         if ($basemap === null) {
             // Config::validate() guarantees the default resolves without a token.
+            $default = $config['defaults']['provider'] . '/' . $config['defaults']['style'];
             $basemap = (array) Config::resolve(
                 $config,
                 $config['defaults']['provider'],
                 $config['defaults']['style'],
                 $is_authenticated
             );
+            if ($requested !== null) {
+                $headers = array_merge($headers, self::fallbackHeaders($config, $requested, $removedKeys, $default));
+            }
         }
 
         return [$basemap, $headers];
+    }
+
+    /**
+     * Headers telling the client that the default map was drawn instead of the requested one.
+     *
+     * `removed` means the request names a provider, style or basemap id that was
+     * taken out because it stopped working (listed in the `removed` setting);
+     * `unavailable` covers everything else (unknown, switched off, token-only,
+     * `custom` without a token), so the header doesn't reveal which of those it was.
+     *
+     * @param array<string, mixed> $config      The configuration.
+     * @param string               $requested   The requested id as received.
+     * @param list<string>         $removedKeys Keys of `removed` that would explain the failure.
+     * @param string               $drawn       The `provider/style` drawn instead.
+     *
+     * @return list<string> Header lines.
+     */
+    private static function fallbackHeaders(array $config, string $requested, array $removedKeys, string $drawn): array
+    {
+        $removed = false;
+        foreach ($removedKeys as $key) {
+            if (isset($config['removed'][$key])) {
+                $removed = true;
+                break;
+            }
+        }
+
+        // Only echo ids made of the characters ids use.
+        if (!preg_match('#^[a-z0-9-]+(/[a-z0-9-]+)?$#', $requested)) {
+            $requested = '?';
+        }
+
+        $reason = $removed ? 'removed' : 'unavailable';
+        $headers = ["X-Map-Fallback: $reason; requested=$requested; drawn=$drawn"];
+        if ($removed) {
+            $headers[] = 'Link: <' . Deprecation::REMOVED_URL . '>; rel="help"';
+        }
+
+        return $headers;
     }
 
     /**

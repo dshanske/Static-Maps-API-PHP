@@ -300,7 +300,8 @@ return [
      * no entry here; they are only available through `provider` and `style`.
      * This table will be removed in a future major version, 2.0.0 at the
      * earliest. `basemap=custom` maps to `provider=custom`. The Stamen ids were
-     * removed (their tiles no longer exist), so they get the default map.
+     * removed (their tiles no longer exist), so they get the default map; see
+     * `removed` below.
      */
     'basemap_aliases' => [
         'osm'                 => 'osm/streets',
@@ -316,5 +317,28 @@ return [
         'carto-light'         => 'carto/light',
         'carto-dark'          => 'carto/dark',
         'carto-voyager'       => 'carto/streets',
+    ],
+
+    /*
+     * Providers, styles and old basemap ids that were removed because they
+     * stopped working (their tiles no longer exist). Requests for them get the
+     * default map, like any other unavailable map, but the `X-Map-Fallback`
+     * response header says `removed` instead of `unavailable` and links to the
+     * README's list of removed maps. This list only changes that notice.
+     *
+     * Keys: a provider id ('stamen'), a 'provider/style', or 'basemap:<old id>'.
+     * Values: why it was removed and in which version.
+     *
+     * Example for data/config.php, if your install takes a map out of service:
+     *   'removed' => ['my-provider' => 'Our tile server was shut down (2027-01)'],
+     */
+    'removed'                           => [
+        'stamen'                            => 'Stamen tile hosting shut down in 2023 (removed in 1.0.0)',
+        'basemap:stamen-toner'              => 'Stamen tile hosting shut down in 2023 (removed in 1.0.0)',
+        'basemap:stamen-toner-background'   => 'Stamen tile hosting shut down in 2023 (removed in 1.0.0)',
+        'basemap:stamen-toner-lite'         => 'Stamen tile hosting shut down in 2023 (removed in 1.0.0)',
+        'basemap:stamen-terrain'            => 'Stamen tile hosting shut down in 2023 (removed in 1.0.0)',
+        'basemap:stamen-terrain-background' => 'Stamen tile hosting shut down in 2023 (removed in 1.0.0)',
+        'basemap:stamen-watercolor'         => 'Stamen tile hosting shut down in 2023 (removed in 1.0.0)',
     ],
 ];

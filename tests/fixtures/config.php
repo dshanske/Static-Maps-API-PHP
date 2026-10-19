@@ -106,6 +106,12 @@ return [
             ],
         ],
     ],
+    // Ids "removed" for the fallback-notice tests (#52), on top of the shipped ones.
+    'removed' => [
+        'retired'                 => 'Test provider that was shut down',
+        'fixture/retired'         => 'Test style that was shut down',
+        'basemap:fixture-retired' => 'Test basemap id that was shut down',
+    ],
     'basemap_aliases' => [
         'fixture'         => 'fixture/base',
         'fixture-overlay' => 'fixture/overlay',

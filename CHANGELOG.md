@@ -38,6 +38,11 @@ stable interface; pin a commit if you need a fixed point.
 - `providers` setting: tile providers with their styles. Settings such as the
   API key, attribution, zoom range, `requires_auth` and `enabled` are set once
   per provider and inherited by its styles, which can override them. (#40)
+- `X-Map-Fallback` response header when the requested provider, style or
+  basemap can't be drawn and the default map is drawn instead: `removed` (with
+  a `Link` to the README's list of removed maps) or `unavailable`, plus the
+  requested and drawn ids. The `removed` setting lists removed ids; installs
+  can add their own. (#52)
 - A request without any parameters (for example opening the service's address
   in a browser) returns an HTML page that describes the service. Installs can
   use their own page with the `home_page` setting. (#47)

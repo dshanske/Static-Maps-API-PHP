@@ -18,6 +18,9 @@ final class Deprecation
     /** @var string Where deprecated features and their replacements are listed. */
     public const INFO_URL = 'https://github.com/dshanske/Static-Maps-API-PHP#deprecated';
 
+    /** @var string Where removed providers and styles are listed (#52). */
+    public const REMOVED_URL = 'https://github.com/dshanske/Static-Maps-API-PHP#removed-providers-and-styles';
+
     /**
      * The `Deprecation` (RFC 9745) and `Link` header lines.
      *

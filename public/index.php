@@ -11,18 +11,21 @@
 require_once __DIR__ . '/../include/autoload.php';
 
 use StaticMaps\Config;
+use StaticMaps\Deprecation;
 use StaticMaps\HomePage;
 use StaticMaps\Renderer;
 use StaticMaps\Request;
+use StaticMaps\Response;
 use StaticMaps\Tokens;
+
+// Requests that came in through the deprecated img.php say so on every response.
+$entryHeaders = basename((string) ($_SERVER['SCRIPT_FILENAME'] ?? '')) === 'img.php' ? Deprecation::headers() : [];
 
 try {
     $config = Config::load();
 } catch (RuntimeException $e) {
     error_log('Static Maps API: ' . $e->getMessage());
-    http_response_code(500);
-    header('Content-Type: text/plain');
-    echo 'Server configuration error';
+    Response::error(500, 'Server configuration error')->withHeaders($entryHeaders)->send();
     exit;
 }
 
@@ -38,13 +41,11 @@ if ($request->isEmpty()) {
         $response = HomePage::response($config['home_page']);
     } catch (RuntimeException $e) {
         error_log('Static Maps API: ' . $e->getMessage());
-        http_response_code(500);
-        header('Content-Type: text/plain');
-        echo 'Server configuration error';
+        Response::error(500, 'Server configuration error')->withHeaders($entryHeaders)->send();
         exit;
     }
 } else {
     $response = (new Renderer($config, new Tokens($config['token_file'])))->render($request);
 }
 
-$response->send();
+$response->withHeaders($entryHeaders)->send();

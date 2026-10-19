@@ -91,6 +91,10 @@ return [
     //     ],
     // ],
 
+    // Maps your install took out of service: requests for them still get the
+    // default map, and the X-Map-Fallback header says "removed".
+    // 'removed' => ['my-provider' => 'Our tile server was shut down (2027-01)'],
+
     // Deprecated: point an old `basemap=` id at another provider/style.
     // 'basemap_aliases' => ['stamen-toner-lite' => 'carto/light'],
     // (The Stamen ids were removed; an alias like this one brings one back.)
