@@ -26,8 +26,9 @@ final class MarkerParser
      *
      * Every valid marker definition widens $bounds, even if its icon can't be
      * loaded (the marker is then left out). Invalid definitions, including
-     * markers with only a `location`, and icons that can't be used are reported
-     * as `X-Marker-<n>` headers, n counting from 1.
+     * markers with only a `location` or with invalid coordinates, and icons that
+     * can't be used are reported as `X-Marker-<n>` headers, n counting from 1.
+     * `lat` and `lng` are converted to floats.
      *
      * @param mixed  $value         The `marker` parameter: a string, a list of strings, or false.
      * @param bool   $authenticated Whether the request has a valid token (allows icon URLs).
@@ -77,6 +78,13 @@ final class MarkerParser
                 );
                 continue;
             }
+
+            if (!Parameters::isValidPoint($properties['lat'], $properties['lng'])) {
+                $headers[] = 'X-Marker-' . ($i + 1) . ': lat and lng must be numbers in range (lat ±85.0511, lng ±180)';
+                continue;
+            }
+            $properties['lat'] = (float) $properties['lat'];
+            $properties['lng'] = (float) $properties['lng'];
 
             [$properties['iconImg'], $problem] = $this->loadIcon($properties['icon'], $authenticated);
             if ($properties['iconImg'] !== null) {

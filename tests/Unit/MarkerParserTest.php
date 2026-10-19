@@ -71,12 +71,12 @@ final class MarkerParserTest extends TestCase
         $this->assertSame([], $result['headers']);
         $this->assertCount(2, $result['markers']);
         $this->assertSame('small-blue-cutout', $result['markers'][0]['icon']);
-        $this->assertSame('45.5', $result['markers'][0]['lat']);
+        $this->assertSame(45.5, $result['markers'][0]['lat']);
         $this->assertInstanceOf(GdImage::class, $result['markers'][0]['iconImg']);
         $icon = $result['markers'][0]['iconImg'];
         $this->assertSame([31, 43], [imagesx($icon), imagesy($icon)]);
         $this->assertSame('kept', $result['markers'][1]['extra']);
-        $this->assertSame(['45.5', '45.6', '-122.7', '-122.6'], self::edges($bounds));
+        $this->assertSame([45.5, 45.6, -122.7, -122.6], self::edges($bounds));
     }
 
     /**
@@ -137,8 +137,8 @@ final class MarkerParserTest extends TestCase
         $this->assertTrue($result['deprecated']);
         $this->assertSame(['X-Marker-1: location is no longer supported, use lat and lng'], $result['headers']);
         $this->assertCount(1, $result['markers']);
-        $this->assertSame(['10', '20'], [$result['markers'][0]['lat'], $result['markers'][0]['lng']]);
-        $this->assertSame(['10', '10', '20', '20'], self::edges($bounds));
+        $this->assertSame([10.0, 20.0], [$result['markers'][0]['lat'], $result['markers'][0]['lng']]);
+        $this->assertSame([10.0, 10.0, 20.0, 20.0], self::edges($bounds));
     }
 
     /**
@@ -153,6 +153,28 @@ final class MarkerParserTest extends TestCase
         $result = self::parser()->parse(['lat:10;lng:20;icon:https://icons.invalid/pin.png'], false, $bounds);
 
         $this->assertSame([], $result['markers']);
-        $this->assertSame(['10', '10', '20', '20'], self::edges($bounds));
+        $this->assertSame([10.0, 10.0, 20.0, 20.0], self::edges($bounds));
+        $this->assertSame(['X-Marker-1: icon URLs need a valid token'], $result['headers']);
+    }
+
+    /**
+     * Markers with coordinates that aren't numbers, or are out of range, are skipped (#9).
+     *
+     * @return void
+     */
+    public function testInvalidCoordinatesAreReported(): void
+    {
+        $bounds = new Bounds();
+        $markers = [
+            'lat:abc;lng:2;icon:dot-small-red',
+            'lat:86;lng:2;icon:dot-small-red',
+            'lat:1;lng:181;icon:dot-small-red',
+        ];
+        $result = self::parser()->parse($markers, false, $bounds);
+
+        $this->assertSame([], $result['markers']);
+        $this->assertCount(3, $result['headers']);
+        $this->assertStringStartsWith('X-Marker-1: lat and lng must be numbers in range', $result['headers'][0]);
+        $this->assertTrue($bounds->isEmpty());
     }
 }

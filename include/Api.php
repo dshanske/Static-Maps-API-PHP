@@ -11,7 +11,7 @@ namespace StaticMaps;
  *
  * Endpoints (GET or HEAD):
  *
- * - `/api/v1/`          Service version, defaults, zoom limits, formats, links.
+ * - `/api/v1/`          Service version, defaults, size and zoom limits, formats, links.
  * - `/api/v1/providers` Providers and styles that can be drawn, removed ids and
  *                       deprecated basemap ids.
  * - `/api/v1/icons`     Built-in marker icons.
@@ -101,6 +101,10 @@ final class Api
                 'height'      => $defaults['height'],
                 'format'      => $defaults['format'],
                 'attribution' => $defaults['attribution'],
+            ],
+            'limits'       => [
+                'max_width'  => $this->config['limits']['max_width'],
+                'max_height' => $this->config['limits']['max_height'],
             ],
             'zoom'         => [
                 'min'       => $this->config['zoom']['min'],

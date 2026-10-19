@@ -344,7 +344,7 @@ class Config
      */
     private static function validate(array $config): void
     {
-        foreach (['defaults', 'zoom', 'providers', 'basemap_aliases', 'removed'] as $section) {
+        foreach (['defaults', 'limits', 'zoom', 'providers', 'basemap_aliases', 'removed'] as $section) {
             if (!isset($config[$section]) || !is_array($config[$section])) {
                 throw new RuntimeException("Configuration setting '$section' must be an array");
             }
@@ -387,6 +387,12 @@ class Config
             $parts = is_string($target) ? explode('/', $target) : [];
             if (count($parts) !== 2 || !isset($config['providers'][$parts[0]]['styles'][$parts[1]])) {
                 throw new RuntimeException("Basemap alias '$old' must point to an existing 'provider/style'");
+            }
+        }
+
+        foreach (['max_width', 'max_height'] as $limit) {
+            if (!is_int($config['limits'][$limit] ?? null) || $config['limits'][$limit] < 1) {
+                throw new RuntimeException("Setting 'limits.$limit' must be a whole number of 1 or more");
             }
         }
 

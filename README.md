@@ -10,22 +10,28 @@ Parameters can be sent in either the query string or in the POST body.
 
 Every map needs a location: `latitude` **and** `longitude`, or at least one valid marker or path (the map is then fitted to them). A request without one gets HTTP 400 with the reason as plain text, as does a request with only one of `latitude` / `longitude`. A request with no parameters at all, such as opening the service's address in a browser, gets an HTML page describing the service (see `home_page` under Configuration).
 
-* `zoom` - optional - Set the zoom level for the map. If not specified, a zoom level will be chosen that contains all markers on the map.
-* `maxzoom` - optional - When a zoom level is chosen automatically, this sets an upper limit on the zoom level that will be chosen. Useful if you know your maps don't have imagery past a certain zoom level.
-* `width` - default 300 - Width in pixels of the final image
-* `height` - default 300 - Height in pixels of the final image
+Numbers are checked: a value that isn't a number, or is out of the range given below, gets HTTP 400 with the reason (for example `zoom must be between 0 and 30`). An empty value (`width=`) counts as not given.
+
+* `zoom` - optional - Whole number, 0-30. Set the zoom level for the map; it is kept within the map's own zoom range. If not specified, a zoom level will be chosen that contains all markers on the map.
+* `maxzoom` - optional - Whole number, 0-30. An upper limit on the zoom level, mostly useful when the zoom is chosen automatically.
+* `width` - default 300 - Width in pixels of the final image, a whole number of 1 or more. At most 1280 by default (the install's `limits.max_width`): a larger width is drawn at the limit and the response has an `X-Map-Size: clamped; requested=5000x300; drawn=1280x300` header.
+* `height` - default 300 - Height in pixels of the final image, a whole number of 1 or more. At most 1280 by default (`limits.max_height`), like `width`.
 * `provider` - default "osm" - The tile provider. See [Providers and styles](#providers-and-styles).
 * `style` - default: the provider's default style - The map style of that provider. With only `style`, the default provider's style of that name is used. An unknown, disabled, removed or token-only (without a token) provider or style gets the default map, and the response says so in an `X-Map-Fallback` header (see [Providers and styles](#providers-and-styles)).
 * `tileurl` - With `provider=custom` and a valid `token`: a tile URL template (`{z}`, `{x}`, `{y}`) to draw instead of a provider.
 * `basemap` - **deprecated** - The old single-id way to pick a map; see [Deprecated basemap ids](#deprecated-basemap-ids). Ignored when `provider` or `style` is given.
 * `attribution` - default: the provider's, else "osm" - "esri", "osm", "mapbox" or "none" or specify a full URL to a png image - If you add attribution on the image in some other way, you can set this to "none" to hide all logos.
-* `latitude` - Latitude to center the map at. Not needed if specifying one or more markers or paths. Must be given together with `longitude`.
-* `longitude` - Longitude to center the map at. Must be given together with `latitude`.
+* `latitude` - Latitude to center the map at, -85.0511 to 85.0511 (the limits of Web Mercator maps). Not needed if specifying one or more markers or paths. Must be given together with `longitude`.
+* `longitude` - Longitude to center the map at, -180 to 180. Must be given together with `latitude`.
 * `location` - **deprecated, ignored** - Geocoding addresses was removed (#16): convert addresses to coordinates in your client and pass `latitude` / `longitude`. A request with `location` gets `Deprecation` and `Link` headers; with nothing else to place the map, it gets HTTP 400.
 * `marker[]` - Specify one or more markers to overlay on the map. Parameters are specified as: `key:value;`. See below for the full list of parameters. 
 * `path[]` - Specify one or more paths to draw on the map. See below for the full list of parameters to draw a path.
 * `polyline` - Alternative to path, this allows for a path to be specified as an encoded polyline, allowing for shorter URLs.
-* `bezier` - Specify a bezier curve to your path. 25 will give you a nicely curved line. [More Info](https://aaronparecki.com/2017/01/02/6/day-13-curved-map-lines)
+* `format` - default "png" - `png` or `jpg` (`jpeg` also works). Anything else gets HTTP 400.
+* `quality` - default 75 - JPEG quality for `format=jpg`, a whole number from 1 to 100.
+* `bezier` - Specify a bezier curve to your path, an angle in degrees between -89 and 89. 25 will give you a nicely curved line. [More Info](https://aaronparecki.com/2017/01/02/6/day-13-curved-map-lines)
+
+Markers and paths whose coordinates aren't numbers in range are left out, with an `X-Marker-<n>` or `X-Path-<n>` header saying why.
 
 ## Providers and styles
 
@@ -95,7 +101,7 @@ A read-only JSON API tells clients what this install supports, so they don't hav
 
 | Endpoint | Returns |
 |---|---|
-| `GET /api/v1/` | Version, defaults (provider, style, size, format, attribution), zoom settings, formats, attribution values, whether custom tile URLs are available to this request, and links to the other endpoints |
+| `GET /api/v1/` | Version, defaults (provider, style, size, format, attribution), size limits, zoom settings, formats, attribution values, whether custom tile URLs are available to this request, and links to the other endpoints |
 | `GET /api/v1/providers` | Every provider and style that can be drawn: id, name, `minzoom` / `maxzoom` (after `zoom.max_limit`), default attribution, whether it has a labels layer; the default map; deprecated `basemap` ids with what they map to; removed ids with the reason |
 | `GET /api/v1/icons` | Every built-in marker icon: name, width and height in pixels, anchor (`bottom-center`, or `center` for `dot-*` icons) and the URL of its image |
 
@@ -242,6 +248,8 @@ return [
     ],
 ];
 ```
+
+`limits.max_width` / `limits.max_height` (default 1280 each) are the largest image a request can get. Larger requests are drawn at the limit, with an `X-Map-Size` header. Bigger images download more tiles from the tile providers.
 
 `zoom.min` / `zoom.max` (default 2 and 18) is the zoom range for providers and styles that don't set their own `minzoom` / `maxzoom`. `zoom.max_limit` (not set by default) caps every map, whatever its own maximum, for example `'zoom' => ['max_limit' => 17]` to limit how many tiles high-zoom maps download.
 

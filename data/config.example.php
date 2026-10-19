@@ -44,6 +44,12 @@ return [
     //     'attribution'  => 'osm',     // 'osm', 'esri' or 'mapbox'
     // ],
 
+    // Largest image a request may ask for; bigger sizes are drawn at the limit.
+    // 'limits' => [
+    //     'max_width'  => 1280,   // pixels
+    //     'max_height' => 1280,   // pixels
+    // ],
+
     // Zoom range for providers and styles that don't set their own minzoom/maxzoom,
     // and an optional cap that no map goes above (not set by default).
     // 'zoom' => [

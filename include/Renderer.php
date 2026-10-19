@@ -43,13 +43,16 @@ final class Renderer
      * @param Request $request The request parameters.
      *
      * @return Response Headers and the encoded image; a 400 with a plain-text reason
-     *                  if the request doesn't locate the map or asks for an
-     *                  unknown `format`.
+     *                  if a numeric parameter is invalid (see Parameters), the
+     *                  request doesn't locate the map, or it asks for an unknown
+     *                  `format`.
      */
     public function render(Request $request): Response
     {
-        if (($request->get('latitude') === false) !== ($request->get('longitude') === false)) {
-            return Response::error(400, 'latitude and longitude must be given together');
+        try {
+            $params = Parameters::parse($request, $this->config);
+        } catch (InvalidRequest $e) {
+            return Response::error(400, $e->getMessage());
         }
         $format = $request->get('format', $this->config['defaults']['format']);
         if (!in_array($format, self::FORMATS, true)) {
@@ -72,11 +75,13 @@ final class Renderer
             $headers = array_merge($headers, Deprecation::headers());
         }
 
-        $paths = (new PathParser($config['defaults']['path_color'], $config['defaults']['path_weight']))
+        $parsedPaths = (new PathParser($config['defaults']['path_color'], $config['defaults']['path_weight']))
             ->parse($request->get('path'), $request->get('polyline'), $bounds);
+        $paths = $parsedPaths['paths'];
+        $headers = array_merge($headers, $parsedPaths['headers']);
 
         $viewport = new Viewport($this->webmercator);
-        $center = $viewport->center($request, $bounds);
+        $center = $viewport->center($params->latitude, $params->longitude, $bounds);
         $latitude = $center['latitude'];
         $longitude = $center['longitude'];
         if (!$center['located']) {
@@ -89,8 +94,10 @@ final class Renderer
             );
         }
 
-        $width = $request->get('width', $config['defaults']['width']);
-        $height = $request->get('height', $config['defaults']['height']);
+        // Within the install's limits (#9); X-Map-Size says if the size was reduced.
+        $width = $params->width;
+        $height = $params->height;
+        $headers = array_merge($headers, $params->sizeHeaders);
 
         [$basemap, $basemapHeaders] = $this->basemap($request, $is_authenticated);
         $headers = array_merge($headers, $basemapHeaders);
@@ -98,8 +105,8 @@ final class Renderer
         $overlayURL = $basemap['layers'][1] ?? false;
         $tileKey = $basemap['key'] ?? null;
 
-        $zoom = $viewport->zoom($request->get('zoom'), $latitude, $longitude, $width, $height, $bounds);
-        $zoom = $viewport->clampZoom($zoom, $request->get('maxzoom'), $basemap['minzoom'], $basemap['maxzoom']);
+        $zoom = $viewport->zoom($params->zoom, $latitude, $longitude, $width, $height, $bounds);
+        $zoom = $viewport->clampZoom($zoom, $params->maxzoom, $basemap['minzoom'], $basemap['maxzoom']);
 
         $im = imagecreatetruecolor($width, $height);
 
@@ -124,7 +131,7 @@ final class Renderer
         if ($overlayURL) {
             $compositor->drawTiles($im, $fetched['overlays'], $tilePos, $pos, $width, $height);
         }
-        $compositor->drawPaths($im, $paths, $zoom, $leftEdge, $topEdge, $width, $height, $request->get('bezier'));
+        $compositor->drawPaths($im, $paths, $zoom, $leftEdge, $topEdge, $width, $height, $params->bezier);
         $compositor->drawMarkers($im, $markers, $zoom, $leftEdge, $topEdge, $width, $height);
 
         // The request's attribution, else the basemap's default, else the global
@@ -135,7 +142,7 @@ final class Renderer
         }
         (new Attribution())->draw($im, $attribution, $width, $height);
 
-        [$formatHeaders, $body] = $this->encode($im, $request);
+        [$formatHeaders, $body] = $this->encode($im, $request, $params->quality);
 
         return new Response(array_merge($headers, $formatHeaders), $body);
     }
@@ -290,18 +297,18 @@ final class Renderer
      * Encode the image as the requested `format` (already checked to be one of FORMATS).
      *
      * @param GdImage $im      The finished map.
-     * @param Request $request The request (`format`, `quality`).
+     * @param Request $request The request (`format`).
+     * @param int     $quality JPEG quality, 1-100.
      *
      * @return array{list<string>, string} Content-type header and the encoded image.
      */
-    private function encode(GdImage $im, Request $request): array
+    private function encode(GdImage $im, Request $request, int $quality): array
     {
         $headers = array();
         ob_start();
         $fmt = $request->get('format', $this->config['defaults']['format']);
         if ($fmt === 'jpg' || $fmt === 'jpeg') {
             $headers[] = 'Content-type: image/jpg';
-            $quality = $request->get('quality', $this->config['defaults']['jpeg_quality']);
             imagejpeg($im, null, $quality);
         } else {
             $headers[] = 'Content-type: image/png';

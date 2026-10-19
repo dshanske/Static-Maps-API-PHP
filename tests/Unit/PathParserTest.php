@@ -24,7 +24,7 @@ final class PathParserTest extends TestCase
     public function testPathWithDefaults(): void
     {
         $bounds = new Bounds();
-        $paths = (new PathParser('333333', 3))->parse(['[-122.68,45.51][-122.67,45.52]'], false, $bounds);
+        $paths = (new PathParser('333333', 3))->parse(['[-122.68,45.51][-122.67,45.52]'], false, $bounds)['paths'];
 
         $this->assertSame([[
             'color'  => '333333',
@@ -42,7 +42,7 @@ final class PathParserTest extends TestCase
      */
     public function testStyledPath(): void
     {
-        $paths = (new PathParser('333333', 3))->parse('color:ff0000;weight:6;[1,2][3,4]', false, new Bounds());
+        $paths = (new PathParser('333333', 3))->parse('color:ff0000;weight:6;[1,2][3,4]', false, new Bounds())['paths'];
 
         $this->assertSame('ff0000', $paths[0]['color']);
         $this->assertSame('6', $paths[0]['weight']);
@@ -55,7 +55,29 @@ final class PathParserTest extends TestCase
      */
     public function testPathWithoutPoints(): void
     {
-        $this->assertSame([], (new PathParser('333333', 3))->parse(['color:ff0000'], false, new Bounds()));
+        $this->assertSame([], (new PathParser('333333', 3))->parse(['color:ff0000'], false, new Bounds())['paths']);
+    }
+
+    /**
+     * Paths with unreadable or out-of-range points are left out with an X-Path header (#9).
+     *
+     * @return void
+     */
+    public function testInvalidPathsAreReported(): void
+    {
+        $bounds = new Bounds();
+        $result = (new PathParser('333333', 3))->parse(
+            ['[1.2.3,4][5,6]', '[-122.6,45.5][-122.7,45.6]', '[10,95][11,96]'],
+            false,
+            $bounds
+        );
+
+        $this->assertCount(1, $result['paths']);
+        $this->assertSame([
+            'X-Path-1: points must be [lng,lat] numbers in range',
+            'X-Path-3: points must be [lng,lat] numbers in range',
+        ], $result['headers']);
+        $this->assertSame([45.5, 45.6], [$bounds->minLat, $bounds->maxLat]);
     }
 
     /**
@@ -67,7 +89,7 @@ final class PathParserTest extends TestCase
     {
         $bounds = new Bounds();
         $encoded = Polyline::encode([[-122.68, 45.51], [-122.67, 45.52]]);
-        $paths = (new PathParser('333333', 3))->parse(false, "enc:$encoded;weight:5", $bounds);
+        $paths = (new PathParser('333333', 3))->parse(false, "enc:$encoded;weight:5", $bounds)['paths'];
 
         $this->assertCount(1, $paths);
         $this->assertSame('5', $paths[0]['weight']);
@@ -85,8 +107,8 @@ final class PathParserTest extends TestCase
     {
         $parser = new PathParser('333333', 3);
 
-        $this->assertSame([], $parser->parse(false, 'color:ff0000', new Bounds()));
-        $paths = $parser->parse(['[1,2][3,4]'], 'enc:_p~iF~ps|U', new Bounds());
+        $this->assertSame([], $parser->parse(false, 'color:ff0000', new Bounds())['paths']);
+        $paths = $parser->parse(['[1,2][3,4]'], 'enc:_p~iF~ps|U', new Bounds())['paths'];
         $this->assertSame([[1, 2], [3, 4]], $paths[0]['path']);
         $this->assertCount(1, $paths);
     }
