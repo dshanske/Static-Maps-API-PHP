@@ -4,66 +4,117 @@
  * Install configuration used by the integration tests.
  *
  * Loaded by the renderer through the STATIC_MAPS_CONFIG environment variable.
- * Switches off every shipped basemap, so a test can never reach a real tile
- * host, and adds basemaps that point at the fake tile server
+ * Switches off every shipped provider, so a test can never reach a real tile
+ * host, and adds providers that point at the fake tile server
  * (tests/fixtures/tile-server.php), whose base URL comes from TILE_SERVER_URL.
  * The only valid access token is `test-token` (tests/fixtures/tokens.txt).
+ *
+ * The deprecated `basemap=` ids used by the older tests (`fixture`,
+ * `fixture-overlay`, ...) are kept as aliases of the fixture styles.
  */
 
 $tiles = (string) getenv('TILE_SERVER_URL');
 
-$basemaps = [];
-foreach (array_keys((include __DIR__ . '/../../config/defaults.php')['basemaps']) as $id) {
-    $basemaps[$id] = ['enabled' => false];
+$providers = [];
+foreach (array_keys((include __DIR__ . '/../../config/defaults.php')['providers']) as $id) {
+    $providers[$id] = ['enabled' => false];
 }
 
 return [
     'defaults' => [
-        'basemap' => 'fixture',
+        'provider' => 'fixture',
+        'style'    => 'base',
     ],
     'user_agent' => 'Static Maps API tests',
     'token_file' => __DIR__ . '/tokens.txt',
-    'basemaps' => $basemaps + [
+    'providers' => $providers + [
         'fixture' => [
-            'name'   => 'Fixture base',
-            'layers' => [$tiles . '/base/{z}/{x}/{y}.png'],
+            'name'          => 'Fixture tiles',
+            'default_style' => 'base',
+            'styles' => [
+                'base' => [
+                    'name'   => 'Base',
+                    'layers' => [$tiles . '/base/{z}/{x}/{y}.png'],
+                ],
+                'overlay' => [
+                    'name'   => 'Base with overlay',
+                    'layers' => [$tiles . '/base/{z}/{x}/{y}.png', $tiles . '/overlay/{z}/{x}/{y}.png'],
+                ],
+                'broken' => [
+                    'name'   => 'Tiles that always fail',
+                    'layers' => [$tiles . '/broken/{z}/{x}/{y}.png'],
+                ],
+                'esri' => [
+                    'name'        => 'With Esri attribution',
+                    'layers'      => [$tiles . '/base/{z}/{x}/{y}.png'],
+                    'attribution' => 'esri',
+                ],
+                'zoom' => [
+                    'name'    => 'Limited to zoom 5-10',
+                    'layers'  => [$tiles . '/base/{Z}/{X}/{Y}.png'],
+                    'minzoom' => 5,
+                    'maxzoom' => 10,
+                ],
+                'auth' => [
+                    'name'          => 'Needs a token',
+                    'layers'        => [$tiles . '/overlay/{z}/{x}/{y}.png'],
+                    'requires_auth' => true,
+                ],
+                'off' => [
+                    'name'    => 'Disabled',
+                    'layers'  => [$tiles . '/overlay/{z}/{x}/{y}.png'],
+                    'enabled' => false,
+                ],
+            ],
         ],
-        'fixture-overlay' => [
-            'name'   => 'Fixture base with overlay',
-            'layers' => [$tiles . '/base/{z}/{x}/{y}.png', $tiles . '/overlay/{z}/{x}/{y}.png'],
+        // Provider-level settings that its styles inherit.
+        'keyed' => [
+            'name'          => 'Fixture with an API key and Esri attribution',
+            'key'           => 'a b&c',
+            'attribution'   => 'esri',
+            'maxzoom'       => 12,
+            'default_style' => 'main',
+            'styles' => [
+                'main' => [
+                    'name'   => 'Main',
+                    'layers' => [$tiles . '/base/{z}/{x}/{y}.png?key={key}'],
+                ],
+                'overridden' => [
+                    'name'        => 'Overrides the provider',
+                    'layers'      => [$tiles . '/overlay/{z}/{x}/{y}.png?key={key}'],
+                    'key'         => 'own',
+                    'attribution' => 'osm',
+                    'maxzoom'     => 14,
+                ],
+            ],
         ],
-        'fixture-broken' => [
-            'name'   => 'Fixture whose tiles always fail',
-            'layers' => [$tiles . '/broken/{z}/{x}/{y}.png'],
-        ],
-        'fixture-esri' => [
-            'name'        => 'Fixture with Esri attribution',
-            'layers'      => [$tiles . '/base/{z}/{x}/{y}.png'],
-            'attribution' => 'esri',
-        ],
-        'fixture-keyed' => [
-            'name'   => 'Fixture with an API key',
-            'layers' => [$tiles . '/base/{z}/{x}/{y}.png?key={key}'],
-            'key'    => 'a b&c',
-        ],
-        'fixture-zoom' => [
-            'name'    => 'Fixture limited to zoom 5-10',
-            'layers'  => [$tiles . '/base/{Z}/{X}/{Y}.png'],
-            'minzoom' => 5,
-            'maxzoom' => 10,
-        ],
-        'fixture-auth' => [
-            'name'          => 'Fixture that needs a token',
-            'layers'        => [$tiles . '/overlay/{z}/{x}/{y}.png'],
+        'secret' => [
+            'name'          => 'Token-only provider',
             'requires_auth' => true,
+            'styles' => [
+                'only' => [
+                    'name'   => 'Only style',
+                    'layers' => [$tiles . '/overlay/{z}/{x}/{y}.png'],
+                ],
+            ],
         ],
-        'fixture-off' => [
-            'name'    => 'Disabled fixture',
-            'layers'  => [$tiles . '/overlay/{z}/{x}/{y}.png'],
+        'switched-off' => [
+            'name'    => 'Disabled provider',
             'enabled' => false,
+            'styles'  => [
+                'base' => ['name' => 'Base', 'layers' => [$tiles . '/overlay/{z}/{x}/{y}.png']],
+            ],
         ],
-        'fixture-alias' => [
-            'alias_of' => 'fixture-overlay',
-        ],
+    ],
+    'basemap_aliases' => [
+        'fixture'         => 'fixture/base',
+        'fixture-overlay' => 'fixture/overlay',
+        'fixture-alias'   => 'fixture/overlay',
+        'fixture-broken'  => 'fixture/broken',
+        'fixture-esri'    => 'fixture/esri',
+        'fixture-keyed'   => 'keyed/main',
+        'fixture-zoom'    => 'fixture/zoom',
+        'fixture-auth'    => 'fixture/auth',
+        'fixture-off'     => 'fixture/off',
     ],
 ];

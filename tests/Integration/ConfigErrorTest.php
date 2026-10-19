@@ -42,7 +42,7 @@ final class ConfigErrorTest extends RenderTestCase
 
         $errors = self::$app->errors();
         $this->assertCount(1, $errors);
-        $this->assertStringContainsString('Static Maps API: Default basemap must be', $errors[0]);
+        $this->assertStringContainsString("Static Maps API: Default basemap 'no-such-basemap' is unknown", $errors[0]);
     }
 
     /**

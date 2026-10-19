@@ -57,14 +57,30 @@ final class ConfigTest extends TestCase
     private static function minimal(): array
     {
         return [
-            'defaults' => ['basemap' => 'one'],
-            'zoom'     => ['min' => 2, 'max' => 18],
-            'token_file' => '/nonexistent/tokens.txt',
-            'home_page' => __DIR__ . '/../../assets/home.html',
-            'basemaps' => [
-                'one' => ['name' => 'One', 'layers' => ['https://tiles.example/{z}/{x}/{y}.png']],
+            'defaults'        => ['provider' => 'one', 'style' => 'base'],
+            'zoom'            => ['min' => 2, 'max' => 18],
+            'token_file'      => '/nonexistent/tokens.txt',
+            'home_page'       => __DIR__ . '/../../assets/home.html',
+            'basemap_aliases' => ['old-one' => 'one/base'],
+            'providers'       => [
+                'one' => [
+                    'name'   => 'One',
+                    'styles' => ['base' => ['name' => 'Base', 'layers' => ['https://tiles.example/{z}/{x}/{y}.png']]],
+                ],
             ],
         ];
+    }
+
+    /**
+     * Load a configuration made of minimal() with $override merged over it, as the defaults file.
+     *
+     * @param array<string, mixed> $override Settings merged over minimal().
+     *
+     * @return array<string, mixed> The loaded configuration.
+     */
+    private function loadMinimal(array $override = []): array
+    {
+        return Config::load($this->configFile(Config::merge(self::minimal(), $override)), '/nonexistent');
     }
 
     /**
@@ -76,9 +92,32 @@ final class ConfigTest extends TestCase
     {
         $config = Config::load(null, '/nonexistent/config.php');
 
-        $this->assertSame('osm', $config['defaults']['basemap']);
+        $this->assertSame(['osm', 'streets'], [$config['defaults']['provider'], $config['defaults']['style']]);
         $this->assertSame(['min' => 2, 'max' => 18], $config['zoom']);
-        $this->assertArrayHasKey('streets', $config['basemaps']);
+        $this->assertSame(['osm', 'esri', 'opentopomap', 'carto'], array_keys($config['providers']));
+        $this->assertSame([], $config['deprecations']);
+    }
+
+    /**
+     * Every old basemap id still maps to an enabled style (#40).
+     *
+     * @return void
+     */
+    public function testEveryOldBasemapIdResolves(): void
+    {
+        $config = Config::load(null, '/nonexistent/config.php');
+
+        $this->assertCount(13, $config['basemap_aliases']);
+        foreach (array_keys($config['basemap_aliases']) as $id) {
+            $alias = Config::alias($config, $id);
+            $this->assertNotNull($alias, $id);
+            $this->assertNotNull(Config::resolve($config, $alias[0], $alias[1], false), $id);
+        }
+        $this->assertSame(['carto', 'streets'], Config::alias($config, 'carto-voyager'));
+        $this->assertSame(['esri', 'light-nolabels'], Config::alias($config, 'gray-background'));
+        $this->assertSame(['opentopomap', 'topo'], Config::alias($config, 'otm'));
+        $this->assertNull(Config::alias($config, 'custom'));
+        $this->assertNull(Config::alias($config, 'stamen-toner'), 'Stamen ids were removed');
     }
 
     /**
@@ -89,14 +128,16 @@ final class ConfigTest extends TestCase
     public function testInstallFileOverridesDefaults(): void
     {
         $config = Config::load(null, $this->configFile([
-            'defaults' => ['width' => 640],
-            'basemaps' => ['otm' => ['maxzoom' => 12]],
+            'defaults'  => ['width' => 640],
+            'providers' => ['opentopomap' => ['maxzoom' => 12]],
         ]));
 
         $this->assertSame(640, $config['defaults']['width']);
         $this->assertSame(300, $config['defaults']['height']);
-        $this->assertSame(12, $config['basemaps']['otm']['maxzoom']);
-        $this->assertSame('OpenTopoMap', $config['basemaps']['otm']['name']);
+        $topo = Config::resolve($config, 'opentopomap', 'topo', false);
+        $this->assertSame(12, $topo['maxzoom']);
+        $this->assertSame('OpenTopoMap', $topo['name']);
+        $this->assertSame([], $config['deprecations']);
     }
 
     /**
@@ -143,21 +184,37 @@ final class ConfigTest extends TestCase
      */
     public static function invalidConfigs(): array
     {
+        $style = ['name' => 'S', 'layers' => ['t']];
+
         return [
-            'section not an array' => [['zoom' => 5], "'zoom' must be an array"],
-            'basemap not an array' => [['basemaps' => ['bad' => 'x']], "Basemap 'bad' must be an array"],
-            'no layers'            => [['basemaps' => ['bad' => ['name' => 'Bad']]], "'bad' needs 'layers'"],
-            'three layers'         => [['basemaps' => ['bad' => ['layers' => ['a', 'b', 'c']]]], 'needs'],
-            'unknown alias target' => [['basemaps' => ['bad' => ['alias_of' => 'nope']]], "unknown basemap 'nope'"],
-            'alias of alias'       => [
-                ['basemaps' => ['a1' => ['alias_of' => 'one'], 'a2' => ['alias_of' => 'a1']]],
-                'alias of another alias',
+            'section not an array'  => [['zoom' => 5], "'zoom' must be an array"],
+            'aliases not an array'  => [['basemap_aliases' => 'x'], "'basemap_aliases' must be an array"],
+            'provider not an array' => [['providers' => ['bad' => 'x']], "Provider 'bad' must be an array"],
+            'no styles'             => [['providers' => ['bad' => ['name' => 'Bad']]], "'bad' needs 'styles'"],
+            'styles as a list'      => [['providers' => ['bad' => ['styles' => [$style]]]], "'bad' needs 'styles'"],
+            'unknown default style' => [
+                ['providers' => ['bad' => ['default_style' => 'nope', 'styles' => ['s' => $style]]]],
+                'unknown default_style',
             ],
-            'home page not string' => [['home_page' => false], "'home_page' must be a string"],
-            'home page missing'    => [['home_page' => '/nonexistent/home.html'], "must name a readable file"],
-            'unknown default'      => [['defaults' => ['basemap' => 'nope']], 'Default basemap must be'],
-            'default needs token'  => [['basemaps' => ['one' => ['requires_auth' => true]]], 'Default basemap must be'],
-            'default disabled'     => [['basemaps' => ['one' => ['enabled' => false]]], 'Default basemap must be'],
+            'style not an array'    => [['providers' => ['bad' => ['styles' => ['s' => 'x']]]], 'must be an array'],
+            'no layers' => [['providers' => ['b' => ['styles' => ['s' => ['name' => 'S']]]]], "'b/s' needs"],
+            'three layers'          => [
+                ['providers' => ['bad' => ['styles' => ['s' => ['layers' => ['a', 'b', 'c']]]]]],
+                "'bad/s' needs",
+            ],
+            'reserved id'           => [['providers' => ['custom' => ['styles' => ['s' => $style]]]], 'is reserved'],
+            'alias to nowhere'      => [['basemap_aliases' => ['old' => 'one/nope']], "alias 'old' must point"],
+            'alias malformed'       => [['basemap_aliases' => ['old' => 'one']], "alias 'old' must point"],
+            'home page not string'  => [['home_page' => false], "'home_page' must be a string"],
+            'home page missing'     => [['home_page' => '/nonexistent/home.html'], 'must name a readable file'],
+            'unknown default'       => [['defaults' => ['provider' => 'nope']], 'Default provider and style'],
+            'unknown defaults.style' => [['defaults' => ['style' => 'nope']], 'Default provider and style'],
+            'default needs token'   => [['providers' => ['one' => ['requires_auth' => true]]], 'Default provider'],
+            'default disabled'      => [['providers' => ['one' => ['enabled' => false]]], 'Default provider and style'],
+            'default style off'     => [
+                ['providers' => ['one' => ['styles' => ['base' => ['enabled' => false]]]]],
+                'Default provider and style',
+            ],
         ];
     }
 
@@ -175,21 +232,23 @@ final class ConfigTest extends TestCase
         $this->expectException(RuntimeException::class);
         $this->expectExceptionMessage($message);
 
-        Config::load($this->configFile(Config::merge(self::minimal(), $override)), '/nonexistent');
+        $this->loadMinimal($override);
     }
 
     /**
-     * A disabled basemap without layers is allowed.
+     * Disabled styles, and the styles of a disabled provider, need no layers.
      *
      * @return void
      */
-    public function testDisabledBasemapNeedsNoLayers(): void
+    public function testDisabledStylesNeedNoLayers(): void
     {
-        $config = Config::load($this->configFile(Config::merge(self::minimal(), [
-            'basemaps' => ['off' => ['enabled' => false]],
-        ])), '/nonexistent');
+        $config = $this->loadMinimal(['providers' => [
+            'one' => ['styles' => ['off' => ['enabled' => false]]],
+            'two' => ['enabled' => false, 'styles' => ['s' => ['name' => 'S']]],
+        ]]);
 
-        $this->assertNull(Config::basemap($config, 'off', true));
+        $this->assertNull(Config::resolve($config, 'one', 'off', true));
+        $this->assertNull(Config::resolve($config, 'two', 's', true));
     }
 
     /**
@@ -211,33 +270,160 @@ final class ConfigTest extends TestCase
     }
 
     /**
-     * basemap() resolves aliases, honours enabled/requires_auth and fills in the zoom range.
+     * resolve() merges provider settings into the style, honours enabled and
+     * requires_auth, and fills in the zoom range and ids.
      *
      * @return void
      */
-    public function testBasemapResolution(): void
+    public function testResolve(): void
     {
-        $config = Config::merge(self::minimal(), ['basemaps' => [
-            'narrow' => ['layers' => ['n'], 'minzoom' => 4, 'maxzoom' => 9],
-            'secret' => ['layers' => ['s'], 'requires_auth' => true],
-            'off'    => ['layers' => ['o'], 'enabled' => false],
-            'alias'  => ['alias_of' => 'narrow'],
-            'to-off' => ['alias_of' => 'off'],
+        $config = $this->loadMinimal(['providers' => [
+            'p' => [
+                'name'        => 'P',
+                'key'         => 'provider-key',
+                'attribution' => 'esri',
+                'maxzoom'     => 12,
+                'styles'      => [
+                    'plain' => ['name' => 'Plain', 'layers' => ['a']],
+                    'own'   => ['name' => 'Own', 'layers' => ['b'], 'key' => 'style-key', 'maxzoom' => 15],
+                    'tok'   => ['name' => 'Token', 'layers' => ['c'], 'requires_auth' => true],
+                    'off'   => ['name' => 'Off', 'layers' => ['d'], 'enabled' => false],
+                ],
+            ],
+            'secret' => ['requires_auth' => true, 'styles' => ['s' => ['name' => 'S', 'layers' => ['e']]]],
         ]]);
 
-        $one = Config::basemap($config, 'one', false);
-        $this->assertSame(2, $one['minzoom']);
-        $this->assertSame(18, $one['maxzoom']);
+        $plain = Config::resolve($config, 'p', 'plain', false);
+        $this->assertSame(['a'], $plain['layers']);
+        $this->assertSame('Plain', $plain['name']);
+        $this->assertSame('provider-key', $plain['key']);
+        $this->assertSame('esri', $plain['attribution']);
+        $this->assertSame([2, 12], [$plain['minzoom'], $plain['maxzoom']]);
+        $this->assertSame(['p', 'plain'], [$plain['provider'], $plain['style']]);
 
-        $alias = Config::basemap($config, 'alias', false);
-        $this->assertSame(['n'], $alias['layers']);
-        $this->assertSame([4, 9], [$alias['minzoom'], $alias['maxzoom']]);
+        $own = Config::resolve($config, 'p', 'own', false);
+        $this->assertSame(['style-key', 15, 'esri'], [$own['key'], $own['maxzoom'], $own['attribution']]);
 
-        $this->assertNull(Config::basemap($config, 'secret', false));
-        $this->assertSame(['s'], Config::basemap($config, 'secret', true)['layers']);
-        $this->assertNull(Config::basemap($config, 'off', true));
-        $this->assertNull(Config::basemap($config, 'to-off', true));
-        $this->assertNull(Config::basemap($config, 'missing', true));
+        $this->assertNull(Config::resolve($config, 'p', 'tok', false));
+        $this->assertSame(['c'], Config::resolve($config, 'p', 'tok', true)['layers']);
+        $this->assertNull(Config::resolve($config, 'p', 'off', true));
+        $this->assertNull(Config::resolve($config, 'secret', 's', false));
+        $this->assertNotNull(Config::resolve($config, 'secret', 's', true));
+        $this->assertNull(Config::resolve($config, 'p', 'missing', true));
+        $this->assertNull(Config::resolve($config, 'missing', 'plain', true));
+    }
+
+    /**
+     * defaultStyle() is default_style, else the first style.
+     *
+     * @return void
+     */
+    public function testDefaultStyle(): void
+    {
+        $config = $this->loadMinimal(['providers' => [
+            'p' => ['default_style' => 'b', 'styles' => ['a' => ['layers' => ['a']], 'b' => ['layers' => ['b']]]],
+            'q' => ['styles' => ['first' => ['layers' => ['a']], 'second' => ['layers' => ['b']]]],
+        ]]);
+
+        $this->assertSame('b', Config::defaultStyle($config, 'p'));
+        $this->assertSame('first', Config::defaultStyle($config, 'q'));
+        $this->assertNull(Config::defaultStyle($config, 'missing'));
+    }
+
+    /**
+     * Deprecated `basemaps` install settings are translated to providers and aliases (#40).
+     *
+     * @return void
+     */
+    public function testLegacyBasemapsAreTranslated(): void
+    {
+        $config = Config::load(null, $this->configFile([
+            'basemaps' => [
+                'otm'                 => ['maxzoom' => 17],
+                'national-geographic' => ['enabled' => false],
+                'satellite'           => ['requires_auth' => true],
+                'stadia-toner'        => [
+                    'name'   => 'Stadia Toner',
+                    'layers' => ['https://t.example/{z}/{x}/{y}.png?k={key}'],
+                    'key'    => 'k',
+                ],
+                'old-light'           => ['alias_of' => 'carto-light'],
+                'old-new'             => ['alias_of' => 'stadia-toner'],
+                'gone'                => ['alias_of' => 'osm', 'enabled' => false],
+            ],
+        ]));
+
+        $this->assertSame(
+            ["Setting 'basemaps' is deprecated; use 'providers' (see config/defaults.php)"],
+            $config['deprecations']
+        );
+        $this->assertSame(17, Config::resolve($config, 'opentopomap', 'topo', false)['maxzoom']);
+        $this->assertNull(Config::resolve($config, 'esri', 'natgeo', true));
+        $this->assertNull(Config::resolve($config, 'esri', 'satellite', false));
+        $this->assertNotNull(Config::resolve($config, 'esri', 'satellite', true));
+
+        $this->assertSame(['stadia-toner', 'default'], Config::alias($config, 'stadia-toner'));
+        $stadia = Config::resolve($config, 'stadia-toner', 'default', false);
+        $this->assertSame(['https://t.example/{z}/{x}/{y}.png?k={key}'], $stadia['layers']);
+        $this->assertSame('k', $stadia['key']);
+
+        $this->assertSame(['carto', 'light'], Config::alias($config, 'old-light'));
+        $this->assertSame(['stadia-toner', 'default'], Config::alias($config, 'old-new'));
+        $this->assertNull(Config::alias($config, 'gone'));
+    }
+
+    /**
+     * A deprecated `defaults.basemap` becomes the default provider and style,
+     * unless the install also sets the new keys.
+     *
+     * @return void
+     */
+    public function testLegacyDefaultBasemapIsTranslated(): void
+    {
+        $config = Config::load(null, $this->configFile(['defaults' => ['basemap' => 'carto-dark']]));
+        $this->assertSame(['carto', 'dark'], [$config['defaults']['provider'], $config['defaults']['style']]);
+        $this->assertArrayNotHasKey('basemap', $config['defaults']);
+        $this->assertSame(
+            ["Setting 'defaults.basemap' is deprecated; use 'defaults.provider' and 'defaults.style'"],
+            $config['deprecations']
+        );
+
+        $config = Config::load(null, $this->configFile([
+            'defaults' => ['basemap' => 'carto-dark', 'provider' => 'esri', 'style' => 'topo'],
+        ]));
+        $this->assertSame(['esri', 'topo'], [$config['defaults']['provider'], $config['defaults']['style']]);
+    }
+
+    /**
+     * Old settings that can't be translated are configuration errors.
+     *
+     * @return array<string, array{array<string, mixed>, string}> Install settings and message fragment.
+     */
+    public static function untranslatable(): array
+    {
+        return [
+            'unknown default basemap' => [['defaults' => ['basemap' => 'nope']], "Default basemap 'nope' is unknown"],
+            'alias of unknown'        => [['basemaps' => ['x' => ['alias_of' => 'nope']]], "unknown basemap 'nope'"],
+            'id of a provider'        => [['basemaps' => ['esri' => ['layers' => ['t']]]], 'same id as a provider'],
+            'basemap not an array'    => [['basemaps' => ['x' => 'y']], "Basemap 'x' must be an array"],
+        ];
+    }
+
+    /**
+     * Untranslatable old settings are rejected with a helpful message.
+     *
+     * @param array<string, mixed> $install Install file settings.
+     * @param string               $message Expected part of the exception message.
+     *
+     * @return void
+     */
+    #[DataProvider('untranslatable')]
+    public function testUntranslatableLegacySettings(array $install, string $message): void
+    {
+        $this->expectException(RuntimeException::class);
+        $this->expectExceptionMessage($message);
+
+        Config::load(null, $this->configFile($install));
     }
 
     /**

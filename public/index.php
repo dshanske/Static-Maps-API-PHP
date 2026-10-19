@@ -8,7 +8,7 @@
  * (public/img.php is the deprecated old name for this file.)
  */
 
-require __DIR__ . '/../include/autoload.php';
+require_once __DIR__ . '/../include/autoload.php';
 
 use StaticMaps\Config;
 use StaticMaps\HomePage;
@@ -24,6 +24,10 @@ try {
     header('Content-Type: text/plain');
     echo 'Server configuration error';
     exit;
+}
+
+foreach ($config['deprecations'] as $message) {
+    error_log('Static Maps API: ' . $message);
 }
 
 $request = Request::fromGlobals();

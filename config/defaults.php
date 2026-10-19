@@ -9,9 +9,9 @@
  * want to change there. Your file is merged over this one:
  *
  * - Settings that are arrays with named keys (such as `defaults`, `zoom`,
- *   `basemaps` and each individual basemap) are merged key by key, so you only
- *   list the keys you change.
- * - Everything else, including lists such as a basemap's `layers`, is replaced
+ *   `providers`, each provider and each style) are merged key by key, so you
+ *   only list the keys you change.
+ * - Everything else, including lists such as a style's `layers`, is replaced
  *   as a whole.
  *
  * A different install file can be used by setting the STATIC_MAPS_CONFIG
@@ -47,21 +47,24 @@ return [
         // Default: 75.
         'jpeg_quality' => 75,
 
-        // Basemap used when the request has no `basemap`, names an unknown or
-        // disabled basemap, or names one that needs a token it doesn't have.
-        // Must be the id of an enabled entry in `basemaps` below.
-        // Default: 'osm'.
-        'basemap'      => 'osm',
+        // Map used when the request names no provider or style (or an unknown,
+        // disabled or token-only one): a provider id from `providers` below and
+        // one of its style ids. Must be enabled and must not need a token.
+        // Default: 'osm' / 'streets'.
+        // Example override: 'defaults' => ['provider' => 'carto', 'style' => 'light'],
+        // (The old setting 'basemap' => '<old id>' still works but is deprecated.)
+        'provider'     => 'osm',
+        'style'        => 'streets',
 
         // Attribution drawn when the request has no `attribution` and the
-        // basemap has no `attribution` of its own. One of 'osm', 'esri' or
+        // provider or style has no `attribution` of its own. One of 'osm', 'esri' or
         // 'mapbox' (any other value currently draws the OSM logo, see #18).
         // Default: 'osm'.
         'attribution'  => 'osm',
     ],
 
     /*
-     * Zoom limits for every basemap. A basemap can narrow these with its own
+     * Zoom limits for every map. A provider or style can narrow these with its own
      * `minzoom` / `maxzoom`. Requested or automatically chosen zoom levels
      * outside the range are clamped to it.
      * Default: 2 to 18.
@@ -83,7 +86,7 @@ return [
     /*
      * File with the access tokens, one per line. A request whose `token`
      * parameter matches a line may use external marker icon URLs,
-     * `basemap=custom` with `tileurl`, and basemaps with `requires_auth`.
+     * `provider=custom` with `tileurl`, and providers or styles with `requires_auth`.
      * If the file doesn't exist, no token is valid.
      * Default: data/apikeys.txt.
      * Example override: 'token_file' => '/etc/static-maps/tokens.txt',
@@ -101,166 +104,202 @@ return [
     'home_page' => __DIR__ . '/../assets/home.html',
 
     /*
-     * Basemaps, keyed by the id used in the `basemap` request parameter.
+     * Tile providers and their map styles.
      *
-     * Each basemap supports these keys:
+     * A request picks a map with `provider` and `style`, for example
+     * `provider=carto&style=dark`. With only `provider`, the provider's
+     * `default_style` is used; with only `style`, the default provider's style
+     * of that name. Unknown, disabled or token-only (without a token) choices
+     * get the default map from `defaults.provider` / `defaults.style`.
      *
-     *   'name'          (string, required) Human-readable name.
-     *   'layers'        (list of strings, required) Tile URL templates, drawn in
-     *                   order: the first is the base map, the optional second is
-     *                   an overlay (usually labels) drawn on top. At most two.
+     * Style ids are shared between providers where they mean the same thing:
+     * streets, light, dark, satellite, hybrid (imagery with labels), topo,
+     * oceans, and a `-nolabels` suffix for the same style without labels.
+     * Provider-specific ids are used only when there is no shared equivalent.
+     *
+     * Provider keys (all optional except `name` and `styles`):
+     *
+     *   'name'          (string) Human-readable name of the provider.
+     *   'default_style' (string) Style used when a request names this provider
+     *                   but no style. Must be one of `styles`. Default: the
+     *                   first style.
+     *   'styles'        (array, required) The provider's styles, keyed by style
+     *                   id. Each style has a `name` (string) and `layers` (list
+     *                   of one or two tile URL templates: the base map, then an
+     *                   optional overlay drawn on top, usually labels).
      *                   Placeholders: {z} zoom, {x} column, {y} row, and {key}
-     *                   for the basemap's `key` below. {Z}, {X}, {Y} also work.
-     *   'attribution'   (string, optional) Default attribution for this basemap,
-     *                   used when the request has no `attribution`. Same values
-     *                   as `defaults.attribution`. Falls back to that setting.
-     *   'minzoom'       (int, optional) Lowest zoom this basemap serves.
-     *                   Falls back to `zoom.min`.
-     *   'maxzoom'       (int, optional) Highest zoom this basemap serves.
-     *                   Falls back to `zoom.max`.
-     *   'requires_auth' (bool, optional) If true, only requests with a valid
-     *                   `token` can use it; other requests get the default
-     *                   basemap. Default: false.
-     *   'enabled'       (bool, optional) Set to false to switch a basemap off on
-     *                   your install; requests for it get the default basemap.
+     *                   for the API key. {Z}, {X}, {Y} also work.
+     *   'attribution'   (string) Default attribution, used when the request has
+     *                   no `attribution`. Same values as `defaults.attribution`.
+     *   'minzoom'       (int) Lowest zoom served. Default: `zoom.min`.
+     *   'maxzoom'       (int) Highest zoom served. Default: `zoom.max`.
+     *   'requires_auth' (bool) Only requests with a valid `token` may use it.
+     *                   Default: false.
+     *   'enabled'       (bool) Set to false to switch it off on your install.
      *                   Default: true.
-     *   'alias_of'      (string, optional) Serve another basemap under this id,
-     *                   for example to keep old URLs working when a tile source
-     *                   is retired. All other keys except `enabled` are taken
-     *                   from the target.
-     *   'key'           (string, optional) API key inserted into {key} in the
-     *                   layer URLs. Put keys in data/config.php only, never in
-     *                   this file.
+     *   'key'           (string) API key inserted into {key}. Put keys in
+     *                   data/config.php only, never in this file.
+     *
+     * Every key except `name`, `default_style` and `styles` can also be set on a
+     * single style, which then overrides the provider's value for that style.
+     * A disabled provider switches off all of its styles.
      *
      * Examples for data/config.php:
      *
-     *   // Switch off a basemap
-     *   'basemaps' => ['national-geographic' => ['enabled' => false]],
+     *   // Switch off a provider, or one style
+     *   'providers' => ['esri' => ['enabled' => false]],
+     *   'providers' => ['esri' => ['styles' => ['natgeo' => ['enabled' => false]]]],
      *
      *   // Limit OpenTopoMap to the zoom levels it serves
-     *   'basemaps' => ['otm' => ['maxzoom' => 17]],
+     *   'providers' => ['opentopomap' => ['maxzoom' => 17]],
      *
-     *   // Add a basemap that needs an API key
-     *   'basemaps' => [
-     *       'stadia-toner' => [
-     *           'name'   => 'Stamen Toner (Stadia Maps)',
-     *           'layers' => ['https://tiles.stadiamaps.com/tiles/stamen_toner/{z}/{x}/{y}.png?api_key={key}'],
-     *           'key'    => 'your-stadia-api-key',
+     *   // Add a provider that needs an API key (one key for all its styles)
+     *   'providers' => [
+     *       'stadia' => [
+     *           'name'          => 'Stadia Maps',
+     *           'key'           => 'your-stadia-api-key',
+     *           'default_style' => 'toner',
+     *           'styles' => [
+     *               'toner' => [
+     *                   'name'   => 'Stamen Toner',
+     *                   'layers' => ['https://tiles.stadiamaps.com/tiles/stamen_toner/{z}/{x}/{y}.png?api_key={key}'],
+     *               ],
+     *           ],
      *       ],
      *   ],
      *
-     *   // Keep an old id working by pointing it at another basemap
-     *   'basemaps' => ['stamen-toner-lite' => ['alias_of' => 'carto-light']],
-     *
-     * The special id 'custom' is not configured here: it uses the `tileurl`
+     * The provider id 'custom' is reserved: `provider=custom` uses the `tileurl`
      * request parameter and always requires a valid token.
      */
-    'basemaps' => [
-
-        // Esri basemaps (https://www.arcgis.com/home/group.html?id=702026e41f6641fb85da88efe79dc166)
-        'streets' => [
-            'name'   => 'Esri World Street Map',
-            'layers' => [
-                'https://services.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}',
-            ],
-        ],
-        'satellite' => [
-            'name'   => 'Esri World Imagery',
-            'layers' => [
-                'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
-            ],
-        ],
-        'hybrid' => [
-            'name'   => 'Esri World Imagery with labels',
-            'layers' => [
-                'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
-                'https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}',
-            ],
-        ],
-        'topo' => [
-            'name'   => 'Esri World Topographic Map',
-            'layers' => [
-                'https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}',
-            ],
-        ],
-        'gray' => [
-            'name'   => 'Esri Light Gray Canvas',
-            'layers' => [
-                'https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}',
-                'https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Reference/MapServer/tile/{z}/{y}/{x}',
-            ],
-        ],
-        'gray-background' => [
-            'name'   => 'Esri Light Gray Canvas without labels',
-            'layers' => [
-                'https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}',
-            ],
-        ],
-        // Retired by Esri; no longer returns tiles (#17).
-        'oceans' => [
-            'name'   => 'Esri Oceans',
-            'layers' => [
-                'https://server.arcgisonline.com/ArcGIS/rest/services/Ocean_Basemap/MapServer/tile/{z}/{y}/{x}',
-            ],
-        ],
-        'national-geographic' => [
-            'name'   => 'National Geographic World Map',
-            'layers' => [
-                'https://server.arcgisonline.com/ArcGIS/rest/services/NatGeo_World_Map/MapServer/tile/{z}/{y}/{x}',
-            ],
-        ],
+    'providers' => [
 
         // OpenStreetMap (https://operations.osmfoundation.org/policies/tiles/)
         'osm' => [
-            'name'   => 'OpenStreetMap',
-            'layers' => ['https://tile.openstreetmap.org/{z}/{x}/{y}.png'],
+            'name'          => 'OpenStreetMap',
+            'default_style' => 'streets',
+            'styles' => [
+                'streets' => [
+                    'name'   => 'OpenStreetMap',
+                    'layers' => ['https://tile.openstreetmap.org/{z}/{x}/{y}.png'],
+                ],
+            ],
+        ],
+
+        // Esri basemaps (https://www.arcgis.com/home/group.html?id=702026e41f6641fb85da88efe79dc166)
+        'esri' => [
+            'name'          => 'Esri',
+            'default_style' => 'streets',
+            'styles' => [
+                'streets' => [
+                    'name'   => 'World Street Map',
+                    'layers' => [
+                        'https://services.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}',
+                    ],
+                ],
+                'satellite' => [
+                    'name'   => 'World Imagery',
+                    'layers' => [
+                        'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+                    ],
+                ],
+                'hybrid' => [
+                    'name'   => 'World Imagery with labels',
+                    'layers' => [
+                        'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+                        'https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}',
+                    ],
+                ],
+                'topo' => [
+                    'name'   => 'World Topographic Map',
+                    'layers' => [
+                        'https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}',
+                    ],
+                ],
+                'light' => [
+                    'name'   => 'Light Gray Canvas',
+                    'layers' => [
+                        'https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}',
+                        'https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Reference/MapServer/tile/{z}/{y}/{x}',
+                    ],
+                ],
+                'light-nolabels' => [
+                    'name'   => 'Light Gray Canvas without labels',
+                    'layers' => [
+                        'https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}',
+                    ],
+                ],
+                // Retired by Esri; no longer returns tiles (#17).
+                'oceans' => [
+                    'name'   => 'Oceans',
+                    'layers' => [
+                        'https://server.arcgisonline.com/ArcGIS/rest/services/Ocean_Basemap/MapServer/tile/{z}/{y}/{x}',
+                    ],
+                ],
+                'natgeo' => [
+                    'name'   => 'National Geographic World Map',
+                    'layers' => [
+                        'https://server.arcgisonline.com/ArcGIS/rest/services/NatGeo_World_Map/MapServer/tile/{z}/{y}/{x}',
+                    ],
+                ],
+            ],
         ],
 
         // OpenTopoMap (https://opentopomap.org/about)
-        'otm' => [
-            'name'   => 'OpenTopoMap',
-            'layers' => ['https://tile.opentopomap.org/{z}/{x}/{y}.png'],
-        ],
-
-        // Stamen: tile hosting shut down in 2023; these no longer return tiles (#17).
-        'stamen-toner' => [
-            'name'   => 'Stamen Toner',
-            'layers' => ['https://stamen-tiles.a.ssl.fastly.net/toner/{z}/{x}/{y}.png'],
-        ],
-        'stamen-toner-background' => [
-            'name'   => 'Stamen Toner without labels',
-            'layers' => ['https://stamen-tiles.a.ssl.fastly.net/toner-background/{z}/{x}/{y}.png'],
-        ],
-        'stamen-toner-lite' => [
-            'name'   => 'Stamen Toner Lite',
-            'layers' => ['https://stamen-tiles.a.ssl.fastly.net/toner-lite/{z}/{x}/{y}.png'],
-        ],
-        'stamen-terrain' => [
-            'name'   => 'Stamen Terrain',
-            'layers' => ['https://stamen-tiles.a.ssl.fastly.net/terrain/{z}/{x}/{y}.png'],
-        ],
-        'stamen-terrain-background' => [
-            'name'   => 'Stamen Terrain without labels',
-            'layers' => ['https://stamen-tiles.a.ssl.fastly.net/terrain-background/{z}/{x}/{y}.png'],
-        ],
-        'stamen-watercolor' => [
-            'name'   => 'Stamen Watercolor',
-            'layers' => ['https://stamen-tiles.a.ssl.fastly.net/watercolor/{z}/{x}/{y}.png'],
+        'opentopomap' => [
+            'name'          => 'OpenTopoMap',
+            'default_style' => 'topo',
+            'styles' => [
+                'topo' => [
+                    'name'   => 'OpenTopoMap',
+                    'layers' => ['https://tile.opentopomap.org/{z}/{x}/{y}.png'],
+                ],
+            ],
         ],
 
         // CARTO: free for up to 75,000 map views a month, non-commercial use only
-        // (https://carto.com/basemaps).
-        'carto-light' => [
-            'name'   => 'CARTO Positron',
-            'layers' => ['https://cartodb-basemaps-a.global.ssl.fastly.net/light_all/{z}/{x}/{y}.png'],
+        // (https://carto.com/basemaps). CARTO now requires an API key (#17).
+        'carto' => [
+            'name'          => 'CARTO',
+            'default_style' => 'light',
+            'styles' => [
+                'light' => [
+                    'name'   => 'Positron',
+                    'layers' => ['https://cartodb-basemaps-a.global.ssl.fastly.net/light_all/{z}/{x}/{y}.png'],
+                ],
+                'dark' => [
+                    'name'   => 'Dark Matter',
+                    'layers' => ['https://cartodb-basemaps-a.global.ssl.fastly.net/dark_all/{z}/{x}/{y}.png'],
+                ],
+                'streets' => [
+                    'name'   => 'Voyager',
+                    'layers' => ['https://cartodb-basemaps-a.global.ssl.fastly.net/rastertiles/voyager/{z}/{x}/{y}.png'],
+                ],
+            ],
         ],
-        'carto-dark' => [
-            'name'   => 'CARTO Dark Matter',
-            'layers' => ['https://cartodb-basemaps-a.global.ssl.fastly.net/dark_all/{z}/{x}/{y}.png'],
-        ],
-        'carto-voyager' => [
-            'name'   => 'CARTO Voyager',
-            'layers' => ['https://cartodb-basemaps-a.global.ssl.fastly.net/rastertiles/voyager/{z}/{x}/{y}.png'],
-        ],
+    ],
+
+    /*
+     * DEPRECATED (#40): the old `basemap` request parameter. Each old id maps to
+     * the 'provider/style' it now means, so existing URLs keep working (with
+     * `Deprecation` and `Link` response headers). New providers and styles get
+     * no entry here; they are only available through `provider` and `style`.
+     * This table will be removed in a future major version, 2.0.0 at the
+     * earliest. `basemap=custom` maps to `provider=custom`. The Stamen ids were
+     * removed (their tiles no longer exist), so they get the default map.
+     */
+    'basemap_aliases' => [
+        'osm'                 => 'osm/streets',
+        'streets'             => 'esri/streets',
+        'satellite'           => 'esri/satellite',
+        'hybrid'              => 'esri/hybrid',
+        'topo'                => 'esri/topo',
+        'gray'                => 'esri/light',
+        'gray-background'     => 'esri/light-nolabels',
+        'oceans'              => 'esri/oceans',
+        'national-geographic' => 'esri/natgeo',
+        'otm'                 => 'opentopomap/topo',
+        'carto-light'         => 'carto/light',
+        'carto-dark'          => 'carto/dark',
+        'carto-voyager'       => 'carto/streets',
     ],
 ];

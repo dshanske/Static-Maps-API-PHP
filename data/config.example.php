@@ -18,14 +18,14 @@
  *
  * Arrays with named keys are merged key by key with the defaults, so
  * `'defaults' => ['width' => 600]` changes the default width and keeps every
- * other value in `defaults`. Lists, such as a basemap's `layers`, replace the
+ * other value in `defaults`. Lists, such as a style's `layers`, replace the
  * default list completely.
  *
  * To use a file in another location, set the STATIC_MAPS_CONFIG environment
  * variable to its full path.
  *
  * If this file has a mistake (for example it doesn't return an array, or the
- * default basemap doesn't exist), every request returns HTTP 500 and the
+ * default provider or style doesn't exist), every request returns HTTP 500 and the
  * reason is written to the PHP error log.
  */
 
@@ -39,11 +39,12 @@ return [
     //     'path_weight'  => 3,         // pixels
     //     'format'       => 'png',     // 'png' or 'jpg'
     //     'jpeg_quality' => 75,        // 0-100
-    //     'basemap'      => 'osm',     // id of an enabled basemap
+    //     'provider'     => 'osm',     // id of an enabled provider
+    //     'style'        => 'streets', // one of that provider's styles
     //     'attribution'  => 'osm',     // 'osm', 'esri' or 'mapbox'
     // ],
 
-    // Zoom range for every basemap (a basemap can narrow it with minzoom/maxzoom).
+    // Zoom range for every map (a provider or style can narrow it with minzoom/maxzoom).
     // 'zoom' => [
     //     'min' => 2,
     //     'max' => 18,
@@ -58,29 +59,39 @@ return [
     // Your own HTML page for requests without parameters (default: assets/home.html).
     // 'home_page' => __DIR__ . '/home.html',
 
-    // Change, add or switch off basemaps. Only list what you change.
-    // 'basemaps' => [
+    // Change, add or switch off providers and styles. Only list what you change.
+    // Settings on a provider apply to all its styles; a style can override them.
+    // These are separate examples: merge entries for the same provider into one.
+    // 'providers' => [
     //
-    //     // Switch off a basemap: requests for it get the default basemap.
-    //     'national-geographic' => ['enabled' => false],
+    //     // Switch off a whole provider, or a single style.
+    //     'carto'  => ['enabled' => false],
+    //     'esri'   => ['styles' => ['natgeo' => ['enabled' => false]]],
     //
-    //     // Narrow the zoom range of one basemap.
-    //     'otm' => ['maxzoom' => 17],
+    //     // Narrow the zoom range of a provider.
+    //     'opentopomap' => ['maxzoom' => 17],
     //
-    //     // Use a different default attribution for one basemap.
-    //     'streets' => ['attribution' => 'esri'],
+    //     // Use a different default attribution for a provider.
+    //     'esri' => ['attribution' => 'esri'],
     //
-    //     // Only allow a basemap for requests with a valid token.
-    //     'satellite' => ['requires_auth' => true],
+    //     // Only allow a style for requests with a valid token.
+    //     'esri' => ['styles' => ['satellite' => ['requires_auth' => true]]],
     //
-    //     // Keep an old basemap id working by pointing it at another basemap.
-    //     'stamen-toner-lite' => ['alias_of' => 'carto-light'],
-    //
-    //     // Add a new basemap. {key} in the URL is replaced with 'key'.
-    //     'stadia-toner' => [
-    //         'name'   => 'Stamen Toner (Stadia Maps)',
-    //         'layers' => ['https://tiles.stadiamaps.com/tiles/stamen_toner/{z}/{x}/{y}.png?api_key={key}'],
-    //         'key'    => 'your-stadia-api-key',
+    //     // Add a provider. {key} in its URLs is replaced with 'key'.
+    //     'stadia' => [
+    //         'name'          => 'Stadia Maps',
+    //         'key'           => 'your-stadia-api-key',
+    //         'default_style' => 'toner',
+    //         'styles'        => [
+    //             'toner' => [
+    //                 'name'   => 'Stamen Toner',
+    //                 'layers' => ['https://tiles.stadiamaps.com/tiles/stamen_toner/{z}/{x}/{y}.png?api_key={key}'],
+    //             ],
+    //         ],
     //     ],
     // ],
+
+    // Deprecated: point an old `basemap=` id at another provider/style.
+    // 'basemap_aliases' => ['stamen-toner-lite' => 'carto/light'],
+    // (The Stamen ids were removed; an alias like this one brings one back.)
 ];

@@ -353,6 +353,7 @@ final class RenderTest extends RenderTestCase
             'disabled → default'    => [['basemap' => 'fixture-off'], $base, 'base'],
             'needs token → default' => [['basemap' => 'fixture-auth'], $base, 'base'],
             'shipped, switched off' => [['basemap' => 'osm'], $base, 'base'],
+            'removed Stamen id'     => [['basemap' => 'stamen-toner'], $base, 'base'],
             'custom without token'  => [
                 ['basemap' => 'custom', 'tileurl' => '__TILES__/overlay/{z}/{x}/{y}.png'],
                 $base,
@@ -386,6 +387,125 @@ final class RenderTest extends RenderTestCase
         if ($layer !== 'overlay') {
             $this->assertNotContains('overlay', $layers);
         }
+    }
+
+    /**
+     * Map choice with provider and style (#40).
+     *
+     * @return array<string, array{array<string, string>, array{int, int, int}, list<string>}>
+     *         Extra parameters, colour expected at the centre, tile layers requested.
+     */
+    public static function providerStyleCases(): array
+    {
+        $base = self::tileColor(2608, 5860);
+
+        return [
+            'provider and style'        => [
+                ['provider' => 'fixture', 'style' => 'overlay'],
+                self::WHITE,
+                ['base', 'overlay'],
+            ],
+            // keyed's maxzoom of 12 moves the centre into tile 652/1465.
+            'provider only'             => [['provider' => 'keyed'], self::tileColor(652, 1465), ['base']],
+            'style only'                => [['style' => 'overlay'], self::WHITE, ['base', 'overlay']],
+            'unknown provider'          => [['provider' => 'nope', 'style' => 'overlay'], $base, ['base']],
+            'unknown style'             => [['provider' => 'fixture', 'style' => 'nope'], $base, ['base']],
+            'style elsewhere only'      => [['style' => 'main'], $base, ['base']],
+            'disabled style'            => [['provider' => 'fixture', 'style' => 'off'], $base, ['base']],
+            'disabled provider'         => [['provider' => 'switched-off'], $base, ['base']],
+            'shipped, switched off'     => [['provider' => 'osm', 'style' => 'streets'], $base, ['base']],
+            'token style, no token'     => [['provider' => 'fixture', 'style' => 'auth'], $base, ['base']],
+            'token style, token'        => [
+                ['provider' => 'fixture', 'style' => 'auth', 'token' => 'test-token'],
+                self::WHITE,
+                ['overlay'],
+            ],
+            'token provider, no token'  => [['provider' => 'secret'], $base, ['base']],
+            'token provider, token' => [['provider' => 'secret', 'token' => 'test-token'], self::WHITE, ['overlay']],
+            'custom without token'      => [
+                ['provider' => 'custom', 'tileurl' => '__TILES__/overlay/{z}/{x}/{y}.png'],
+                $base,
+                ['base'],
+            ],
+            'custom with token'         => [
+                ['provider' => 'custom', 'tileurl' => '__TILES__/overlay/{z}/{x}/{y}.png', 'token' => 'test-token'],
+                self::WHITE,
+                ['overlay'],
+            ],
+            'provider beats basemap'    => [
+                ['provider' => 'fixture', 'style' => 'base', 'basemap' => 'fixture-overlay'],
+                $base,
+                ['base'],
+            ],
+        ];
+    }
+
+    /**
+     * The map drawn for provider/style parameters.
+     *
+     * @param array<string, string> $params Extra request parameters.
+     * @param array{int, int, int}  $center Expected colour at the image centre.
+     * @param list<string>          $layers Tile layers that should be requested, sorted.
+     *
+     * @return void
+     */
+    #[DataProvider('providerStyleCases')]
+    public function testProviderAndStyle(array $params, array $center, array $layers): void
+    {
+        $params = str_replace('__TILES__', (string) self::$tiles?->url, $params);
+        $response = $this->render(self::TILE_CENTER + $params);
+
+        $this->assertPixel($center, $response->image(), 150, 150);
+        $requested = array_values(array_unique(array_map(
+            static fn (string $p): string => explode('/', $p)[1],
+            $this->tilePaths()
+        )));
+        $this->assertSame($layers, $requested);
+        $this->assertSame(array_key_exists('basemap', $params), $response->header('Deprecation') !== null);
+    }
+
+    /**
+     * Styles inherit key, attribution and zoom range from their provider, and can override them.
+     *
+     * @return void
+     */
+    public function testStyleInheritsProviderSettings(): void
+    {
+        $inherited = $this->render(self::PORTLAND + ['provider' => 'keyed', 'zoom' => 16]);
+        $this->assertSame(['key=a%20b%26c'], array_values(array_unique(array_column($this->tileRequests(), 'query'))));
+        $this->assertStringStartsWith('/base/12/', $this->tilePaths()[0], 'provider maxzoom 12');
+        $atTwelve = ['zoom' => 12] + self::TILE_CENTER;
+        $this->assertSame(
+            $this->render($atTwelve + ['provider' => 'fixture', 'style' => 'esri'])->body,
+            $this->render($atTwelve + ['provider' => 'keyed'])->body,
+            'keyed inherits the Esri attribution'
+        );
+
+        $this->setUp();
+        $this->render(self::PORTLAND + ['provider' => 'keyed', 'style' => 'overridden', 'zoom' => 16]);
+        $this->assertSame(['key=own'], array_values(array_unique(array_column($this->tileRequests(), 'query'))));
+        $this->assertStringStartsWith('/overlay/14/', $this->tilePaths()[0], 'style maxzoom 14');
+        $this->assertSame(200, $inherited->status);
+    }
+
+    /**
+     * A deprecated basemap id draws the same image as its provider/style, plus deprecation headers.
+     *
+     * @return void
+     */
+    public function testBasemapIdIsDeprecatedAlias(): void
+    {
+        $old = $this->render(self::TILE_CENTER + ['basemap' => 'fixture-overlay']);
+        $new = $this->render(self::TILE_CENTER + ['provider' => 'fixture', 'style' => 'overlay']);
+
+        $this->assertSame($new->body, $old->body);
+        $this->assertNull($new->header('Deprecation'));
+        $this->assertNull($new->header('Link'));
+        $this->assertSame('@1792281600', $old->header('Deprecation'));
+        $this->assertSame(
+            '<https://github.com/dshanske/Static-Maps-API-PHP#deprecated>; rel="deprecation"',
+            $old->header('Link')
+        );
     }
 
     /**

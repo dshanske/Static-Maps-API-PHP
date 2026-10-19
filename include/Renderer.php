@@ -83,7 +83,8 @@ final class Renderer
         $width = $request->get('width', $config['defaults']['width']);
         $height = $request->get('height', $config['defaults']['height']);
 
-        $basemap = $this->basemap($request, $is_authenticated);
+        [$basemap, $basemapHeaders] = $this->basemap($request, $is_authenticated);
+        $headers = array_merge($headers, $basemapHeaders);
         $tileURL = $basemap['layers'][0];
         $overlayURL = $basemap['layers'][1] ?? false;
         $tileKey = $basemap['key'] ?? null;
@@ -130,33 +131,78 @@ final class Renderer
     }
 
     /**
-     * The basemap to draw: the requested one, a custom tile URL (token
-     * required), or the default.
+     * The map to draw.
+     *
+     * - `provider` and/or `style`: that provider (default: `defaults.provider`)
+     *   with that style (default: the provider's `default_style`).
+     *   `provider=custom` uses `tileurl` and needs a valid token.
+     * - Otherwise the deprecated `basemap`: the provider/style its id maps to in
+     *   `basemap_aliases`, or `basemap=custom` with `tileurl` and a token. Any use
+     *   of `basemap` adds `Deprecation` and `Link` headers.
+     * - Anything unknown, disabled or token-only (without a token) gets the
+     *   default map, `defaults.provider` / `defaults.style`.
      *
      * @param Request $request          The request.
      * @param bool    $is_authenticated Whether the request has a valid token.
      *
-     * @return array<string, mixed> Basemap settings with `layers`, `minzoom` and `maxzoom`.
+     * @return array{array<string, mixed>, list<string>} Map settings (with `layers`,
+     *         `minzoom` and `maxzoom`), and headers to send.
      */
     private function basemap(Request $request, bool $is_authenticated): array
     {
         $config = $this->config;
-        $requested = $request->get('basemap');
+        $provider = $request->get('provider');
+        $style = $request->get('style');
+        $legacy = $request->get('basemap');
+        $headers = $legacy === false ? [] : Deprecation::headers();
 
-        $basemap = is_string($requested) ? Config::basemap($config, $requested, $is_authenticated) : null;
-        if ($basemap === null && 'custom' === $requested && $is_authenticated && is_string($request->get('tileurl'))) {
-            $basemap = array(
-                'layers'  => array($request->get('tileurl')),
-                'minzoom' => $config['zoom']['min'],
-                'maxzoom' => $config['zoom']['max'],
-            );
+        $basemap = null;
+        if ($provider !== false || $style !== false) {
+            if ('custom' === $provider) {
+                $basemap = $this->customBasemap($request, $is_authenticated);
+            } else {
+                $p = is_string($provider) ? $provider : $config['defaults']['provider'];
+                $s = is_string($style) ? $style : Config::defaultStyle($config, $p);
+                $basemap = $s === null ? null : Config::resolve($config, $p, $s, $is_authenticated);
+            }
+        } elseif ('custom' === $legacy) {
+            $basemap = $this->customBasemap($request, $is_authenticated);
+        } elseif (is_string($legacy) && ($alias = Config::alias($config, $legacy)) !== null) {
+            $basemap = Config::resolve($config, $alias[0], $alias[1], $is_authenticated);
         }
+
         if ($basemap === null) {
             // Config::validate() guarantees the default resolves without a token.
-            $basemap = (array) Config::basemap($config, $config['defaults']['basemap'], $is_authenticated);
+            $basemap = (array) Config::resolve(
+                $config,
+                $config['defaults']['provider'],
+                $config['defaults']['style'],
+                $is_authenticated
+            );
         }
 
-        return $basemap;
+        return [$basemap, $headers];
+    }
+
+    /**
+     * A one-layer map from the request's `tileurl`, for requests with a valid token.
+     *
+     * @param Request $request          The request.
+     * @param bool    $is_authenticated Whether the request has a valid token.
+     *
+     * @return array<string, mixed>|null Map settings, or null without a token or `tileurl`.
+     */
+    private function customBasemap(Request $request, bool $is_authenticated): ?array
+    {
+        if (!$is_authenticated || !is_string($request->get('tileurl'))) {
+            return null;
+        }
+
+        return array(
+            'layers'  => array($request->get('tileurl')),
+            'minzoom' => $this->config['zoom']['min'],
+            'maxzoom' => $this->config['zoom']['max'],
+        );
     }
 
     /**
