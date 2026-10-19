@@ -57,7 +57,7 @@ final class ConfigTest extends TestCase
     private static function minimal(): array
     {
         return [
-            'defaults'        => ['provider' => 'one', 'style' => 'base'],
+            'defaults'        => ['provider' => 'one', 'style' => 'base', 'format' => 'png'],
             'zoom'            => ['min' => 2, 'max' => 18],
             'token_file'      => '/nonexistent/tokens.txt',
             'home_page'       => __DIR__ . '/../../assets/home.html',
@@ -354,6 +354,7 @@ final class ConfigTest extends TestCase
             'reserved id'           => [['providers' => ['custom' => ['styles' => ['s' => $style]]]], 'is reserved'],
             'alias to nowhere'      => [['basemap_aliases' => ['old' => 'one/nope']], "alias 'old' must point"],
             'alias malformed'       => [['basemap_aliases' => ['old' => 'one']], "alias 'old' must point"],
+            'unknown format'        => [['defaults' => ['format' => 'gif']], "'defaults.format' must be"],
             'max_limit not int'     => [['zoom' => ['max_limit' => '15']], "'zoom.max_limit' must be null or"],
             'max_limit negative'    => [['zoom' => ['max_limit' => -1]], "'zoom.max_limit' must be null or"],
             'removed not array'     => [['removed' => 'x'], "'removed' must be an array"],

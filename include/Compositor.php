@@ -48,7 +48,8 @@ final class Compositor
                 $ox = (($x - $tilePos['x']) * WebMercator::TILE_SIZE) - $pos['x'] + ($width / 2);
                 $oy = (($y - $tilePos['y']) * WebMercator::TILE_SIZE) - $pos['y'] + ($height / 2);
 
-                imagecopy($im, $tile, $ox, $oy, 0, 0, imagesx($tile), imagesy($tile));
+                // Truncated to whole pixels, as PHP did implicitly before 8.1.
+                imagecopy($im, $tile, (int) $ox, (int) $oy, 0, 0, imagesx($tile), imagesy($tile));
             }
         }
     }
@@ -245,8 +246,8 @@ final class Compositor
             if ($shrinkFactor > 1) {
                 $icon = $marker['iconImg'];
                 $markerImg = imagecreatetruecolor(
-                    round(imagesx($icon) / $shrinkFactor),
-                    round(imagesy($icon) / $shrinkFactor)
+                    max(1, (int) round(imagesx($icon) / $shrinkFactor)),
+                    max(1, (int) round(imagesy($icon) / $shrinkFactor))
                 );
                 imagealphablending($markerImg, true);
                 $color = imagecolorallocatealpha($markerImg, 0, 0, 0, 127);
@@ -279,7 +280,16 @@ final class Compositor
                 );
             }
 
-            imagecopy($im, $markerImg, $iconPos['x'], $iconPos['y'], 0, 0, imagesx($markerImg), imagesy($markerImg));
+            imagecopy(
+                $im,
+                $markerImg,
+                (int) $iconPos['x'],
+                (int) $iconPos['y'],
+                0,
+                0,
+                imagesx($markerImg),
+                imagesy($markerImg)
+            );
         }
     }
 }

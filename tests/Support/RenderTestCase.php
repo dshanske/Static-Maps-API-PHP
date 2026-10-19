@@ -130,14 +130,7 @@ abstract class RenderTestCase extends TestCase
      */
     protected static function knownErrors(): array
     {
-        return [
-            // GD functions given float coordinates/sizes (PHP 8.1+), #18.
-            '/Deprecated:\s+Implicit conversion from float [0-9.E+-]+ to int loses precision/',
-            // Polyline::decode() passes multi-byte strings to ord() (PHP 8.5), #18.
-            '/Deprecated:\s+ord\(\): Providing a string that is not one byte long is deprecated/',
-            // imagedestroy() is deprecated as of PHP 8.5, #18.
-            '/Deprecated:\s+Function imagedestroy\(\) is deprecated/',
-        ];
+        return [];
     }
 
     /**

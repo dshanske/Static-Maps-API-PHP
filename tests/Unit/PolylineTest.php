@@ -6,7 +6,6 @@
 
 namespace StaticMaps\Tests\Unit;
 
-use PHPUnit\Framework\Attributes\IgnoreDeprecations;
 use PHPUnit\Framework\TestCase;
 use StaticMaps\Polyline;
 
@@ -24,12 +23,8 @@ final class PolylineTest extends TestCase
     /**
      * decode() returns a flat list of numbers in the order they were encoded.
      *
-     * On PHP 8.5 decode() triggers "ord(): Providing a string that is not one
-     * byte long is deprecated" (#18); remove IgnoreDeprecations once fixed.
-     *
      * @return void
      */
-    #[IgnoreDeprecations]
     public function testDecode(): void
     {
         $decoded = Polyline::decode(self::EXAMPLE);
@@ -49,6 +44,20 @@ final class PolylineTest extends TestCase
     {
         $this->assertSame(self::EXAMPLE, Polyline::encode(Polyline::pair(self::EXAMPLE_POINTS)));
         $this->assertSame(self::EXAMPLE, Polyline::encode(self::EXAMPLE_POINTS));
+    }
+
+    /**
+     * A truncated string (last chunk still "continued") ends cleanly with no warning,
+     * giving the same value as before the #18 fix.
+     *
+     * @return void
+     */
+    public function testDecodeTruncated(): void
+    {
+        $decoded = Polyline::decode('_');
+
+        $this->assertCount(1, $decoded);
+        $this->assertEqualsWithDelta(0.00016, $decoded[0], 1e-12);
     }
 
     /**

@@ -6,7 +6,6 @@
 
 namespace StaticMaps\Tests\Unit;
 
-use PHPUnit\Framework\Attributes\IgnoreDeprecations;
 use PHPUnit\Framework\TestCase;
 use StaticMaps\Bounds;
 use StaticMaps\PathParser;
@@ -64,7 +63,6 @@ final class PathParserTest extends TestCase
      *
      * @return void
      */
-    #[IgnoreDeprecations]
     public function testPolyline(): void
     {
         $bounds = new Bounds();

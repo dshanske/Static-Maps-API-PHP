@@ -107,7 +107,9 @@ class Polyline
         while ($i < strlen($string)) {
             $shift = $result = 0x00;
             do {
-                $bit = ord(substr($string, $i++)) - 63;
+                // Past the end counts as 0, which ends the chunk (as ord(substr()) did).
+                $bit = ($i < strlen($string) ? ord($string[$i]) : 0) - 63;
+                $i++;
                 $result |= ($bit & 0x1f) << $shift;
                 $shift += 5;
             } while ($bit >= 0x20);

@@ -347,6 +347,13 @@ Edit `/etc/php7.4/fpm/pool.d/www.conf` and uncomment the line `listen.mode = 066
 
 You may have to replace 7.4 with installed version
 
+Make sure PHP logs errors instead of printing them: a warning printed into the response would corrupt the image. In the pool file (or `php.ini`) set:
+
+```
+php_admin_flag[display_errors] = off
+php_admin_flag[log_errors] = on
+```
+
 Restart PHP `sudo service php7.4-fpm restart`
 
 ### Configure the virtual host for nginx

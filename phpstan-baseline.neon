@@ -1,54 +1,6 @@
 parameters:
 	ignoreErrors:
 		-
-			message: '#^Parameter \#3 \$dst_x of function imagecopyresampled expects int, float given\.$#'
-			identifier: argument.type
-			count: 1
-			path: include/Attribution.php
-
-		-
-			message: '#^Parameter \#4 \$dst_y of function imagecopyresampled expects int, float given\.$#'
-			identifier: argument.type
-			count: 1
-			path: include/Attribution.php
-
-		-
-			message: '#^Parameter \#7 \$dst_width of function imagecopyresampled expects int, float given\.$#'
-			identifier: argument.type
-			count: 1
-			path: include/Attribution.php
-
-		-
-			message: '#^Parameter \#8 \$dst_height of function imagecopyresampled expects int, float given\.$#'
-			identifier: argument.type
-			count: 1
-			path: include/Attribution.php
-
-		-
-			message: '#^Parameter \#1 \$width of function imagecreatetruecolor expects int\<1, max\>, float given\.$#'
-			identifier: argument.type
-			count: 1
-			path: include/Compositor.php
-
-		-
-			message: '#^Parameter \#2 \$height of function imagecreatetruecolor expects int\<1, max\>, float given\.$#'
-			identifier: argument.type
-			count: 1
-			path: include/Compositor.php
-
-		-
-			message: '#^Parameter \#3 \$dst_x of function imagecopy expects int, float given\.$#'
-			identifier: argument.type
-			count: 2
-			path: include/Compositor.php
-
-		-
-			message: '#^Parameter \#4 \$dst_y of function imagecopy expects int, float given\.$#'
-			identifier: argument.type
-			count: 2
-			path: include/Compositor.php
-
-		-
 			message: '#^Call to function is_array\(\) with array will always evaluate to true\.$#'
 			identifier: function.alreadyNarrowedType
 			count: 1

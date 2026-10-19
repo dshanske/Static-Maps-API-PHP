@@ -782,16 +782,60 @@ final class RenderTest extends RenderTestCase
     }
 
     /**
-     * Known bug (#18): attribution=none still draws the OpenStreetMap logo.
+     * attribution=none draws no logo (#18): the corner shows the tile underneath.
      *
      * @return void
      */
-    public function testAttributionNoneDrawsOsmLogo(): void
+    public function testAttributionNone(): void
     {
+        $withLogo = $this->render(self::TILE_CENTER)->image();
+        $none = $this->render(self::TILE_CENTER + ['attribution' => 'none'])->image();
+
+        // The bottom-right corner is in tile 2609/5861.
+        $this->assertPixel(self::tileColor(2609, 5861), $none, 295, 295);
+        $this->assertNotSame(self::rgbAt($withLogo, 295, 295), self::rgbAt($none, 295, 295));
+    }
+
+    /**
+     * An unknown attribution value counts as none given: the style's own attribution is used (#18).
+     *
+     * @return void
+     */
+    public function testUnknownAttributionUsesDefault(): void
+    {
+        $esriStyle = self::TILE_CENTER + ['provider' => 'fixture', 'style' => 'esri'];
+
         $this->assertSame(
-            $this->render(self::TILE_CENTER)->body,
-            $this->render(self::TILE_CENTER + ['attribution' => 'none'])->body
+            $this->render($esriStyle)->body,
+            $this->render($esriStyle + ['attribution' => 'no-such-logo'])->body
         );
+    }
+
+    /**
+     * attribution=mapbox-small draws the Mapbox logo at half size (#18; was a fatal error).
+     *
+     * @return void
+     */
+    public function testMapboxSmallAttribution(): void
+    {
+        $response = $this->render(self::TILE_CENTER + ['attribution' => 'mapbox-small']);
+
+        $this->assertSame(200, $response->status);
+        $this->assertMatchesSnapshot('attr-mapbox-small.png', $response->body);
+    }
+
+    /**
+     * An attribution URL that isn't an image is skipped instead of failing (#18).
+     *
+     * @return void
+     */
+    public function testBrokenAttributionUrlIsSkipped(): void
+    {
+        $plain = $this->render(self::TILE_CENTER + ['attribution' => 'none']);
+        $broken = $this->render(self::TILE_CENTER + ['attribution' => self::$tiles?->url . '/broken/1/1/1.png']);
+
+        $this->assertSame(200, $broken->status);
+        $this->assertSame($plain->body, $broken->body);
     }
 
     /**
@@ -811,15 +855,79 @@ final class RenderTest extends RenderTestCase
     }
 
     /**
-     * Known bug (#18): an unknown format returns an empty body.
+     * An unknown format is a 400 and fetches no tiles (#18).
      *
      * @return void
      */
-    public function testUnknownFormatReturnsEmptyBody(): void
+    public function testUnknownFormatIsRejected(): void
     {
         $response = $this->render(self::PORTLAND + ['format' => 'gif']);
 
+        $this->assertSame(400, $response->status);
+        $this->assertSame("format must be png or jpg\n", $response->body);
+        $this->assertSame([], $this->tileRequests());
+    }
+
+    /**
+     * Overlay tiles are requested with the User-Agent too (#18).
+     *
+     * @return void
+     */
+    public function testOverlayTilesSendUserAgent(): void
+    {
+        $this->render(self::PORTLAND + ['provider' => 'fixture', 'style' => 'overlay']);
+
+        $byLayer = [];
+        foreach ($this->tileRequests() as $request) {
+            $byLayer[explode('/', $request['path'])[1]][] = $request['ua'];
+        }
+        $this->assertSame(['base', 'overlay'], array_keys($byLayer));
+        foreach ($byLayer as $userAgents) {
+            $this->assertSame(['Static Maps API tests'], array_values(array_unique($userAgents)));
+        }
+    }
+
+    /**
+     * Markers whose icon can't be used are skipped with a header saying why (#18).
+     *
+     * @return array<string, array{string, string}> Icon and expected header.
+     */
+    public static function iconProblemCases(): array
+    {
+        return [
+            'unknown built-in icon' => ['no-such-icon', 'unknown icon'],
+            'URL without a token'   => ['https://icons.invalid/pin.png', 'icon URLs need a valid token'],
+        ];
+    }
+
+    /**
+     * The X-Marker header for an icon that can't be used, and nothing logged.
+     *
+     * @param string $icon   The icon value.
+     * @param string $header Expected X-Marker-1 value.
+     *
+     * @return void
+     */
+    #[DataProvider('iconProblemCases')]
+    public function testIconProblemIsReported(string $icon, string $header): void
+    {
+        $response = $this->render(self::PORTLAND + ['marker' => ["lat:45.5;lng:-122.6;icon:$icon"]]);
+
         $this->assertSame(200, $response->status);
-        $this->assertSame('', $response->body);
+        $this->assertSame($header, $response->header('X-Marker-1'));
+    }
+
+    /**
+     * With a token, an icon URL that isn't an image is skipped with a header.
+     *
+     * @return void
+     */
+    public function testBrokenIconUrlIsReported(): void
+    {
+        $icon = self::$tiles?->url . '/broken/1/1/1.png';
+        $marker = ['marker' => ["lat:45.5;lng:-122.6;icon:$icon"]];
+        $response = $this->render(self::PORTLAND + ['token' => 'test-token'] + $marker);
+
+        $this->assertSame('icon could not be loaded', $response->header('X-Marker-1'));
     }
 }
