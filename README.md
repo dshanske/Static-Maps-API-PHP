@@ -240,6 +240,52 @@ The same request always draws the same map until its tiles change, so map images
 
 The service sends headers that follow the providers' terms; what an install's own caches or CDN do with them is up to the install.
 
+### Tile cache
+
+Downloaded tiles are kept on disk (on by default, in `data/cache/tiles/`), so maps of the same area share them and repeat maps don't download tiles again. This is what OpenStreetMap's tile policy asks of its users.
+
+- Tiles are kept as long as the provider's own `Cache-Control` / `Expires` headers say, or 7 days when it sends none (`cache.tiles.default_ttl`). Expired tiles are checked again with a conditional request (`If-None-Match` / `If-Modified-Since`), so an unchanged tile costs the provider almost nothing.
+- If a provider fails, a cached tile up to 7 days past expiry (`cache.tiles.stale_if_error`, or the provider's own `stale-if-error`) is drawn instead of a gray square.
+- Providers whose terms forbid caching (`cache => 'off'`) are never cached. API keys are hashed into the cache paths, never written in them.
+- The web server's PHP user must be able to write the directory. If it can't, maps are drawn without the cache and the reason is logged. Set `cache.tiles.dir` to keep the cache elsewhere (for example `/var/cache/static-maps/tiles`), or `'enabled' => false` to switch it off.
+
+**Keeping it to size.** The cache only grows by itself; `bin/prune-cache.php` removes tiles that can't be used any more and, if the cache is larger than `cache.tiles.max_size` (1 GB by default), the oldest tiles until it is under 90% of the limit. Run it regularly as the same user as PHP (so it can delete the files), for example once an hour:
+
+With **cron** (`sudo crontab -u www-data -e`):
+
+```
+15 * * * * php /var/www/static-maps-api/bin/prune-cache.php --quiet
+```
+
+Or with a **systemd timer**: `/etc/systemd/system/static-maps-prune.service`
+
+```
+[Unit]
+Description=Prune the Static Maps API tile cache
+
+[Service]
+Type=oneshot
+User=www-data
+ExecStart=/usr/bin/php /var/www/static-maps-api/bin/prune-cache.php
+```
+
+and `/etc/systemd/system/static-maps-prune.timer`
+
+```
+[Unit]
+Description=Prune the Static Maps API tile cache hourly
+
+[Timer]
+OnCalendar=hourly
+RandomizedDelaySec=10m
+Persistent=true
+
+[Install]
+WantedBy=timers.target
+```
+
+then `sudo systemctl daemon-reload && sudo systemctl enable --now static-maps-prune.timer`. Its output goes to the journal (`journalctl -u static-maps-prune`). If your install file isn't `data/config.php`, set `STATIC_MAPS_CONFIG` for the script too (`Environment=STATIC_MAPS_CONFIG=...` in the service). `--dry-run` shows what would be removed without removing anything.
+
 ## Authentication
 
 Features that make the server download from an address given in the request need a valid `token`: marker icon URLs, attribution image URLs, and `provider=custom` with `tileurl`. So do providers and styles with `requires_auth`. This keeps the ability to fetch external resources to trusted users of the system. Without a valid token, those parts of the request are skipped and a header says why (`X-Marker-<n>`, `X-Map-Attribution`, `X-Map-Fallback`).
@@ -452,6 +498,13 @@ sudo mkdir -p /var/www/static-maps-api
 sudo chown -R ubuntu: /var/www
 cd /var/www/static-maps-api
 git clone git@github.com:dshanske/Static-Maps-API-PHP.git .
+```
+
+Let PHP write the tile cache, and set up its cleanup (see [Tile cache](#tile-cache)):
+
+```
+sudo mkdir -p data/cache
+sudo chown www-data: data/cache
 ```
 
 ## Security

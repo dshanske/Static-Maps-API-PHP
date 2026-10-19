@@ -47,6 +47,13 @@ stable interface; pin a commit if you need a fixed point.
   a `Link` to the README's list of removed maps) or `unavailable`, plus the
   requested and drawn ids. The `removed` setting lists removed ids; installs
   can add their own. (#52)
+- Tile cache (#11): downloaded tiles are kept on disk (on by default, in
+  `data/cache/tiles/`) for as long as the provider's cache headers allow, or
+  7 days when it sends none; expired tiles are checked again with conditional
+  requests, and a cached tile stands in for a failed download for up to 7
+  days. Providers with `cache => 'off'` are never cached. New `cache.tiles`
+  settings, and `bin/prune-cache.php` to run from cron or a systemd timer,
+  which keeps the cache under `cache.tiles.max_size` (1 GB by default).
 - Cache headers on map images (#11): `Cache-Control` (7 days by default, the
   new `cache.max_age` setting; `private` for requests with a token and for
   providers with `cache => 'off'`; 5 minutes for fallback maps; `no-store` on

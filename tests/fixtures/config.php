@@ -26,6 +26,10 @@ return [
         'style'    => 'base',
     ],
     'user_agent' => 'Static Maps API tests',
+    // The tile cache is off here: most tests count tile requests. TileCacheTest turns it on.
+    'cache'      => [
+        'tiles' => ['enabled' => false, 'dir' => (string) (getenv('TILE_CACHE_DIR') ?: sys_get_temp_dir())],
+    ],
     // Small limits so the download-limit tests run quickly.
     'remote'     => ['timeout' => 2, 'connect_timeout' => 2, 'max_bytes' => 200000, 'max_redirects' => 2],
     'token_file' => __DIR__ . '/tokens.txt',

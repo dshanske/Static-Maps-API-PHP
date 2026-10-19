@@ -44,7 +44,7 @@ abstract class RenderTestCase extends TestCase
         self::$tiles = new PhpServer(
             $root . '/tests/fixtures',
             $root . '/tests/fixtures/tile-server.php',
-            ['TILE_LOG' => self::$tileLog]
+            ['TILE_LOG' => self::$tileLog] + static::tileServerEnvironment()
         );
         self::$app = new PhpServer($root . '/public', null, static::appEnvironment(self::$tiles->url));
     }
@@ -62,6 +62,16 @@ abstract class RenderTestCase extends TestCase
         if (is_file(self::$tileLog)) {
             unlink(self::$tileLog);
         }
+    }
+
+    /**
+     * Extra environment for the fake tile server process.
+     *
+     * @return array<string, string> Environment variables.
+     */
+    protected static function tileServerEnvironment(): array
+    {
+        return [];
     }
 
     /**

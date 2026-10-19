@@ -131,7 +131,9 @@ final class Renderer
         $neTile = $this->webmercator->pixelsToTile($center['x'] + $width / 2, $center['y'] + $height / 2);
         $swTile = $this->webmercator->pixelsToTile($center['x'] - $width / 2, $center['y'] - $height / 2);
 
-        $fetched = (new TileFetcher($remote))
+        // Providers whose terms forbid caching proxies (cache => 'off') never use the tile cache.
+        $tileCache = ($basemap['cache'] ?? 'headers') === 'off' ? null : TileCache::fromConfig($config);
+        $fetched = (new TileFetcher($remote, $tileCache))
             ->fetch($tileURL, $overlayURL, $tileKey, $swTile, $neTile, $zoom, $im);
 
         $compositor = new Compositor($this->webmercator);
