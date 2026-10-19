@@ -29,6 +29,8 @@
  * @link      https://github.com/emcconville/google-map-polyline-encoding-tool
  */
 
+namespace StaticMaps;
+
 /**
  * Polyline encoding & decoding class
  *

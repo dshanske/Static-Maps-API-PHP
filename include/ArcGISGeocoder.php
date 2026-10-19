@@ -1,51 +1,28 @@
 <?php
 
-class ArcGISGeocoderResult
-{
-    public $name;
-    public $latitude;
-    public $longitude;
-    public $bounds;
-    public $raw;
-    public $success = false;
+/**
+ * Geocoding with the ArcGIS World Geocoding Service.
+ *
+ * Geocoding is being removed (#16); this class only moved here unchanged.
+ */
 
-    public function __construct($location, $raw)
-    {
-        if ($location) {
-            $this->name = $location->name;
-            $this->latitude = $location->feature->geometry->y;
-            $this->longitude = $location->feature->geometry->x;
-            $this->raw = $raw;
+namespace StaticMaps;
 
-            $this->bounds = true;
-          // $this->bounds = new LatLngBounds();
-          // $this->bounds->extend($location->extent->ymin, $location->extent->xmin);
-          // $this->bounds->extend($location->extent->ymax, $location->extent->xmax);
-
-            $this->success = true;
-        } else {
-            $this->raw = $raw;
-        }
-    }
-
-    public function __get($key)
-    {
-        if (!$this->bounds) {
-            return null;
-        }
-
-        switch ($key) {
-            case 'radius':
-                return $this->bounds->radius;
-        }
-    }
-}
-
+/**
+ * Looks up a place name or address.
+ */
 class ArcGISGeocoder
 {
+    /**
+     * Find the first location matching a query.
+     *
+     * @param string $input Place name or address.
+     *
+     * @return ArcGISGeocoderResult The result; check its `success` property.
+     */
     public static function geocode($input)
     {
-        $json = self::_getData($input);
+        $json = self::getData($input);
 
         if ($json == false) {
             return new ArcGISGeocoderResult(false, $json);
@@ -62,12 +39,22 @@ class ArcGISGeocoder
         return new ArcGISGeocoderResult($location, $json);
     }
 
-
-    private static function _getData($input)
+    /**
+     * Call the geocoder's `find` endpoint.
+     *
+     * @param string $input Place name or address.
+     *
+     * @return string|false The response body, or false on failure.
+     */
+    private static function getData($input)
     {
         $ch = curl_init();
 
-        curl_setopt($ch, CURLOPT_URL, 'http://geocode.arcgis.com/arcgis/rest/services/World/GeocodeServer/find?f=json&text=' . urlencode($input));
+        curl_setopt(
+            $ch,
+            CURLOPT_URL,
+            'http://geocode.arcgis.com/arcgis/rest/services/World/GeocodeServer/find?f=json&text=' . urlencode($input)
+        );
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
         curl_setopt($ch, CURLOPT_TIMEOUT, 5);
 

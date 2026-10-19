@@ -7,7 +7,7 @@
  * URL layout: `/<layer>/<z>/<x>/<y>.png`, where `<layer>` is one of:
  *
  * - `base`    Opaque tile filled with a colour derived from x and y (see
- *             tileColor()), so neighbouring tiles are told apart in a render.
+ *             RenderTestCase::tileColor()), so neighbouring tiles are told apart.
  * - `overlay` Transparent tile with an opaque 16x16 white square in its centre.
  * - `broken`  Always answers 404, so the renderer has to fall back to a gray tile.
  *
@@ -38,8 +38,11 @@ if ($layer === 'broken') {
 
 $im = imagecreatetruecolor(256, 256);
 if ($layer === 'base') {
-    [$r, $g, $b] = tileColor((int) $x, (int) $y);
-    imagefill($im, 0, 0, imagecolorallocate($im, $r, $g, $b));
+    // Same formula as RenderTestCase::tileColor(), which tests use to check placement.
+    $x = (int) $x;
+    $y = (int) $y;
+    $color = imagecolorallocate($im, ($x * 37) % 200 + 40, ($y * 53) % 200 + 40, (($x + $y) * 11) % 200 + 40);
+    imagefill($im, 0, 0, $color);
 } else {
     imagesavealpha($im, true);
     imagealphablending($im, false);
@@ -49,18 +52,3 @@ if ($layer === 'base') {
 
 header('Content-Type: image/png');
 imagepng($im);
-
-/**
- * The fill colour of a base tile.
- *
- * Tests compute the same colour to check which tile was drawn where.
- *
- * @param int $x Tile column.
- * @param int $y Tile row.
- *
- * @return array{int, int, int} Red, green and blue, 0-255.
- */
-function tileColor(int $x, int $y): array
-{
-    return [($x * 37) % 200 + 40, ($y * 53) % 200 + 40, (($x + $y) * 11) % 200 + 40];
-}

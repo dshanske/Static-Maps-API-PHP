@@ -1,0 +1,128 @@
+<?php
+
+/**
+ * Parsing of `marker[]` parameters.
+ */
+
+namespace StaticMaps;
+
+/**
+ * Turns `marker[]` values into markers with loaded icons.
+ *
+ * A marker is a string of `key:value;` pairs, e.g.
+ * `lat:45.5;lng:-122.6;icon:small-blue-cutout`. It needs an `icon` and either
+ * `lat` + `lng` or a `location` to geocode. The icon is a file name in
+ * public/images/ (without `.png`) or, for requests with a valid token, an
+ * http(s) URL.
+ */
+final class MarkerParser
+{
+    /** @var string Directory with the built-in marker icons. */
+    public const ICON_DIR = __DIR__ . '/../public/images';
+
+    /** @var callable(string): ArcGISGeocoderResult Looks up a `location`. */
+    private $geocode;
+
+    /**
+     * @param callable(string): ArcGISGeocoderResult|null $geocode Geocoder for `location`;
+     *                                                             null for ArcGISGeocoder::geocode().
+     */
+    public function __construct(?callable $geocode = null)
+    {
+        $this->geocode = $geocode ?? [ArcGISGeocoder::class, 'geocode'];
+    }
+
+    /**
+     * Parse the markers of a request.
+     *
+     * Every valid marker definition widens $bounds, even if its icon can't be
+     * loaded (the marker is then left out). Invalid definitions and failed
+     * geocoding are reported as `X-Marker-<n>` headers, n counting from 1.
+     *
+     * @param mixed  $value         The `marker` parameter: a string, a list of strings, or false.
+     * @param bool   $authenticated Whether the request has a valid token (allows icon URLs).
+     * @param Bounds $bounds        Box to widen with each marker's position.
+     *
+     * @return array{markers: list<array<string, mixed>>, headers: list<string>} The markers
+     *         (their `key:value` pairs plus `iconImg`, a GdImage) and response headers to send.
+     */
+    public function parse(mixed $value, bool $authenticated, Bounds $bounds): array
+    {
+        $markers = array();
+        $headers = array();
+        if (!$value) {
+            return ['markers' => $markers, 'headers' => $headers];
+        }
+        if (!is_array($value)) {
+            $value = array($value);
+        }
+
+        foreach ($value as $i => $m) {
+            if (!preg_match_all('/(?P<k>[a-z]+):(?P<v>[^;]+)/', $m, $matches)) {
+                continue;
+            }
+            $properties = array();
+            foreach ($matches['k'] as $j => $key) {
+                $properties[$key] = $matches['v'][$j];
+            }
+
+            // Skip invalid marker definitions, show error in a header
+            if (
+                !array_key_exists('icon', $properties) || !(
+                (array_key_exists('lat', $properties) && array_key_exists('lng', $properties))
+                || array_key_exists('location', $properties)
+                )
+            ) {
+                $headers[] = 'X-Marker-' . ($i + 1) . ': missing icon, or lat/lng/location parameters';
+                continue;
+            }
+
+            // Geocode the provided location and return lat/lng
+            if (array_key_exists('location', $properties)) {
+                $result = ($this->geocode)($properties['location']);
+                if (!$result->success) {
+                    $headers[] = 'X-Marker-' . ($i + 1)
+                        . ': error geocoding location "' . $properties['location'] . '"';
+                    continue;
+                }
+
+                $properties['lat'] = $result->latitude;
+                $properties['lng'] = $result->longitude;
+            }
+
+            $properties['iconImg'] = $this->loadIcon($properties['icon'], $authenticated);
+            if ($properties['iconImg']) {
+                $markers[] = $properties;
+            }
+
+            $bounds->extend($properties['lat'], $properties['lng']);
+        }
+
+        return ['markers' => $markers, 'headers' => $headers];
+    }
+
+    /**
+     * Load a marker icon.
+     *
+     * @param string $icon          Built-in icon name, or an http(s) URL.
+     * @param bool   $authenticated Whether URLs may be fetched.
+     *
+     * @return \GdImage|false|null The icon; false if it could not be read; null for a URL
+     *                             without a valid token (not fetched).
+     */
+    private function loadIcon(string $icon, bool $authenticated): \GdImage|false|null
+    {
+        if (preg_match('/https?:\/\/(.+)/', $icon)) {
+            if (!$authenticated) {
+                return null;
+            }
+            // Looks like an external image, attempt to download it
+            $ch = curl_init($icon);
+            curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+            $img = curl_exec($ch);
+            return @imagecreatefromstring($img);
+        }
+
+        return imagecreatefrompng(self::ICON_DIR . '/' . $icon . '.png');
+    }
+}

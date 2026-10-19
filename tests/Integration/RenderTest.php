@@ -7,7 +7,7 @@
 namespace StaticMaps\Tests\Integration;
 
 use PHPUnit\Framework\Attributes\DataProvider;
-use Polyline;
+use StaticMaps\Polyline;
 use StaticMaps\Tests\Support\RenderTestCase;
 
 /**
@@ -258,6 +258,61 @@ final class RenderTest extends RenderTestCase
         $this->assertContains($layer, $layers);
         if ($layer !== 'overlay') {
             $this->assertNotContains('overlay', $layers);
+        }
+    }
+
+    /**
+     * A valid token unlocks basemaps with requires_auth.
+     *
+     * @return void
+     */
+    public function testTokenUnlocksBasemap(): void
+    {
+        $im = $this->render(self::TILE_CENTER + ['basemap' => 'fixture-auth', 'token' => 'test-token'])->image();
+
+        $this->assertPixel(self::WHITE, $im, 150, 150);
+        $this->assertContains('/overlay/14/2608/5860.png', $this->tilePaths());
+    }
+
+    /**
+     * With a valid token, basemap=custom draws tiles from tileurl.
+     *
+     * @return void
+     */
+    public function testCustomTileUrlWithToken(): void
+    {
+        $im = $this->render(self::TILE_CENTER + [
+            'basemap' => 'custom',
+            'tileurl' => self::$tiles?->url . '/overlay/{z}/{x}/{y}.png',
+            'token'   => 'test-token',
+        ])->image();
+
+        $this->assertPixel(self::WHITE, $im, 150, 150);
+        foreach ($this->tilePaths() as $path) {
+            $this->assertStringStartsWith('/overlay/14/', $path);
+        }
+    }
+
+    /**
+     * An icon URL is only fetched and drawn for a request with a valid token.
+     *
+     * The "icon" is an overlay tile (256x256, white 16px square in the middle),
+     * anchored at its bottom centre, so the square lands 128px above the point.
+     *
+     * @return void
+     */
+    public function testRemoteIconNeedsToken(): void
+    {
+        $point = 'lat:' . self::TILE_CENTER['latitude'] . ';lng:' . self::TILE_CENTER['longitude'];
+        $marker = ['marker' => [$point . ';icon:' . self::$tiles?->url . '/overlay/1/1/1.png']];
+
+        foreach (['wrong-token' => false, 'test-token' => true] as $token => $drawn) {
+            $this->setUp();
+            $im = $this->render(self::TILE_CENTER + $marker + ['token' => $token])->image();
+
+            $fetched = in_array('/overlay/1/1/1.png', $this->tilePaths(), true);
+            $this->assertSame($drawn, $fetched, "icon fetched with $token");
+            $this->assertPixel($drawn ? self::WHITE : self::tileColor(2608, 5860), $im, 150, 22);
         }
     }
 

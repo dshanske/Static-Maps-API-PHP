@@ -17,6 +17,11 @@
         "phpunit/phpunit": "^10.5 || ^11.5 || ^12.5 || ^13.0",
         "squizlabs/php_codesniffer": "^4.0"
     },
+    "autoload": {
+        "psr-4": {
+            "StaticMaps\\": "include/"
+        }
+    },
     "autoload-dev": {
         "psr-4": {
             "StaticMaps\\Tests\\": "tests/"

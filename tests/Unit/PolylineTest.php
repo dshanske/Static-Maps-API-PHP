@@ -8,7 +8,7 @@ namespace StaticMaps\Tests\Unit;
 
 use PHPUnit\Framework\Attributes\IgnoreDeprecations;
 use PHPUnit\Framework\TestCase;
-use Polyline;
+use StaticMaps\Polyline;
 
 /**
  * Google encoded polyline decoding and encoding (precision 1e-5).

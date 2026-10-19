@@ -6,6 +6,10 @@
  * @see config/defaults.php for every setting and how to override it.
  */
 
+namespace StaticMaps;
+
+use RuntimeException;
+
 /**
  * Service configuration: shipped defaults merged with the per-install file.
  */
@@ -199,6 +203,12 @@ class Config
             $layers = $basemap['layers'] ?? null;
             if (!is_array($layers) || !array_is_list($layers) || count($layers) < 1 || count($layers) > 2) {
                 throw new RuntimeException("Basemap '$id' needs 'layers': a list of one or two tile URLs");
+            }
+        }
+
+        foreach (['token_file'] as $setting) {
+            if (!isset($config[$setting]) || !is_string($config[$setting])) {
+                throw new RuntimeException("Configuration setting '$setting' must be a string");
             }
         }
 

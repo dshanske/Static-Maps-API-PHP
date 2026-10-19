@@ -16,16 +16,7 @@
     <!-- Report warnings (line length, deprecations) without failing the run. -->
     <config name="ignore_warnings_on_exit" value="1"/>
 
-    <rule ref="PSR12">
-        <!--
-            Structural PSR-1 rules that need code to be reorganised rather than
-            reformatted. Re-enable as the code is split up for the test suite (#14).
-        -->
-        <exclude name="PSR1.Classes.ClassDeclaration.MissingNamespace"/>
-        <exclude name="PSR1.Classes.ClassDeclaration.MultipleClasses"/>
-        <exclude name="PSR1.Files.SideEffects.FoundWithSymbols"/>
-        <exclude name="PSR2.Methods.MethodDeclaration.Underscore"/>
-    </rule>
+    <rule ref="PSR12"/>
 
     <!-- Tile URL templates in the config can't be wrapped. -->
     <rule ref="Generic.Files.LineLength">
