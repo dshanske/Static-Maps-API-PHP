@@ -75,6 +75,12 @@ stable interface; pin a commit if you need a fixed point.
 
 ### Fixed
 
+- Esri maps draw the "Powered by Esri" logo by default instead of the
+  OpenStreetMap logo. The OpenStreetMap, OpenTopoMap and CARTO providers set
+  the OpenStreetMap logo themselves, so changing `defaults.attribution` no
+  longer changes their credit. A request's `attribution` still overrides
+  both. (#50)
+
 - A request that doesn't say where the map is (no `latitude` and
   `longitude`, no marker or path, no `location`) returns HTTP 400 with the
   reason, instead of a meaningless map centred on 0,0. So does a request with

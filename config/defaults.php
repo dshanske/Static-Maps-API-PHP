@@ -57,7 +57,8 @@ return [
         'style'        => 'streets',
 
         // Attribution drawn when the request has no `attribution` and the
-        // provider or style has no `attribution` of its own. One of 'osm', 'esri' or
+        // provider or style has no `attribution` of its own. Every shipped
+        // provider sets its own, so this only applies to providers you add. One of 'osm', 'esri' or
         // 'mapbox' (any other value currently draws the OSM logo, see #18).
         // Default: 'osm'.
         'attribution'  => 'osm',
@@ -176,6 +177,9 @@ return [
         // OpenStreetMap (https://operations.osmfoundation.org/policies/tiles/)
         'osm' => [
             'name'          => 'OpenStreetMap',
+            // Set here, not left to defaults.attribution, so changing that
+            // default never takes the OpenStreetMap credit off these maps.
+            'attribution'   => 'osm',
             'default_style' => 'streets',
             'styles' => [
                 'streets' => [
@@ -188,6 +192,8 @@ return [
         // Esri basemaps (https://www.arcgis.com/home/group.html?id=702026e41f6641fb85da88efe79dc166)
         'esri' => [
             'name'          => 'Esri',
+            // Esri's terms require Esri attribution on its basemaps.
+            'attribution'   => 'esri',
             'default_style' => 'streets',
             'styles' => [
                 'streets' => [
@@ -247,6 +253,8 @@ return [
         // OpenTopoMap (https://opentopomap.org/about)
         'opentopomap' => [
             'name'          => 'OpenTopoMap',
+            // OpenStreetMap data; credit text for OpenTopoMap itself comes with #29.
+            'attribution'   => 'osm',
             'default_style' => 'topo',
             'styles' => [
                 'topo' => [
@@ -260,6 +268,8 @@ return [
         // (https://carto.com/basemaps). CARTO now requires an API key (#17).
         'carto' => [
             'name'          => 'CARTO',
+            // OpenStreetMap data; credit text for CARTO itself comes with #29.
+            'attribution'   => 'osm',
             'default_style' => 'light',
             'styles' => [
                 'light' => [

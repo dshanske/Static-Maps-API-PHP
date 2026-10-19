@@ -99,6 +99,27 @@ final class ConfigTest extends TestCase
     }
 
     /**
+     * Every shipped style sets its own attribution, so changing defaults.attribution
+     * never changes the credit on a shipped map (#50): Esri styles use Esri, and the
+     * OpenStreetMap-based providers use OpenStreetMap.
+     *
+     * @return void
+     */
+    public function testShippedAttribution(): void
+    {
+        $config = Config::load(null, $this->configFile(['defaults' => ['attribution' => 'mapbox']]));
+
+        $expected = ['osm' => 'osm', 'esri' => 'esri', 'opentopomap' => 'osm', 'carto' => 'osm'];
+        $this->assertSame(array_keys($expected), array_keys($config['providers']));
+        foreach ($expected as $provider => $attribution) {
+            foreach (array_keys($config['providers'][$provider]['styles']) as $style) {
+                $resolved = Config::resolve($config, $provider, $style, false);
+                $this->assertSame($attribution, $resolved['attribution'] ?? null, "$provider/$style");
+            }
+        }
+    }
+
+    /**
      * Every old basemap id still maps to an enabled style (#40).
      *
      * @return void
