@@ -531,7 +531,8 @@ class Config
         if (!is_bool($config['errors']['strict'] ?? null)) {
             throw new RuntimeException("Setting 'errors.strict' must be true or false");
         }
-        foreach (['max_width', 'max_height', 'max_markers', 'max_points'] as $limit) {
+        $limits = ['max_width', 'max_height', 'max_markers', 'max_points', 'icon_urls', 'icon_bytes', 'icon_pixels'];
+        foreach ($limits as $limit) {
             if (!is_int($config['limits'][$limit] ?? null) || $config['limits'][$limit] < 1) {
                 throw new RuntimeException("Setting 'limits.$limit' must be a whole number of 1 or more");
             }

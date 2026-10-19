@@ -268,7 +268,25 @@ final class Api
             ];
         }
 
-        return ['icons' => $icons];
+        return [
+            'icons'     => $icons,
+            // Icons drawn on request (#37): icon:pin or icon:dot with these options, or icon:none for a label.
+            'generated' => [
+                'types'           => MarkerIcon::TYPES,
+                'sizes'           => array_keys(MarkerIcon::PIN_SIZES),
+                'pin_heights'     => MarkerIcon::PIN_SIZES,
+                'dot_diameters'   => MarkerIcon::DOT_SIZES,
+                'default_color'   => MarkerIcon::DEFAULT_COLOR,
+                'max_label'       => ['pin' => MarkerIcon::MAX_PIN_LABEL, 'dot' => MarkerIcon::MAX_PIN_LABEL,
+                    'none' => MarkerIcon::MAX_TEXT_LABEL],
+            ],
+            'anchors'   => array_keys(MarkerIcon::ANCHORS),
+            'url_limits' => [
+                'icons'  => (int) $this->config['limits']['icon_urls'],
+                'bytes'  => (int) $this->config['limits']['icon_bytes'],
+                'pixels' => (int) $this->config['limits']['icon_pixels'],
+            ],
+        ];
     }
 
     /**

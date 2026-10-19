@@ -171,7 +171,7 @@ final class Viewport
     {
         $extra = [0, 0, 0, 0];
         foreach ($markers as $marker) {
-            $box = Compositor::markerBox($marker['iconImg'], (string) $marker['icon'], $width, $height);
+            $box = Compositor::markerBox($marker, $width, $height);
             foreach ([$box['top'], $box['right'], $box['bottom'], $box['left']] as $i => $size) {
                 $extra[$i] = max($extra[$i], $size);
             }

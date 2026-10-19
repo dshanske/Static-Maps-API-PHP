@@ -18,6 +18,15 @@ stable interface; pin a commit if you need a fixed point.
 
 ### Added
 
+- Generated markers and marker options (#37): `icon:pin` and `icon:dot` in any
+  `color` and three `size`s, with a short `label` (and `labelcolor`), drawn at
+  the request's `scale` so they stay sharp; `icon:none` for a text label;
+  `anchor` (named or `x,y`), `scale`, `rotation` and `opacity` for any icon.
+  `/api/v1/icons` lists the generated types, sizes and anchors.
+- Icon URL limits (#37): at most `limits.icon_urls` (5) different icon URLs
+  per map, each at most `limits.icon_bytes` (256 KB); images over
+  `limits.icon_pixels` (256 px) are drawn at that size. Each URL is downloaded
+  once per map.
 - Shapes and path styles (#36): `enc:` encoded polylines inside `path[]` (any
   number, with `precision:6` for OSRM and Valhalla), `circle:lng,lat,radius`
   (metres), `rect:minLng,minLat,maxLng,maxLat`, `fillcolor` (closes and fills

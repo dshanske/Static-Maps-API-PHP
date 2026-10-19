@@ -105,8 +105,15 @@ final class Renderer
 
         // Markers and paths; with no centre given, the map is centred on them
         $remote = RemoteFetcher::fromConfig($config);
-        $parsed = (new MarkerParser($remote, (int) $config['limits']['max_markers']))
-            ->parse($request->get('marker'), $mayFetchUrls, $bounds);
+        $limits = $config['limits'];
+        $parsed = (new MarkerParser(
+            $remote,
+            (int) $limits['max_markers'],
+            $params->scale,
+            (int) $limits['icon_urls'],
+            (int) $limits['icon_bytes'],
+            (int) $limits['icon_pixels']
+        ))->parse($request->get('marker'), $mayFetchUrls, $bounds);
         $markers = $parsed['markers'];
         $headers = array_merge($headers, $parsed['headers']);
 

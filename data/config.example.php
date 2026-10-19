@@ -51,6 +51,9 @@ return [
     //     'max_height' => 1280,   // pixels
     //     'max_markers' => 100,   // markers drawn per map
     //     'max_points'  => 10000, // points in all paths together
+    //     'icon_urls'   => 5,      // different marker icon URLs per map
+    //     'icon_bytes'  => 262144, // largest icon download
+    //     'icon_pixels' => 256,    // icons from URLs are drawn at most this big
     // ],
 
     // Answer 400 for a marker or path that can't be drawn, instead of leaving
