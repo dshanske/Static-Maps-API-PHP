@@ -16,6 +16,9 @@
  * - `nostore` Like base, with `Cache-Control: no-store`.
  * - `flaky`   Like cached, but answers 500 while the file named by the
  *             TILE_FAIL_FILE environment variable exists.
+ * - `header`  Like base, but only with the request header `X-Api-Key: fixture-header-key`;
+ *             otherwise 403.
+ * - `bounce`  Redirects to the same tile of `base` (for "headers don't follow redirects").
  *
  * A few fixed paths (`/big.png`, `/slow.png`, `/redirect-…`, `/not-found.png`)
  * test the download limits.
@@ -33,6 +36,7 @@ if (is_string($log) && $log !== '') {
         'query' => $_SERVER['QUERY_STRING'] ?? '',
         'ua'    => $_SERVER['HTTP_USER_AGENT'] ?? null,
         'inm'   => $_SERVER['HTTP_IF_NONE_MATCH'] ?? null,
+        'key'   => $_SERVER['HTTP_X_API_KEY'] ?? null,
     ]) . "\n", FILE_APPEND | LOCK_EX);
 }
 
@@ -67,7 +71,8 @@ switch ($path) {
         exit;
 }
 
-if (!preg_match('#^/(base|overlay|broken|cached|nostore|flaky)/(\d+)/(\d+)/(\d+)\.png$#', (string) $path, $m)) {
+$layers = 'base|overlay|broken|cached|nostore|flaky|header|bounce';
+if (!preg_match('#^/(' . $layers . ')/(\d+)/(\d+)/(\d+)\.png$#', (string) $path, $m)) {
     http_response_code(404);
     exit;
 }
@@ -75,6 +80,19 @@ if (!preg_match('#^/(base|overlay|broken|cached|nostore|flaky)/(\d+)/(\d+)/(\d+)
 
 if ($layer === 'broken') {
     http_response_code(404);
+    exit;
+}
+
+// Provider request headers (#28): the key comes in a header, not the URL.
+if ($layer === 'header') {
+    if (($_SERVER['HTTP_X_API_KEY'] ?? '') !== 'fixture-header-key') {
+        http_response_code(403);
+        exit;
+    }
+    $layer = 'base';
+}
+if ($layer === 'bounce') {
+    header("Location: /base/$z/$x/$y.png", true, 302);
     exit;
 }
 

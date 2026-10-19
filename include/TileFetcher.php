@@ -42,6 +42,9 @@ final class TileFetcher
      * @param mixed                             $zoom       Zoom level.
      * @param GdImage                           $im         The map image; the gray fallback colour is
      *                                                      allocated on it.
+     * @param list<string>                      $headers    Request header lines sent with every tile
+     *                                                      request (e.g. the provider's API key). Tile
+     *                                                      requests with headers don't follow redirects.
      *
      * @return array{tiles: array<int, array<int, GdImage>>, overlays: array<int, array<int, GdImage>>}
      *         Tiles indexed by column, then row. `overlays` has an empty row array for each
@@ -54,7 +57,8 @@ final class TileFetcher
         array $sw,
         array $ne,
         mixed $zoom,
-        GdImage $im
+        GdImage $im,
+        array $headers = []
     ): array {
         $result = ['tiles' => [], 'overlays' => []];
         $layers = ['tiles' => $tileURL] + ($overlayURL ? ['overlays' => $overlayURL] : []);
@@ -81,7 +85,7 @@ final class TileFetcher
                         $i = count($jobs) - 1;
                         $jobs[$i]['handle'] = $this->remote->handle(
                             Config::tileUrl($template, $x, $y, $z, $key),
-                            self::conditionalHeaders($cached),
+                            array_merge($headers, self::conditionalHeaders($cached)),
                             static function (string $line) use (&$jobs, $i): void {
                                 // A new status line (e.g. after a redirect) starts a new set of headers.
                                 if (str_starts_with($line, 'HTTP/')) {
@@ -92,7 +96,9 @@ final class TileFetcher
                                 if (count($parts) === 2) {
                                     $jobs[$i]['headers'][strtolower(trim($parts[0]))] = trim($parts[1]);
                                 }
-                            }
+                            },
+                            // A provider's headers may hold its key: never send them to another server.
+                            $headers === []
                         );
                         curl_multi_add_handle($mh, $jobs[$i]['handle']);
                         continue;

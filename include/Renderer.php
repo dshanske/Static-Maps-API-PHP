@@ -144,7 +144,7 @@ final class Renderer
         // Providers whose terms forbid caching proxies (cache => 'off') never use the tile cache.
         $tileCache = ($basemap['cache'] ?? 'headers') === 'off' ? null : TileCache::fromConfig($config);
         $fetched = (new TileFetcher($remote, $tileCache))
-            ->fetch($tileURL, $overlayURL, $tileKey, $swTile, $neTile, $zoom, $im);
+            ->fetch($tileURL, $overlayURL, $tileKey, $swTile, $neTile, $zoom, $im, Config::headerLines($basemap));
 
         $compositor = new Compositor($this->webmercator);
         $compositor->drawTiles($im, $fetched['tiles'], $tilePos, $pos, $width, $height);

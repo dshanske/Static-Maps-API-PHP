@@ -80,7 +80,12 @@ final class ApiTest extends RenderTestCase
         $byId = array_column($data['providers'], null, 'id');
         // Shipped providers are switched off in the test config; token-only, keyless and
         // disabled providers are left out.
-        $this->assertSame(['fixture', 'no-proxy'], array_keys($byId), 'providers with a server key need a client key');
+        $this->assertSame(
+            ['fixture', 'headered', 'no-proxy'],
+            array_keys($byId),
+            'providers with a server key need a client key'
+        );
+        $this->assertSame(['plain'], array_column($byId['headered']['styles'], 'id'), 'only its style without {key}');
 
         $styles = array_column($byId['fixture']['styles'], null, 'id');
         $this->assertSame(
@@ -118,7 +123,7 @@ final class ApiTest extends RenderTestCase
 
         $this->assertSame('private, no-store', $response->header('Cache-Control'));
         $byId = array_column($data['providers'], null, 'id');
-        $this->assertSame(['fixture', 'keyed', 'secret', 'no-proxy'], array_keys($byId));
+        $this->assertSame(['fixture', 'headered', 'keyed', 'secret', 'no-proxy'], array_keys($byId));
         $keyed = array_column($byId['keyed']['styles'], null, 'id');
         $main = $keyed['main'];
         $this->assertSame(

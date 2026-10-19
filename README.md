@@ -81,7 +81,7 @@ Maps whose tiles no longer exist are removed rather than deprecated, since they 
 
 | Removed | Why | Removed in | Instead |
 |---|---|---|---|
-| `basemap=stamen-toner`, `stamen-toner-background`, `stamen-toner-lite`, `stamen-terrain`, `stamen-terrain-background`, `stamen-watercolor` | Stamen's tile hosting shut down in 2023 | 1.0.0 | `carto` `light` / `dark` for a similar look; Stamen styles via Stadia Maps may be added later (#33) |
+| `basemap=stamen-toner`, `stamen-toner-background`, `stamen-toner-lite`, `stamen-terrain`, `stamen-terrain-background`, `stamen-watercolor` | Stamen's tile hosting shut down in 2023 | 1.0.0 | `carto` `light` / `dark` for a similar look |
 
 ### Deprecated basemap ids
 
@@ -301,7 +301,7 @@ An install that only offers free maps issues no keys. The server's provider keys
 
 ```
 php bin/clients.php add simple-location                  # prints the new key
-php bin/clients.php add blog --providers=stadia --no-external-urls
+php bin/clients.php add blog --providers=carto --no-external-urls
 php bin/clients.php list
 php bin/clients.php set blog --providers=all --external-urls=yes
 php bin/clients.php set blog --disable                   # or --enable
@@ -334,7 +334,7 @@ function sign_map_url(string $base, string $pathAndQuery, string $secret): strin
 
 echo sign_map_url(
     'https://maps.example.com',
-    '/?latitude=45.5165&longitude=-122.6764&zoom=14&provider=stadia&key=my-blog',
+    '/?latitude=45.5165&longitude=-122.6764&zoom=14&provider=carto&key=my-blog',
     'the-client-secret'
 );
 ```
@@ -373,14 +373,16 @@ return [
         'carto'       => ['enabled' => false],
         // Limit a provider's zoom range
         'opentopomap' => ['maxzoom' => 17],
-        // Add a provider that needs an API key ({key} is replaced with 'key')
-        'stadia' => [
-            'name'   => 'Stadia Maps',
-            'key'    => 'your-stadia-api-key',
-            'styles' => [
-                'toner' => [
-                    'name'   => 'Stamen Toner',
-                    'layers' => ['https://tiles.stadiamaps.com/tiles/stamen_toner/{z}/{x}/{y}.png?api_key={key}'],
+        // Add a provider that needs an API key. {key} is replaced with 'key',
+        // in the tile URLs or in request headers. Check its terms first (see below).
+        'example' => [
+            'name'    => 'Example Tiles',
+            'key'     => 'your-api-key',
+            'headers' => ['Authorization' => 'Bearer {key}'],
+            'styles'  => [
+                'streets' => [
+                    'name'   => 'Streets',
+                    'layers' => ['https://tiles.example.com/streets/{z}/{x}/{y}.png'],
                 ],
             ],
         ],
@@ -394,7 +396,27 @@ return [
 
 The `removed` setting lists removed provider, style and basemap ids for the `X-Map-Fallback` notice; an install can add its own when it takes a map out of service.
 
-Each provider has a `name`, an optional `default_style`, and `styles`. Each style has a `name` and a list of one or two tile URL `layers` (a base map and an optional overlay drawn on top). A provider can set a default `attribution` (`text`, a logo name or `none`), its `attribution_text` (the short credit its terms require on the image), its `attribution_html` (the full credit with links, for `/api/v1/attribution`), `minzoom` / `maxzoom`, `requires_auth` (only usable with a client key), `enabled` and an API `key`; its styles inherit these and can override any of them. A style whose tile URLs contain `{key}` is unavailable until a key is set, so a provider that needs a key (such as CARTO) can ship switched on and starts working once the install adds one. See `config/defaults.php` for details.
+Each provider has a `name`, an optional `default_style`, and `styles`. Each style has a `name` and a list of one or two tile URL `layers` (a base map and an optional overlay drawn on top). A provider can set a default `attribution` (`text`, a logo name or `none`), its `attribution_text` (the short credit its terms require on the image), its `attribution_html` (the full credit with links, for `/api/v1/attribution`), `minzoom` / `maxzoom`, `requires_auth` (only usable with a client key), `enabled`, an API `key` and request `headers` (sent with every tile request, for providers that take the key in a header such as `Authorization`); its styles inherit these and can override any of them. A style whose tile URLs or headers contain `{key}` is unavailable until a key is set, and then needs a client key, so a provider that needs a key (such as CARTO) can ship switched on and starts working once the install adds one. See `config/defaults.php` for details.
+
+Tile requests that send `headers` don't follow redirects, so a key in a header is never sent to another server. The query API never shows provider keys or headers.
+
+### Provider terms
+
+This software is Apache-2.0 licensed, but **the maps it draws come from tile providers, each with its own terms, and every install must follow them**, including any limits on commercial use. The software makes a reasonable attempt by default:
+- it sends a descriptive User-Agent;
+- it follows providers' cache headers, and never caches tiles for providers whose terms forbid it (`cache => 'off'`);
+- it draws the attribution each provider requires.
+
+What an install does beyond that is its own responsibility: which providers it adds, how much it uses them, and where its images end up. Before using or adding a provider, read its terms:
+
+| Provider | What its terms say (checked October 2026) | Terms |
+|---|---|---|
+| OpenStreetMap | No heavy use or bulk downloading. A proxy must send a clear, contactable User-Agent. Commercial services are warned that access may be withdrawn at any time. | [Tile usage policy](https://operations.osmfoundation.org/policies/tiles/) |
+| Esri / ArcGIS | "Powered by Esri" and the data sources must be credited. | [Attribution requirements](https://developers.arcgis.com/documentation/esri-and-data-attribution/), [terms of use](https://www.esri.com/en-us/legal/terms/full-master-agreement) |
+| CARTO | Needs a free key. Non-commercial use up to 5 million requests a month; commercial use up to 1 million, then a paid plan. | [Basemaps](https://carto.com/basemaps), [legal](https://carto.com/legal) |
+| OpenTopoMap | CC-BY-SA, so commercial use is allowed with credit. No mass downloads. | [About](https://opentopomap.org/about) |
+
+Some providers have been looked at and left out because their terms don't allow this kind of use. For example, Stadia Maps' [terms](https://stadiamaps.com/terms-of-service) forbid proxying its tiles, and its free tier is for non-commercial use only.
 
 Install files written for the older format (`basemaps` and `defaults.basemap`) keep working: they are translated to providers and styles, and each request logs a deprecation message until you update the file.
 

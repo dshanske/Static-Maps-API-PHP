@@ -146,7 +146,8 @@ abstract class RenderTestCase extends TestCase
     /**
      * Tile requests the tile server received since the test started.
      *
-     * @return list<array{path: string, query: string, ua: string|null}> One entry per request.
+     * @return list<array{path: string, query: string, ua: string|null, inm: string|null, key: string|null}>
+     *         One entry per request (`key` is its X-Api-Key header).
      */
     protected function tileRequests(): array
     {

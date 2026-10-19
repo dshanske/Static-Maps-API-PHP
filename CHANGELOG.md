@@ -54,6 +54,15 @@ stable interface; pin a commit if you need a fixed point.
   days. Providers with `cache => 'off'` are never cached. New `cache.tiles`
   settings, and `bin/prune-cache.php` to run from cron or a systemd timer,
   which keeps the cache under `cache.tiles.max_size` (1 GB by default).
+- Provider request headers (#28): a provider or style can set `headers`,
+  sent with every tile request, with `{key}` replaced by its API key, for
+  providers that take the key in a header (such as `Authorization: Bearer`).
+  A key in the headers needs a client key, like one in the URL. Tile requests
+  with headers don't follow redirects, so the key never reaches another server.
+- README: a "Provider terms" section. Installs must follow each provider's
+  terms, including limits on commercial use; it links each shipped provider's
+  terms. The configuration examples no longer use Stadia Maps, whose terms
+  forbid proxying its tiles.
 - Signed URLs (#12): a client can send `key=<client id>` and a final
   `signature=` (base64url HMAC-SHA256 of the path and query, made with the
   client's secret) instead of its plain key, so the secret never appears in
