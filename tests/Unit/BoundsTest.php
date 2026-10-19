@@ -47,6 +47,20 @@ final class BoundsTest extends TestCase
     }
 
     /**
+     * A box is empty until the first point is added.
+     *
+     * @return void
+     */
+    public function testIsEmpty(): void
+    {
+        $bounds = new Bounds();
+        $this->assertTrue($bounds->isEmpty());
+
+        $bounds->extend(0, 0);
+        $this->assertFalse($bounds->isEmpty());
+    }
+
+    /**
      * One point gives a zero-size box centred on it.
      *
      * @return void

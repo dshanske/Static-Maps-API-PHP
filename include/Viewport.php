@@ -28,23 +28,28 @@ final class Viewport
      * The map centre: `latitude`/`longitude`, else a geocoded `location`, else the
      * centre of the markers and paths (0,0 if there are none).
      *
-     * `longitude` is only read when `latitude` is given, and is false if missing.
-     * Geocoding reports its outcome in `X-Geocode` and `X-Geocode-Result` headers.
+     * `longitude` is only read when `latitude` is given (Renderer rejects a request
+     * that has only one of them). Geocoding reports its outcome in `X-Geocode` and
+     * `X-Geocode-Result` headers.
      *
      * @param Request $request The request.
      * @param Bounds  $bounds  Bounds of the markers and paths.
      *
-     * @return array{latitude: mixed, longitude: mixed, headers: list<string>} The centre in
-     *         degrees (request values are passed through unchanged) and headers to send.
+     * @return array{latitude: mixed, longitude: mixed, located: bool, headers: list<string>}
+     *         The centre in degrees (request values are passed through unchanged); whether
+     *         the request located the map at all (false means the 0,0 fallback); and
+     *         headers to send.
      */
     public function center(Request $request, Bounds $bounds): array
     {
         $default = $bounds->center();
         $headers = array();
+        $located = !$bounds->isEmpty();
 
         if ($request->get('latitude') !== false) {
             $latitude = $request->get('latitude');
             $longitude = $request->get('longitude');
+            $located = true;
         } elseif ($request->get('location') !== false) {
             $result = ($this->geocode)($request->get('location'));
             if (!$result->success) {
@@ -55,6 +60,7 @@ final class Viewport
             } else {
                 $latitude = $result->latitude;
                 $longitude = $result->longitude;
+                $located = true;
                 $headers[] = 'X-Geocode: success';
                 $headers[] = 'X-Geocode-Result: ' . $latitude . ', ' . $longitude;
             }
@@ -63,7 +69,7 @@ final class Viewport
             $longitude = $default['lng'];
         }
 
-        return ['latitude' => $latitude, 'longitude' => $longitude, 'headers' => $headers];
+        return ['latitude' => $latitude, 'longitude' => $longitude, 'located' => $located, 'headers' => $headers];
     }
 
     /**

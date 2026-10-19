@@ -54,6 +54,16 @@ final class Bounds
     }
 
     /**
+     * Whether no point has been added.
+     *
+     * @return bool True while the box is still inside out.
+     */
+    public function isEmpty(): bool
+    {
+        return $this->minLat > $this->maxLat;
+    }
+
+    /**
      * Centre of the box; 0,0 when no point was added.
      *
      * @return array{lat: int|float, lng: int|float} Latitude and longitude in degrees.

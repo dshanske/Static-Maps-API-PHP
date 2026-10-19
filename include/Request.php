@@ -29,6 +29,16 @@ final class Request
     }
 
     /**
+     * Whether the request has no parameters at all.
+     *
+     * @return bool True for e.g. a plain `GET /`.
+     */
+    public function isEmpty(): bool
+    {
+        return $this->params === [];
+    }
+
+    /**
      * One parameter, exactly as received.
      *
      * A parameter that is present but empty is returned as the empty string;

@@ -206,10 +206,13 @@ class Config
             }
         }
 
-        foreach (['token_file'] as $setting) {
+        foreach (['token_file', 'home_page'] as $setting) {
             if (!isset($config[$setting]) || !is_string($config[$setting])) {
                 throw new RuntimeException("Configuration setting '$setting' must be a string");
             }
+        }
+        if (!is_file($config['home_page']) || !is_readable($config['home_page'])) {
+            throw new RuntimeException("Configuration setting 'home_page' must name a readable file");
         }
 
         $default = $config['defaults']['basemap'] ?? null;

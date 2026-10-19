@@ -93,19 +93,105 @@ final class RenderTest extends RenderTestCase
     }
 
     /**
-     * A request without parameters renders the default map (centred on 0,0).
-     *
-     * Current behaviour only: #47 will make a request without a location a 400.
+     * A request without any parameters gets the HTML home page, at every entry point (#47).
      *
      * @return void
      */
-    public function testRootWithoutParameters(): void
+    public function testHomePage(): void
     {
-        $response = $this->render([]);
+        foreach (['/', '/index.php', '/img.php'] as $path) {
+            $response = self::$app->get($path);
+
+            $this->assertSame(200, $response->status, $path);
+            $this->assertSame('text/html; charset=utf-8', $response->header('Content-Type'), $path);
+            $this->assertStringContainsString('<title>Static Maps API</title>', $response->body);
+        }
+        $this->assertSame([], $this->tileRequests());
+        $this->assertSame([], self::$app?->errors());
+    }
+
+    /**
+     * Requests that don't say where the map is.
+     *
+     * @return array<string, array{array<string, mixed>, string}> Parameters and expected message.
+     */
+    public static function unlocatedCases(): array
+    {
+        $none = 'A map needs a location: latitude and longitude, or at least one marker or path';
+        $pair = 'latitude and longitude must be given together';
+
+        return [
+            'zoom only'            => [['zoom' => 12], $none],
+            'unrelated parameter'  => [['foo' => 'bar'], $none],
+            'empty parameter'      => [['width' => ''], $none],
+            'invalid markers only' => [['marker' => ['icon:dot-small-red', 'lat:1;lng:2']], $none],
+            'path without points'  => [['path' => ['color:ff0000']], $none],
+            'latitude only'        => [['latitude' => 45.5, 'marker' => self::MARKERS], $pair],
+            'longitude only'       => [['longitude' => -122.6, 'zoom' => 10], $pair],
+        ];
+    }
+
+    /**
+     * A request without a location gets a 400 with the reason, and no tiles are fetched (#47).
+     *
+     * @param array<string, mixed> $params  Request parameters.
+     * @param string               $message Expected reason.
+     *
+     * @return void
+     */
+    #[DataProvider('unlocatedCases')]
+    public function testRequestWithoutLocationIsRejected(array $params, string $message): void
+    {
+        $response = $this->render($params);
+
+        $this->assertSame(400, $response->status);
+        $this->assertSame('text/plain; charset=utf-8', $response->header('Content-Type'));
+        $this->assertSame($message . "\n", $response->body);
+        $this->assertSame([], $this->tileRequests());
+    }
+
+    /**
+     * Skipped markers are still reported on a 400.
+     *
+     * @return void
+     */
+    public function testRejectedRequestKeepsMarkerHeaders(): void
+    {
+        $response = $this->render(['marker' => ['icon:dot-small-red']]);
+
+        $this->assertSame(400, $response->status);
+        $this->assertSame('missing icon, or lat/lng/location parameters', $response->header('X-Marker-1'));
+    }
+
+    /**
+     * Any one way of locating the map is enough.
+     *
+     * @return array<string, array{array<string, mixed>}> Parameters.
+     */
+    public static function locatedCases(): array
+    {
+        return [
+            'latitude and longitude' => [['latitude' => 45.5, 'longitude' => -122.6]],
+            'one marker'             => [['marker' => ['lat:45.5;lng:-122.6;icon:dot-small-red']]],
+            'one path'               => [['path' => ['[-122.68,45.51][-122.67,45.52]']]],
+            'marker without its icon' => [['marker' => ['lat:45.5;lng:-122.6;icon:https://icons.invalid/x.png']]],
+        ];
+    }
+
+    /**
+     * Requests that locate the map render it.
+     *
+     * @param array<string, mixed> $params Request parameters.
+     *
+     * @return void
+     */
+    #[DataProvider('locatedCases')]
+    public function testLocatedRequestRenders(array $params): void
+    {
+        $response = $this->render($params);
 
         $this->assertSame(200, $response->status);
         $this->assertSame('image/png', $response->header('Content-Type'));
-        $this->assertSame([300, 300], [imagesx($response->image()), imagesy($response->image())]);
     }
 
     /**

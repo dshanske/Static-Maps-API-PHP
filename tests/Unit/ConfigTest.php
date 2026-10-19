@@ -60,6 +60,7 @@ final class ConfigTest extends TestCase
             'defaults' => ['basemap' => 'one'],
             'zoom'     => ['min' => 2, 'max' => 18],
             'token_file' => '/nonexistent/tokens.txt',
+            'home_page' => __DIR__ . '/../../assets/home.html',
             'basemaps' => [
                 'one' => ['name' => 'One', 'layers' => ['https://tiles.example/{z}/{x}/{y}.png']],
             ],
@@ -152,6 +153,8 @@ final class ConfigTest extends TestCase
                 ['basemaps' => ['a1' => ['alias_of' => 'one'], 'a2' => ['alias_of' => 'a1']]],
                 'alias of another alias',
             ],
+            'home page not string' => [['home_page' => false], "'home_page' must be a string"],
+            'home page missing'    => [['home_page' => '/nonexistent/home.html'], "must name a readable file"],
             'unknown default'      => [['defaults' => ['basemap' => 'nope']], 'Default basemap must be'],
             'default needs token'  => [['basemaps' => ['one' => ['requires_auth' => true]]], 'Default basemap must be'],
             'default disabled'     => [['basemaps' => ['one' => ['enabled' => false]]], 'Default basemap must be'],

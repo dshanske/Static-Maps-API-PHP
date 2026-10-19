@@ -14,6 +14,10 @@ use GdImage;
  * Stages, in order: parse markers and paths (which also gives their bounds) →
  * pick the centre → pick the basemap → pick the zoom → download tiles →
  * draw tiles, paths and markers → draw the attribution → encode the image.
+ *
+ * A request must locate the map: `latitude` and `longitude`, a `location`
+ * that geocodes, or at least one valid marker or path. Otherwise it gets a
+ * 400 and no tiles are downloaded (#47).
  */
 final class Renderer
 {
@@ -40,11 +44,16 @@ final class Renderer
      *
      * @param Request $request The request parameters.
      *
-     * @return Response Headers and the encoded image. An unknown `format` gives an
-     *                  empty body and no Content-type (#18).
+     * @return Response Headers and the encoded image; a 400 with a plain-text reason
+     *                  if the request doesn't locate the map. An unknown `format`
+     *                  gives an empty body and no Content-type (#18).
      */
     public function render(Request $request): Response
     {
+        if (($request->get('latitude') === false) !== ($request->get('longitude') === false)) {
+            return Response::error(400, 'latitude and longitude must be given together');
+        }
+
         $config = $this->config;
         $headers = array();
         $bounds = new Bounds();
@@ -63,6 +72,13 @@ final class Renderer
         $latitude = $center['latitude'];
         $longitude = $center['longitude'];
         $headers = array_merge($headers, $center['headers']);
+        if (!$center['located']) {
+            return Response::error(
+                400,
+                'A map needs a location: latitude and longitude, or at least one marker or path',
+                $headers
+            );
+        }
 
         $width = $request->get('width', $config['defaults']['width']);
         $height = $request->get('height', $config['defaults']['height']);

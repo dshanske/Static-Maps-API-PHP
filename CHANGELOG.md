@@ -30,6 +30,9 @@ stable interface; pin a commit if you need a fixed point.
   HTTP 500 and logs the reason. (#23, #27)
 - `token_file` setting: where the access tokens are read from. The default is
   `data/apikeys.txt`, as before. (#14, #44)
+- A request without any parameters (for example opening the service's address
+  in a browser) returns an HTML page that describes the service. Installs can
+  use their own page with the `home_page` setting. (#47)
 
 ### Changed
 
@@ -53,6 +56,14 @@ stable interface; pin a commit if you need a fixed point.
 - `/img.php`. It still renders the same map, with `Deprecation` and `Link`
   headers; use `/` with the same parameters. Removed no earlier than 2.0.0.
   (#24)
+
+### Fixed
+
+- A request that doesn't say where the map is (no `latitude` and
+  `longitude`, no marker or path, no `location`) returns HTTP 400 with the
+  reason, instead of a meaningless map centred on 0,0. So does a request with
+  only one of `latitude` / `longitude`, which used to treat the missing one as
+  0. (#47)
 
 ### Removed
 

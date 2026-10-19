@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Static Maps API</title>
+<style>
+  :root { --bg: #fafaf8; --fg: #1f2328; --muted: #57606a; --accent: #0b6bcb; --code: #eef0f2; }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg: #16181c; --fg: #e6e8eb; --muted: #9aa4ae; --accent: #6cb6ff; --code: #23272e; }
+  }
+  body { margin: 0; background: var(--bg); color: var(--fg);
+         font: 16px/1.55 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+  main { max-width: 40rem; margin: 0 auto; padding: 3rem 1rem; }
+  h1 { font-size: 1.75rem; margin: 0 0 .5rem; }
+  p { margin: 0 0 1rem; }
+  .lead { color: var(--muted); font-size: 1.1rem; }
+  a { color: var(--accent); }
+  code { background: var(--code); padding: .1em .35em; border-radius: 4px;
+         font: .9em ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; overflow-wrap: anywhere; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Static Maps API</h1>
+  <p class="lead">This server renders map images from tile servers, with optional markers and paths.</p>
+  <p>Request a map by adding parameters to this address, for example
+     <code>?latitude=45.5165&amp;longitude=-122.6764&amp;zoom=14&amp;width=400&amp;height=240</code>.
+     A map needs a location: <code>latitude</code> and <code>longitude</code>, or at least one marker or path.</p>
+  <p>See the <a href="https://github.com/dshanske/Static-Maps-API-PHP#readme">documentation</a> for all parameters,
+     basemaps and marker icons, and the <a href="https://github.com/dshanske/Static-Maps-API-PHP">source code</a>.</p>
+</main>
+</body>
+</html>
