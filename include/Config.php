@@ -15,11 +15,17 @@ use RuntimeException;
  */
 class Config
 {
+    /** @var list<string> Settings that every style inherits from its provider and can override. */
+    private const INHERITED = ['attribution', 'minzoom', 'maxzoom', 'requires_auth', 'enabled', 'key'];
+
     /**
      * Load the default settings and merge the per-install settings over them.
      *
      * The install file is optional. Its path comes from the STATIC_MAPS_CONFIG
-     * environment variable if set, otherwise `data/config.php`.
+     * environment variable if set, otherwise `data/config.php`. Deprecated
+     * install settings (`defaults.basemap`, `basemaps`) are translated to the
+     * current ones; a message for each is listed in the result's
+     * `deprecations` key, for the caller to log.
      *
      * @param string|null $defaultsFile Path to the defaults file; null for config/defaults.php.
      * @param string|null $installFile  Path to the install file; null to use STATIC_MAPS_CONFIG
@@ -38,9 +44,12 @@ class Config
         }
 
         $config = self::readFile($defaultsFile);
+        $deprecations = [];
         if (is_file($installFile)) {
-            $config = self::merge($config, self::readFile($installFile));
+            $install = self::migrate(self::readFile($installFile), $config, $deprecations);
+            $config = self::merge($config, $install);
         }
+        $config['deprecations'] = $deprecations;
 
         self::validate($config);
 
@@ -51,7 +60,7 @@ class Config
      * Merge an override array over a base array.
      *
      * Arrays with named keys are merged key by key, recursively. Lists (such as
-     * a basemap's `layers`) and scalar values in the override replace the base
+     * a style's `layers`) and scalar values in the override replace the base
      * value as a whole.
      *
      * @param array<mixed> $base     The array to merge into.
@@ -76,42 +85,89 @@ class Config
     }
 
     /**
-     * Find the basemap to use for a requested basemap id.
+     * Find the settings of one provider's style.
      *
-     * Follows `alias_of` (one level), and skips basemaps that are disabled or
-     * that need a token the request does not have.
+     * The style inherits `attribution`, `minzoom`, `maxzoom`, `requires_auth`,
+     * `enabled` and `key` from its provider unless it sets them itself.
      *
      * @param array<string, mixed> $config        The loaded configuration.
-     * @param string               $id            The requested basemap id.
+     * @param string               $provider      Provider id.
+     * @param string               $style         Style id.
      * @param bool                 $authenticated Whether the request has a valid token.
      *
-     * @return array<string, mixed>|null The basemap settings with `minzoom` and `maxzoom`
-     *                                   filled in, or null if the id can't be used.
+     * @return array<string, mixed>|null The style's settings (`name`, `layers`, the
+     *         inherited keys, with `minzoom` and `maxzoom` always filled in, plus
+     *         `provider` and `style` ids), or null if the provider or style is
+     *         unknown, disabled, or needs a token the request doesn't have.
      */
-    public static function basemap(array $config, string $id, bool $authenticated): ?array
+    public static function resolve(array $config, string $provider, string $style, bool $authenticated): ?array
     {
-        $basemaps = $config['basemaps'];
-        if (!isset($basemaps[$id]) || ($basemaps[$id]['enabled'] ?? true) === false) {
+        $p = $config['providers'][$provider] ?? null;
+        $s = is_array($p) ? ($p['styles'][$style] ?? null) : null;
+        if (!is_array($p) || !is_array($s) || ($p['enabled'] ?? true) === false) {
             return null;
         }
 
-        $basemap = $basemaps[$id];
-        if (isset($basemap['alias_of'])) {
-            $target = $basemap['alias_of'];
-            if (!isset($basemaps[$target]) || ($basemaps[$target]['enabled'] ?? true) === false) {
-                return null;
+        $resolved = $s;
+        foreach (self::INHERITED as $key) {
+            if (!array_key_exists($key, $resolved) && array_key_exists($key, $p)) {
+                $resolved[$key] = $p[$key];
             }
-            $basemap = $basemaps[$target];
         }
 
-        if (($basemap['requires_auth'] ?? false) && !$authenticated) {
+        if (($resolved['enabled'] ?? true) === false) {
+            return null;
+        }
+        if (($resolved['requires_auth'] ?? false) && !$authenticated) {
             return null;
         }
 
-        $basemap['minzoom'] = (int) ($basemap['minzoom'] ?? $config['zoom']['min']);
-        $basemap['maxzoom'] = (int) ($basemap['maxzoom'] ?? $config['zoom']['max']);
+        $resolved['minzoom'] = (int) ($resolved['minzoom'] ?? $config['zoom']['min']);
+        $resolved['maxzoom'] = (int) ($resolved['maxzoom'] ?? $config['zoom']['max']);
+        $resolved['provider'] = $provider;
+        $resolved['style'] = $style;
 
-        return $basemap;
+        return $resolved;
+    }
+
+    /**
+     * The default style of a provider.
+     *
+     * @param array<string, mixed> $config   The loaded configuration.
+     * @param string               $provider Provider id.
+     *
+     * @return string|null The style id (`default_style`, else the first style), or null
+     *                     for an unknown provider.
+     */
+    public static function defaultStyle(array $config, string $provider): ?string
+    {
+        $p = $config['providers'][$provider] ?? null;
+        if (!is_array($p) || !is_array($p['styles'] ?? null) || $p['styles'] === []) {
+            return null;
+        }
+
+        return is_string($p['default_style'] ?? null) ? $p['default_style'] : (string) array_key_first($p['styles']);
+    }
+
+    /**
+     * The provider and style a deprecated `basemap` id stands for.
+     *
+     * @param array<string, mixed> $config The loaded configuration.
+     * @param string               $id     Old basemap id, e.g. `carto-dark`.
+     *
+     * @return array{string, string}|null Provider and style ids, or null for an unknown
+     *                                    or switched-off id.
+     */
+    public static function alias(array $config, string $id): ?array
+    {
+        $target = $config['basemap_aliases'][$id] ?? null;
+        if (!is_string($target) || substr_count($target, '/') !== 1) {
+            return null;
+        }
+
+        [$provider, $style] = explode('/', $target);
+
+        return [$provider, $style];
     }
 
     /**
@@ -122,7 +178,7 @@ class Config
      * @param int         $x        Tile column.
      * @param int         $y        Tile row.
      * @param int         $z        Zoom level.
-     * @param string|null $key      API key for {key}, or null if the basemap has none.
+     * @param string|null $key      API key for {key}, or null if the style has none.
      *
      * @return string The tile URL.
      */
@@ -137,6 +193,91 @@ class Config
             [$x, $y, $z, $x, $y, $z, rawurlencode($key ?? '')],
             $template
         );
+    }
+
+    /**
+     * Translate deprecated install settings to the current ones (#40).
+     *
+     * - `basemaps`: an entry whose id is in `basemap_aliases` becomes an
+     *   override of that provider's style; an `alias_of` entry becomes a
+     *   `basemap_aliases` entry (null, i.e. switched off, if it has
+     *   `enabled => false`); any other id becomes a provider of that id with one
+     *   style, `default`, plus an alias so `basemap=<id>` keeps working.
+     * - `defaults.basemap`: becomes `defaults.provider` and `defaults.style`,
+     *   unless the install file already sets one of those.
+     *
+     * @param array<mixed> $install      The install file's settings.
+     * @param array<mixed> $shipped      The shipped defaults (for the alias table and provider ids).
+     * @param list<string> $deprecations Receives one message per deprecated setting found.
+     *
+     * @return array<mixed> The install settings in the current format.
+     *
+     * @throws RuntimeException If an old basemap id can't be translated.
+     */
+    private static function migrate(array $install, array $shipped, array &$deprecations): array
+    {
+        $aliases = self::merge($shipped['basemap_aliases'] ?? [], $install['basemap_aliases'] ?? []);
+
+        if (array_key_exists('basemaps', $install)) {
+            $deprecations[] = "Setting 'basemaps' is deprecated; use 'providers' (see config/defaults.php)";
+            $legacy = is_array($install['basemaps']) ? $install['basemaps'] : [];
+            unset($install['basemaps']);
+
+            $aliasEntries = [];
+            foreach ($legacy as $id => $basemap) {
+                if (!is_array($basemap)) {
+                    throw new RuntimeException("Basemap '$id' must be an array");
+                }
+                if (isset($basemap['alias_of'])) {
+                    $aliasEntries[$id] = $basemap;
+                    continue;
+                }
+                if (is_string($aliases[$id] ?? null)) {
+                    [$provider, $style] = explode('/', $aliases[$id]);
+                } else {
+                    if (isset($shipped['providers'][$id])) {
+                        throw new RuntimeException(
+                            "Basemap '$id' has the same id as a provider; define it under 'providers' instead"
+                        );
+                    }
+                    [$provider, $style] = [(string) $id, 'default'];
+                    $install['providers'][$provider]['name'] ??= $basemap['name'] ?? (string) $id;
+                    $install['providers'][$provider]['default_style'] = 'default';
+                    $aliases[$id] = $install['basemap_aliases'][$id] = "$provider/default";
+                }
+                $existing = $install['providers'][$provider]['styles'][$style] ?? [];
+                $install['providers'][$provider]['styles'][$style] = self::merge($existing, $basemap);
+            }
+
+            foreach ($aliasEntries as $id => $basemap) {
+                $target = $aliases[$basemap['alias_of']] ?? null;
+                if (!is_string($target)) {
+                    throw new RuntimeException(
+                        "Basemap '$id' is an alias of unknown basemap '{$basemap['alias_of']}'"
+                    );
+                }
+                $install['basemap_aliases'][$id] = ($basemap['enabled'] ?? true) === false ? null : $target;
+                $aliases[$id] = $install['basemap_aliases'][$id];
+            }
+        }
+
+        $defaults = $install['defaults'] ?? null;
+        if (is_array($defaults) && array_key_exists('basemap', $defaults)) {
+            $deprecations[] = "Setting 'defaults.basemap' is deprecated; use 'defaults.provider' and 'defaults.style'";
+            $old = $defaults['basemap'];
+            unset($install['defaults']['basemap']);
+            if (!isset($defaults['provider']) && !isset($defaults['style'])) {
+                $target = is_string($old) ? ($aliases[$old] ?? null) : null;
+                if (!is_string($target) || substr_count($target, '/') !== 1) {
+                    throw new RuntimeException(
+                        "Default basemap '" . (is_string($old) ? $old : '?') . "' is unknown"
+                    );
+                }
+                [$install['defaults']['provider'], $install['defaults']['style']] = explode('/', $target);
+            }
+        }
+
+        return $install;
     }
 
     /**
@@ -173,36 +314,49 @@ class Config
      */
     private static function validate(array $config): void
     {
-        foreach (['defaults', 'zoom', 'basemaps'] as $section) {
+        foreach (['defaults', 'zoom', 'providers', 'basemap_aliases'] as $section) {
             if (!isset($config[$section]) || !is_array($config[$section])) {
                 throw new RuntimeException("Configuration setting '$section' must be an array");
             }
         }
 
-        foreach ($config['basemaps'] as $id => $basemap) {
-            if (!is_array($basemap)) {
-                throw new RuntimeException("Basemap '$id' must be an array");
+        foreach ($config['providers'] as $id => $provider) {
+            if ($id === 'custom') {
+                throw new RuntimeException("Provider id 'custom' is reserved for provider=custom with tileurl");
             }
-            if (isset($basemap['alias_of'])) {
-                $target = $config['basemaps'][$basemap['alias_of']] ?? null;
-                if (!is_array($target)) {
-                    throw new RuntimeException(
-                        "Basemap '$id' is an alias of unknown basemap '{$basemap['alias_of']}'"
-                    );
+            if (!is_array($provider)) {
+                throw new RuntimeException("Provider '$id' must be an array");
+            }
+            $styles = $provider['styles'] ?? null;
+            if (!is_array($styles) || $styles === [] || array_is_list($styles)) {
+                throw new RuntimeException("Provider '$id' needs 'styles': style ids with their settings");
+            }
+            if (isset($provider['default_style']) && !isset($styles[$provider['default_style']])) {
+                throw new RuntimeException("Provider '$id' has an unknown default_style");
+            }
+            foreach ($styles as $styleId => $style) {
+                if (!is_array($style)) {
+                    throw new RuntimeException("Style '$id/$styleId' must be an array");
                 }
-                if (isset($target['alias_of'])) {
-                    throw new RuntimeException(
-                        "Basemap '$id' is an alias of another alias; point it at a real basemap"
-                    );
+                $enabled = ($provider['enabled'] ?? true) !== false
+                    && ($style['enabled'] ?? $provider['enabled'] ?? true) !== false;
+                if (!$enabled) {
+                    continue;
                 }
+                $layers = $style['layers'] ?? null;
+                if (!is_array($layers) || !array_is_list($layers) || count($layers) < 1 || count($layers) > 2) {
+                    throw new RuntimeException("Style '$id/$styleId' needs 'layers': a list of one or two tile URLs");
+                }
+            }
+        }
+
+        foreach ($config['basemap_aliases'] as $old => $target) {
+            if ($target === null) {
                 continue;
             }
-            if (($basemap['enabled'] ?? true) === false) {
-                continue;
-            }
-            $layers = $basemap['layers'] ?? null;
-            if (!is_array($layers) || !array_is_list($layers) || count($layers) < 1 || count($layers) > 2) {
-                throw new RuntimeException("Basemap '$id' needs 'layers': a list of one or two tile URLs");
+            $parts = is_string($target) ? explode('/', $target) : [];
+            if (count($parts) !== 2 || !isset($config['providers'][$parts[0]]['styles'][$parts[1]])) {
+                throw new RuntimeException("Basemap alias '$old' must point to an existing 'provider/style'");
             }
         }
 
@@ -215,10 +369,11 @@ class Config
             throw new RuntimeException("Configuration setting 'home_page' must name a readable file");
         }
 
-        $default = $config['defaults']['basemap'] ?? null;
-        if (!is_string($default) || self::basemap($config, $default, false) === null) {
+        $provider = $config['defaults']['provider'] ?? null;
+        $style = $config['defaults']['style'] ?? null;
+        if (!is_string($provider) || !is_string($style) || self::resolve($config, $provider, $style, false) === null) {
             throw new RuntimeException(
-                "Default basemap must be an enabled basemap that doesn't require a token"
+                "Default provider and style must be an enabled style that doesn't require a token"
             );
         }
     }

@@ -9,7 +9,10 @@
  * See "Versioning and deprecation" in README.md.
  */
 
-header('Deprecation: @1792281600'); // 2026-10-18
-header('Link: <https://github.com/dshanske/Static-Maps-API-PHP#deprecated>; rel="deprecation"');
+require_once __DIR__ . '/../include/autoload.php';
+
+foreach (StaticMaps\Deprecation::headers() as $header) {
+    header($header);
+}
 
 require __DIR__ . '/index.php';

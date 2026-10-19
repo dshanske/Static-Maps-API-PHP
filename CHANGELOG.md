@@ -30,6 +30,14 @@ stable interface; pin a commit if you need a fixed point.
   HTTP 500 and logs the reason. (#23, #27)
 - `token_file` setting: where the access tokens are read from. The default is
   `data/apikeys.txt`, as before. (#14, #44)
+- `provider` and `style` request parameters to pick a map, for example
+  `provider=carto&style=dark`. Style names are shared between providers where
+  they mean the same thing (`streets`, `light`, `dark`, `satellite`, `hybrid`,
+  `topo`, `oceans`, `-nolabels`). `provider=custom` with `tileurl` replaces
+  `basemap=custom`. (#40)
+- `providers` setting: tile providers with their styles. Settings such as the
+  API key, attribution, zoom range, `requires_auth` and `enabled` are set once
+  per provider and inherited by its styles, which can override them. (#40)
 - A request without any parameters (for example opening the service's address
   in a browser) returns an HTML page that describes the service. Installs can
   use their own page with the `home_page` setting. (#47)
@@ -39,7 +47,7 @@ stable interface; pin a commit if you need a fixed point.
 - PHP 8.1 or later is required. (#13)
 - Basemaps are defined in the settings files instead of in `public/img.php`.
   If you edited the basemap list in `img.php`, move your changes to
-  `data/config.php`. (#23, #27)
+  `data/config.php`, as `providers` (#23, #27, #40).
 - Attribution logos moved from `public/images/` to `assets/attribution/`, which
   is not served to the web. (#27)
 - The code is now organised as classes in the `StaticMaps` namespace in
@@ -53,6 +61,14 @@ stable interface; pin a commit if you need a fixed point.
 
 ### Deprecated
 
+- The `basemap` request parameter. Every existing id keeps working as an
+  alias of a provider and style (listed in the README), with `Deprecation`
+  and `Link` headers. New providers and styles get no `basemap` id. Removed
+  no earlier than 2.0.0. (#40)
+- The `basemaps` and `defaults.basemap` settings, replaced by `providers` and
+  `defaults.provider` / `defaults.style`. Install files that use them keep
+  working: they are translated on load, and each request logs a deprecation
+  message. Removed no earlier than 2.0.0. (#40)
 - `/img.php`. It still renders the same map, with `Deprecation` and `Link`
   headers; use `/` with the same parameters. Removed no earlier than 2.0.0.
   (#24)

@@ -11,31 +11,14 @@ Parameters can be sent in either the query string or in the POST body.
 Every map needs a location: `latitude` **and** `longitude`, or at least one valid marker or path (the map is then fitted to them), or a `location` to geocode. A request without one gets HTTP 400 with the reason as plain text, as does a request with only one of `latitude` / `longitude`. A request with no parameters at all, such as opening the service's address in a browser, gets an HTML page describing the service (see `home_page` under Configuration).
 
 * `zoom` - optional - Set the zoom level for the map. If not specified, a zoom level will be chosen that contains all markers on the map.
-* `maxzoom` - optional - When a zoom level is chosen automatically, this sets an upper limit on the zoom level that will be chosen. Useful if you know your basemaps don't have imagery past a certain zoom level.
+* `maxzoom` - optional - When a zoom level is chosen automatically, this sets an upper limit on the zoom level that will be chosen. Useful if you know your maps don't have imagery past a certain zoom level.
 * `width` - default 300 - Width in pixels of the final image
 * `height` - default 300 - Height in pixels of the final image
-* `basemap` - default "osm" - Select the basemap
-  * `osm` - [Open Street Map](https://www.openstreetmap.org/)
-  * `streets` - Default [Esri street basemap](https://www.arcgis.com/home/webmap/viewer.html?webmap=7990d7ea55204450b8110d57e20c99ab)
-  * `satellite` - Esri's [satellite basemap](https://www.arcgis.com/home/webmap/viewer.html?webmap=d802f08316e84c6592ef681c50178f17&center=-71.055499,42.364247&level=15)
-  * `hybrid` - Satellite basemap with labels
-  * `topo` - Esri [topographic map](https://www.arcgis.com/home/webmap/viewer.html?webmap=a72b0766aea04b48bf7a0e8c27ccc007)
-  * `gray` - Esri gray canvas with labels
-  * `gray-background` - Esri [gray canvas](https://www.arcgis.com/home/webmap/viewer.html?webmap=8b3d38c0819547faa83f7b7aca80bd76) without labels
-  * `oceans` - Esri [ocean basemap](https://www.arcgis.com/home/webmap/viewer.html?webmap=5ae9e138a17842688b0b79283a4353f6&center=-122.255816,36.573652&level=8)
-  * `national-geographic` - [National Geographic basemap](https://www.arcgis.com/home/webmap/viewer.html?webmap=d94dcdbe78e141c2b2d3a91d5ca8b9c9)
-  * `otm` - [OpenTopoMap](https://www.opentopomap.org/)
-  * `stamen-toner` - [Stamen Toner](http://maps.stamen.com/toner/) black and white map with labels
-  * `stamen-toner-background` - [Stamen Toner](http://maps.stamen.com/toner-background/) map without labels
-  * `stamen-toner-lite` - [Stamen Toner Light](http://maps.stamen.com/toner-lite/) with labels
-  * `stamen-terrain` - [Stamen Terrain](http://maps.stamen.com/terrain/) with labels
-  * `stamen-terrain-background` - [Stamen Terrain](http://maps.stamen.com/terrain-background/) without labels
-  * `stamen-watercolor` - [Stamen Watercolor](http://maps.stamen.com/watercolor/)
-  * `carto-light` -  [Carto](https://carto.com/location-data-services/basemaps/) Free usage for up to 75,000 mapviews per month, non-commercial services only. 
-  * `carto-dark` -  [Carto](https://carto.com/location-data-services/basemaps/) Free usage for up to 75,000 mapviews per month, non-commercial services only.
-  * `carto-voyager` - [Carto](https://carto.com/location-data-services/basemaps/) Free usage for up to 75,000 mapviews per month, non-commercial services only. 
-  * `custom` - Pass through the tile URL using parameter `tileurl`, requires authentication
-* `attribution` - default "osm" - "esri", "osm", "mapbox" or "none" or specify a full URL to a png image - If you add attribution on the image in some other way, you can set this to "none" to hide all logos.
+* `provider` - default "osm" - The tile provider. See [Providers and styles](#providers-and-styles).
+* `style` - default: the provider's default style - The map style of that provider. With only `style`, the default provider's style of that name is used. An unknown, disabled or token-only (without a token) provider or style gets the default map.
+* `tileurl` - With `provider=custom` and a valid `token`: a tile URL template (`{z}`, `{x}`, `{y}`) to draw instead of a provider.
+* `basemap` - **deprecated** - The old single-id way to pick a map; see [Deprecated basemap ids](#deprecated-basemap-ids). Ignored when `provider` or `style` is given.
+* `attribution` - default: the provider's, else "osm" - "esri", "osm", "mapbox" or "none" or specify a full URL to a png image - If you add attribution on the image in some other way, you can set this to "none" to hide all logos.
 * `latitude` - Latitude to center the map at. Not needed if using the location parameter, or if specifying one or more markers or paths. Must be given together with `longitude`.
 * `longitude` - Longitude to center the map at. Must be given together with `latitude`.
 * `location` - optional - Free-form text that will be geocoded to center the map. Not needed if specifying a location with the latitude and longitude parameters, or if a marker is specified.
@@ -43,6 +26,52 @@ Every map needs a location: `latitude` **and** `longitude`, or at least one vali
 * `path[]` - Specify one or more paths to draw on the map. See below for the full list of parameters to draw a path.
 * `polyline` - Alternative to path, this allows for a path to be specified as an encoded polyline, allowing for shorter URLs.
 * `bezier` - Specify a bezier curve to your path. 25 will give you a nicely curved line. [More Info](https://aaronparecki.com/2017/01/02/6/day-13-curved-map-lines)
+
+## Providers and styles
+
+Pick a map with `provider` and `style`, for example `provider=carto&style=dark`. Style names are shared between providers where they mean the same thing, so `style=topo` or `style=light` work on any provider that has one:
+
+| Style | Meaning |
+|---|---|
+| `streets` | General reference map |
+| `light` / `dark` | Muted light or dark canvas |
+| `satellite` | Imagery without labels |
+| `hybrid` | Imagery with labels |
+| `topo` | Topographic map |
+| `oceans` | Ocean floor (bathymetry) |
+| `…-nolabels` | The same style without labels |
+
+Shipped providers (the first style is the provider's default):
+
+| `provider` | Styles |
+|---|---|
+| `osm` | `streets`: [OpenStreetMap](https://www.openstreetmap.org/) |
+| `esri` | `streets`: [World Street Map](https://www.arcgis.com/home/webmap/viewer.html?webmap=7990d7ea55204450b8110d57e20c99ab) · `satellite`: [World Imagery](https://www.arcgis.com/home/webmap/viewer.html?webmap=d802f08316e84c6592ef681c50178f17&center=-71.055499,42.364247&level=15) · `hybrid` · `topo`: [World Topographic Map](https://www.arcgis.com/home/webmap/viewer.html?webmap=a72b0766aea04b48bf7a0e8c27ccc007) · `light`: Light Gray Canvas · `light-nolabels`: [Light Gray Canvas](https://www.arcgis.com/home/webmap/viewer.html?webmap=8b3d38c0819547faa83f7b7aca80bd76) without labels · `oceans`: Oceans (retired by Esri, #17) · `natgeo`: [National Geographic](https://www.arcgis.com/home/webmap/viewer.html?webmap=d94dcdbe78e141c2b2d3a91d5ca8b9c9) |
+| `opentopomap` | `topo`: [OpenTopoMap](https://www.opentopomap.org/) |
+| `carto` | `light`: Positron · `dark`: Dark Matter · `streets`: Voyager. [CARTO](https://carto.com/basemaps/): free for non-commercial use; CARTO now requires an API key (#17). |
+| `stamen` | `toner`, `toner-nolabels`, `toner-lite`, `terrain`, `terrain-nolabels`, `watercolor`. Stamen's tile hosting shut down in 2023; these no longer return tiles (#17). |
+| `custom` | Draws `tileurl`; requires a valid `token`. |
+
+Installs can switch providers or styles off, add their own, and set API keys; see [Configuration](#configuration).
+
+### Deprecated basemap ids
+
+`basemap=<id>` still works for these ids, with `Deprecation` and `Link` response headers. New providers and styles have no `basemap` id.
+
+| `basemap` | Same as |
+|---|---|
+| `osm` | `provider=osm&style=streets` |
+| `streets`, `satellite`, `hybrid`, `topo` | `provider=esri&style=` the same name |
+| `gray` | `provider=esri&style=light` |
+| `gray-background` | `provider=esri&style=light-nolabels` |
+| `oceans` | `provider=esri&style=oceans` |
+| `national-geographic` | `provider=esri&style=natgeo` |
+| `otm` | `provider=opentopomap&style=topo` |
+| `carto-light`, `carto-dark` | `provider=carto&style=light` / `dark` |
+| `carto-voyager` | `provider=carto&style=streets` |
+| `stamen-toner`, `stamen-toner-lite`, `stamen-terrain`, `stamen-watercolor` | `provider=stamen&style=` `toner`, `toner-lite`, `terrain`, `watercolor` |
+| `stamen-toner-background`, `stamen-terrain-background` | `provider=stamen&style=toner-nolabels` / `terrain-nolabels` |
+| `custom` | `provider=custom` |
 
 ## Markers
 
@@ -122,7 +151,7 @@ Create a file data/apikeys.txt and generate a random string with a tool of your 
 
 ## Configuration
 
-Settings such as the basemaps, default image size, zoom limits and the User-Agent sent to tile servers are in two PHP files that each return an array:
+Settings such as the providers and styles, default image size, zoom limits and the User-Agent sent to tile servers are in two PHP files that each return an array:
 
 | File | Purpose |
 |---|---|
@@ -133,29 +162,37 @@ Settings such as the basemaps, default image size, zoom limits and the User-Agen
 cp data/config.example.php data/config.php
 ```
 
-Put only the settings you want to change in `data/config.php`. It is merged over the defaults: arrays with named keys (such as `defaults`, `zoom`, `basemaps` and each basemap) are merged key by key, and everything else, including lists such as a basemap's `layers`, replaces the default. For example:
+Put only the settings you want to change in `data/config.php`. It is merged over the defaults: arrays with named keys (such as `defaults`, `zoom`, `providers`, each provider and each style) are merged key by key, and everything else, including lists such as a style's `layers`, replaces the default. For example:
 
 ```php
 <?php
 return [
-    'defaults'   => ['width' => 600, 'height' => 400],
+    'defaults'   => ['width' => 600, 'height' => 400, 'provider' => 'carto', 'style' => 'light'],
     'user_agent' => 'Static Maps API/ maps.example.com (admin@example.com)',
-    'basemaps'   => [
-        // Switch a basemap off
-        'national-geographic' => ['enabled' => false],
-        // Limit a basemap's zoom range
-        'otm' => ['maxzoom' => 17],
-        // Add a basemap that needs an API key ({key} is replaced with 'key')
-        'stadia-toner' => [
-            'name'   => 'Stamen Toner (Stadia Maps)',
-            'layers' => ['https://tiles.stadiamaps.com/tiles/stamen_toner/{z}/{x}/{y}.png?api_key={key}'],
+    'providers'  => [
+        // Switch a style off, or a whole provider
+        'esri'        => ['styles' => ['natgeo' => ['enabled' => false]]],
+        'stamen'      => ['enabled' => false],
+        // Limit a provider's zoom range
+        'opentopomap' => ['maxzoom' => 17],
+        // Add a provider that needs an API key ({key} is replaced with 'key')
+        'stadia' => [
+            'name'   => 'Stadia Maps',
             'key'    => 'your-stadia-api-key',
+            'styles' => [
+                'toner' => [
+                    'name'   => 'Stamen Toner',
+                    'layers' => ['https://tiles.stadiamaps.com/tiles/stamen_toner/{z}/{x}/{y}.png?api_key={key}'],
+                ],
+            ],
         ],
     ],
 ];
 ```
 
-Each basemap has a `name` and a list of one or two tile URL `layers` (a base map and an optional overlay drawn on top). It can also set a default `attribution`, `minzoom` / `maxzoom`, `requires_auth` (only usable with a valid token), `enabled`, `alias_of` (serve another basemap under this id) and `key`. See `config/defaults.php` for details.
+Each provider has a `name`, an optional `default_style`, and `styles`. Each style has a `name` and a list of one or two tile URL `layers` (a base map and an optional overlay drawn on top). A provider can set a default `attribution`, `minzoom` / `maxzoom`, `requires_auth` (only usable with a valid token), `enabled` and an API `key`; its styles inherit these and can override any of them. See `config/defaults.php` for details.
+
+Install files written for the older format (`basemaps` and `defaults.basemap`) keep working: they are translated to providers and styles, and each request logs a deprecation message until you update the file.
 
 A request without any parameters returns the HTML page in `home_page` (default `assets/home.html`, which names the service and links to this documentation). To describe your own install, point `home_page` at your own HTML file. It is sent as-is and is not run as PHP.
 
@@ -208,26 +245,26 @@ polyline=enc:abcdefghghgk;weight:6;color:0033ff
 ### Simple map centered at a location
 
 ```
-http://static-maps.pdx.esri.com/?basemap=gray&width=400&height=240&zoom=14&latitude=45.5165&longitude=-122.6764
+http://static-maps.pdx.esri.com/?provider=esri&style=light&width=400&height=240&zoom=14&latitude=45.5165&longitude=-122.6764
 ```
 
-<img src="http://static-maps.pdx.esri.com/?basemap=gray&width=400&height=240&zoom=14&latitude=45.5165&longitude=-122.6764">
+<img src="http://static-maps.pdx.esri.com/?provider=esri&style=light&width=400&height=240&zoom=14&latitude=45.5165&longitude=-122.6764">
 
 ### Map with a marker centered at an address
 
 ```
-http://static-maps.pdx.esri.com/?marker[]=location:920%20SW%203rd%20Ave,%20Portland,%20OR;icon:small-blue-cutout&basemap=gray&width=400&height=240&zoom=14
+http://static-maps.pdx.esri.com/?marker[]=location:920%20SW%203rd%20Ave,%20Portland,%20OR;icon:small-blue-cutout&provider=esri&style=light&width=400&height=240&zoom=14
 ```
 
-<img src="http://static-maps.pdx.esri.com/?marker[]=location:920%20SW%203rd%20Ave,%20Portland,%20OR;icon:small-blue-cutout&basemap=gray&width=400&height=240&zoom=14">
+<img src="http://static-maps.pdx.esri.com/?marker[]=location:920%20SW%203rd%20Ave,%20Portland,%20OR;icon:small-blue-cutout&provider=esri&style=light&width=400&height=240&zoom=14">
 
 ### Map with an external marker image
 
 ```
-http://static-maps.pdx.esri.com/?basemap=gray&width=400&height=240&zoom=14&marker[]=lat:45.5165;lng:-122.6764;icon:http://aaronparecki.com/images/map-pin-green.png
+http://static-maps.pdx.esri.com/?provider=esri&style=light&width=400&height=240&zoom=14&marker[]=lat:45.5165;lng:-122.6764;icon:http://aaronparecki.com/images/map-pin-green.png
 ```
 
-<img src="http://static-maps.pdx.esri.com/?basemap=gray&width=400&height=240&zoom=14&marker[]=lat:45.5165;lng:-122.6764;icon:http://aaronparecki.com/images/map-pin-green.png">
+<img src="http://static-maps.pdx.esri.com/?provider=esri&style=light&width=400&height=240&zoom=14&marker[]=lat:45.5165;lng:-122.6764;icon:http://aaronparecki.com/images/map-pin-green.png">
 
 
 ## How to install
@@ -293,7 +330,7 @@ Releases follow [Semantic Versioning](https://semver.org/). The version numbers 
 - the install settings in `data/config.php`,
 - the query API (once it exists, #25), which also has its own version in its URL (`/api/v1/`). That number only changes when the query API itself breaks.
 
-A **major** release (2.0.0) removes or changes any of these. A **minor** release (1.1.0) adds parameters, basemaps or settings, or deprecates something; the old way keeps working. A **patch** release (1.0.1) fixes bugs without changing documented behaviour.
+A **major** release (2.0.0) removes or changes any of these. A **minor** release (1.1.0) adds parameters, providers, styles or settings, or deprecates something; the old way keeps working. A **patch** release (1.0.1) fixes bugs without changing documented behaviour.
 
 The first release will be **1.0.0**, once the first phase of the rewrite is complete (the [1.0 milestone](https://github.com/dshanske/Static-Maps-API-PHP/milestone/1)). There are no releases before it; `main` may change at any time until then. Every change is listed in [CHANGELOG.md](CHANGELOG.md).
 
@@ -308,6 +345,8 @@ The first release will be **1.0.0**, once the first phase of the rewrite is comp
 | Deprecated | Use instead | Deprecated in | Removed no earlier than |
 |---|---|---|---|
 | Requesting `/img.php?...` | `/?...` (or `/index.php?...`) with the same parameters (#24) | 1.0.0 | 2.0.0 |
+| The `basemap` parameter | `provider` and `style` ([mapping](#deprecated-basemap-ids), #40) | 1.0.0 | 2.0.0 |
+| Settings `basemaps` and `defaults.basemap` in `data/config.php` | `providers` and `defaults.provider` / `defaults.style` (#40) | 1.0.0 | 2.0.0 |
 
 ## Development
 
