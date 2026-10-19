@@ -17,6 +17,9 @@ namespace StaticMaps;
  */
 final class Parameters
 {
+    /** @var int Highest `scale` (pixel density) accepted. */
+    public const MAX_SCALE = 2;
+
     /** @var float Highest latitude Web Mercator can show, in degrees. */
     public const MAX_LATITUDE = 85.0511287798;
 
@@ -39,6 +42,9 @@ final class Parameters
      *                                   each [lat, lng] in degrees (note: latitude first).
      * @param array{int, int, int, int} $padding Space to keep around fitted content: top, right,
      *                                   bottom, left, in pixels.
+     * @param int          $scale        Pixel density: 1, or 2 for a high-density image of the same
+     *                                   area at twice the width and height (#10). Width, height and
+     *                                   padding above are in CSS pixels, before scaling.
      */
     private function __construct(
         public readonly int $width,
@@ -52,7 +58,8 @@ final class Parameters
         public readonly float $bezier,
         public readonly ?array $bbox = null,
         public readonly array $visible = [],
-        public readonly array $padding = [0, 0, 0, 0]
+        public readonly array $padding = [0, 0, 0, 0],
+        public readonly int $scale = 1
     ) {
     }
 
@@ -84,12 +91,14 @@ final class Parameters
 
         $requestedWidth = self::integer($request, 'width', 1, PHP_INT_MAX) ?? (int) $config['defaults']['width'];
         $requestedHeight = self::integer($request, 'height', 1, PHP_INT_MAX) ?? (int) $config['defaults']['height'];
-        $width = min($requestedWidth, (int) $config['limits']['max_width']);
-        $height = min($requestedHeight, (int) $config['limits']['max_height']);
+        $scale = self::integer($request, 'scale', 1, self::MAX_SCALE) ?? 1;
+        // The limits apply to the image as sent, so a scale=2 image may be half as wide (#10).
+        $width = min($requestedWidth, intdiv((int) $config['limits']['max_width'], $scale));
+        $height = min($requestedHeight, intdiv((int) $config['limits']['max_height'], $scale));
         $sizeHeaders = [];
         if ($width !== $requestedWidth || $height !== $requestedHeight) {
             $sizeHeaders[] = 'X-Map-Size: clamped; requested=' . $requestedWidth . 'x' . $requestedHeight
-                . '; drawn=' . $width . 'x' . $height;
+                . '; drawn=' . $width . 'x' . $height . ($scale > 1 ? "; scale=$scale" : '');
         }
 
         $bezier = self::number($request, 'bezier', -89, 89) ?? 0.0;
@@ -107,7 +116,8 @@ final class Parameters
             $bezier,
             self::bbox($request),
             self::points($request, 'visible', PHP_INT_MAX) ?? [],
-            $padding ?? [0, 0, 0, 0]
+            $padding ?? [0, 0, 0, 0],
+            $scale
         );
     }
 

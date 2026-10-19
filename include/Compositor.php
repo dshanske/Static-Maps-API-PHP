@@ -35,21 +35,45 @@ final class Compositor
      * @param array{x: float, y: float}        $pos     Position of the image centre inside that tile.
      * @param mixed                            $width   Image width in pixels.
      * @param mixed                            $height  Image height in pixels.
+     * @param int                              $tileSize Size each tile is drawn at, in pixels; tiles of
+     *                                                  another size are resized to it (scale=2, #10).
      *
      * @return void
      */
-    public function drawTiles(GdImage $im, array $tiles, array $tilePos, array $pos, mixed $width, mixed $height): void
-    {
+    public function drawTiles(
+        GdImage $im,
+        array $tiles,
+        array $tilePos,
+        array $pos,
+        mixed $width,
+        mixed $height,
+        int $tileSize = WebMercator::TILE_SIZE
+    ): void {
         foreach ($tiles as $x => $yTiles) {
             foreach ($yTiles as $y => $tile) {
                 $x = intval($x);
                 $y = intval($y);
 
-                $ox = (($x - $tilePos['x']) * WebMercator::TILE_SIZE) - $pos['x'] + ($width / 2);
-                $oy = (($y - $tilePos['y']) * WebMercator::TILE_SIZE) - $pos['y'] + ($height / 2);
+                $ox = (($x - $tilePos['x']) * $tileSize) - $pos['x'] + ($width / 2);
+                $oy = (($y - $tilePos['y']) * $tileSize) - $pos['y'] + ($height / 2);
 
                 // Truncated to whole pixels, as PHP did implicitly before 8.1.
-                imagecopy($im, $tile, (int) $ox, (int) $oy, 0, 0, imagesx($tile), imagesy($tile));
+                if (imagesx($tile) === $tileSize && imagesy($tile) === $tileSize) {
+                    imagecopy($im, $tile, (int) $ox, (int) $oy, 0, 0, $tileSize, $tileSize);
+                } else {
+                    imagecopyresampled(
+                        $im,
+                        $tile,
+                        (int) $ox,
+                        (int) $oy,
+                        0,
+                        0,
+                        $tileSize,
+                        $tileSize,
+                        imagesx($tile),
+                        imagesy($tile)
+                    );
+                }
             }
         }
     }
@@ -69,6 +93,7 @@ final class Compositor
      * @param mixed                       $height   Image height in pixels.
      * @param mixed                       $bezier   The `bezier` parameter: curve angle in degrees,
      *                                              or falsy for straight segments.
+     * @param int                         $scale    Pixel density (#10): path widths are multiplied by it.
      *
      * @return void
      */
@@ -80,7 +105,8 @@ final class Compositor
         int|float $topEdge,
         mixed $width,
         mixed $height,
-        mixed $bezier
+        mixed $bezier,
+        int $scale = 1
     ): void {
         if (!count($paths)) {
             return;
@@ -94,7 +120,7 @@ final class Compositor
 
         foreach ($paths as $path) {
             $draw->setStrokeColor(new ImagickPixel('#' . $path['color']));
-            $draw->setStrokeWidth($path['weight']);
+            $draw->setStrokeWidth($path['weight'] * $scale);
             $draw->setFillOpacity(0);
             $draw->setStrokeLineCap(Imagick::LINECAP_ROUND);
             $draw->setStrokeLineJoin(Imagick::LINEJOIN_ROUND);
@@ -288,6 +314,8 @@ final class Compositor
      * @param int|float                   $topEdge  Global pixel y of the image's top edge.
      * @param mixed                       $width    Image width in pixels.
      * @param mixed                       $height   Image height in pixels.
+     * @param int                         $scale    Pixel density (#10): icons are drawn this many
+     *                                              times larger (the image is that much larger too).
      *
      * @return void
      */
@@ -298,16 +326,18 @@ final class Compositor
         int|float $leftEdge,
         int|float $topEdge,
         mixed $width,
-        mixed $height
+        mixed $height,
+        int $scale = 1
     ): void {
         foreach ($markers as $marker) {
             // Icons that start with 'dot-' do not have a shadow
             $shadow = !preg_match('/^dot-/', $marker['icon']);
 
-            if ($width < 120 || $height < 120) {
-                $shrinkFactor = 1.5;
+            // Small maps (in CSS pixels, before scaling) shrink icons.
+            if ($width / $scale < 120 || $height / $scale < 120) {
+                $shrinkFactor = 1.5 / $scale;
             } else {
-                $shrinkFactor = 1;
+                $shrinkFactor = 1 / $scale;
             }
 
             // Icons with a shadow are centered at the bottom middle pixel.
@@ -321,7 +351,7 @@ final class Compositor
                 'y' => $px['y'] - $topEdge
             );
 
-            if ($shrinkFactor > 1) {
+            if ($shrinkFactor != 1) {
                 $icon = $marker['iconImg'];
                 $markerImg = imagecreatetruecolor(
                     max(1, (int) round(imagesx($icon) / $shrinkFactor)),
