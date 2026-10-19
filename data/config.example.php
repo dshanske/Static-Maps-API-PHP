@@ -44,10 +44,12 @@ return [
     //     'attribution'  => 'osm',     // 'osm', 'esri' or 'mapbox'
     // ],
 
-    // Zoom range for every map (a provider or style can narrow it with minzoom/maxzoom).
+    // Zoom range for providers and styles that don't set their own minzoom/maxzoom,
+    // and an optional cap that no map goes above (not set by default).
     // 'zoom' => [
-    //     'min' => 2,
-    //     'max' => 18,
+    //     'min'       => 2,
+    //     'max'       => 18,
+    //     'max_limit' => 17,
     // ],
 
     // Identify your install to tile providers (OpenStreetMap requires this).

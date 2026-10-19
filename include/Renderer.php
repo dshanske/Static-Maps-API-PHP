@@ -248,6 +248,8 @@ final class Renderer
     /**
      * A one-layer map from the request's `tileurl`, for requests with a valid token.
      *
+     * It uses the `zoom.min` / `zoom.max` range, capped by `zoom.max_limit`.
+     *
      * @param Request $request          The request.
      * @param bool    $is_authenticated Whether the request has a valid token.
      *
@@ -259,11 +261,19 @@ final class Renderer
             return null;
         }
 
-        return array(
+        $basemap = array(
             'layers'  => array($request->get('tileurl')),
             'minzoom' => $this->config['zoom']['min'],
             'maxzoom' => $this->config['zoom']['max'],
         );
+        // zoom.max_limit caps custom tile URLs like every other map.
+        $limit = $this->config['zoom']['max_limit'] ?? null;
+        if ($limit !== null) {
+            $basemap['maxzoom'] = min((int) $basemap['maxzoom'], (int) $limit);
+            $basemap['minzoom'] = min((int) $basemap['minzoom'], $basemap['maxzoom']);
+        }
+
+        return $basemap;
     }
 
     /**
