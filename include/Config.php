@@ -26,6 +26,7 @@ class Config
         'requires_auth',
         'enabled',
         'key',
+        'headers',
     ];
 
     /**
@@ -170,7 +171,7 @@ class Config
     }
 
     /**
-     * Whether any of a style's tile URLs has a {key} placeholder.
+     * Whether any of a style's tile URLs or request headers has a {key} placeholder.
      *
      * @param array<string, mixed> $style Style settings with `layers`.
      *
@@ -178,13 +179,31 @@ class Config
      */
     private static function needsKey(array $style): bool
     {
-        foreach ((array) ($style['layers'] ?? []) as $layer) {
-            if (is_string($layer) && str_contains($layer, '{key}')) {
+        $templates = array_merge((array) ($style['layers'] ?? []), array_values((array) ($style['headers'] ?? [])));
+        foreach ($templates as $template) {
+            if (is_string($template) && str_contains($template, '{key}')) {
                 return true;
             }
         }
 
         return false;
+    }
+
+    /**
+     * The request header lines a style sends with each tile request.
+     *
+     * @param array<string, mixed> $style A resolved style (its `headers` and `key`).
+     *
+     * @return list<string> Lines like `Authorization: Bearer abc`, with {key} filled in.
+     */
+    public static function headerLines(array $style): array
+    {
+        $lines = [];
+        foreach ((array) ($style['headers'] ?? []) as $name => $value) {
+            $lines[] = $name . ': ' . str_replace('{key}', (string) ($style['key'] ?? ''), (string) $value);
+        }
+
+        return $lines;
     }
 
     /**
@@ -401,6 +420,19 @@ class Config
                 }
             }
             foreach (array_merge([$provider], array_values($styles)) as $settings) {
+                $headers = is_array($settings) ? ($settings['headers'] ?? []) : [];
+                if (!is_array($headers)) {
+                    throw new RuntimeException("Provider '$id' headers must map header names to values");
+                }
+                foreach ($headers as $name => $value) {
+                    // Header names are tokens; values must not break the header (no CR, LF or NUL).
+                    if (
+                        !is_string($name) || !preg_match('/^[A-Za-z0-9-]+$/', $name)
+                        || !is_string($value) || preg_match('/[\r\n\0]/', $value)
+                    ) {
+                        throw new RuntimeException("Provider '$id' has an invalid request header '$name'");
+                    }
+                }
                 $policy = is_array($settings) ? ($settings['cache'] ?? 'headers') : 'headers';
                 if (!in_array($policy, ['headers', 'off'], true)) {
                     throw new RuntimeException("Provider '$id' has a cache setting that isn't 'headers' or 'off'");

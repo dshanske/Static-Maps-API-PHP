@@ -119,15 +119,17 @@ return [
     //     // Only allow a style for requests with a client key.
     //     'esri' => ['styles' => ['satellite' => ['requires_auth' => true]]],
     //
-    //     // Add a provider. {key} in its URLs is replaced with 'key'.
-    //     'stadia' => [
-    //         'name'          => 'Stadia Maps',
-    //         'key'           => 'your-stadia-api-key',
-    //         'default_style' => 'toner',
+    //     // Add a provider (check its terms first; see "Provider terms" in the README).
+    //     // {key} in its URLs or request headers is replaced with 'key'.
+    //     'example' => [
+    //         'name'          => 'Example Tiles',
+    //         'key'           => 'your-api-key',
+    //         'headers'       => ['Authorization' => 'Bearer {key}'],   // or ?api_key={key} in the URL
+    //         'default_style' => 'streets',
     //         'styles'        => [
-    //             'toner' => [
-    //                 'name'   => 'Stamen Toner',
-    //                 'layers' => ['https://tiles.stadiamaps.com/tiles/stamen_toner/{z}/{x}/{y}.png?api_key={key}'],
+    //             'streets' => [
+    //                 'name'   => 'Streets',
+    //                 'layers' => ['https://tiles.example.com/streets/{z}/{x}/{y}.png'],
     //             ],
     //         ],
     //     ],

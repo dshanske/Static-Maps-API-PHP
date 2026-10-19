@@ -246,6 +246,38 @@ final class ConfigTest extends TestCase
     }
 
     /**
+     * A key in a style's request headers counts like one in its URLs; headerLines() fills it in (#28).
+     *
+     * @return void
+     */
+    public function testHeaderKeys(): void
+    {
+        $layers = ['https://t.example/{z}/{x}/{y}.png'];
+        $config = $this->loadMinimal(['providers' => [
+            'h'     => ['headers' => ['Authorization' => 'Bearer {key}'], 'styles' => ['s' => ['layers' => $layers]]],
+            'set'   => [
+                'key'     => 'abc',
+                'headers' => ['Authorization' => 'Bearer {key}', 'X-Fixed' => 'yes'],
+                'styles'  => [
+                    's'   => ['layers' => $layers],
+                    'own' => ['layers' => $layers, 'headers' => ['X-Own' => '{key}']],
+                ],
+            ],
+            'fixed' => ['headers' => ['X-Fixed' => 'yes'], 'styles' => ['s' => ['layers' => $layers]]],
+        ]]);
+
+        $this->assertNull(Config::resolve($config, 'h', 's', new Client('t')), 'no key set: unavailable');
+        $this->assertNull(Config::resolve($config, 'set', 's', null), 'a server-held key needs a client');
+        $set = Config::resolve($config, 'set', 's', new Client('t'));
+        $this->assertSame(['Authorization: Bearer abc', 'X-Fixed: yes'], Config::headerLines((array) $set));
+        $own = Config::resolve($config, 'set', 'own', new Client('t'));
+        $this->assertSame(['X-Own: abc'], Config::headerLines((array) $own), "style headers replace the provider's");
+        $fixed = Config::resolve($config, 'fixed', 's', null);
+        $this->assertSame(['X-Fixed: yes'], Config::headerLines((array) $fixed), 'no {key}: open to all');
+        $this->assertSame([], Config::headerLines(['layers' => $layers]));
+    }
+
+    /**
      * The shipped CARTO styles need a key; with one they use CARTO's keyed URLs (#17).
      *
      * @return void
@@ -362,6 +394,22 @@ final class ConfigTest extends TestCase
     }
 
     /**
+     * A provider override with request headers, for invalidConfigs().
+     *
+     * @param mixed $headers  The `headers` setting.
+     * @param bool  $on_style Set it on the style instead of the provider.
+     *
+     * @return array<string, mixed> Override with provider `bad`.
+     */
+    private static function withHeaders(mixed $headers, bool $on_style = false): array
+    {
+        $style = ['name' => 'S', 'layers' => ['t']] + ($on_style ? ['headers' => $headers] : []);
+        $provider = ['styles' => ['s' => $style]] + ($on_style ? [] : ['headers' => $headers]);
+
+        return ['providers' => ['bad' => $provider]];
+    }
+
+    /**
      * Invalid configurations and the message each one produces.
      *
      * @return array<string, array{array<string, mixed>, string}> Override merged over minimal(),
@@ -401,6 +449,9 @@ final class ConfigTest extends TestCase
             'remote timeout'        => [['remote' => ['timeout' => 0]], "'remote.timeout' must be"],
             'remote redirects'      => [['remote' => ['max_redirects' => -1]], "'remote.max_redirects' must be"],
             'unknown format'        => [['defaults' => ['format' => 'gif']], "'defaults.format' must be"],
+            'headers not an array'  => [self::withHeaders('x'), 'headers must map'],
+            'header name invalid'   => [self::withHeaders(['A B' => 'v']), 'invalid request header'],
+            'header value newline'  => [self::withHeaders(['X-A' => "v\r\nX-B: w"], true), 'invalid request header'],
             'unknown credentials'   => [['access' => ['credentials' => 'any']], "'access.credentials' must be"],
             'short secret'          => [['clients' => ['c' => ['key' => 'k', 'secret' => 'short']]], 'at least 16'],
             'must_sign not bool'    => [['clients' => ['c' => ['key' => 'k', 'must_sign' => 'yes']]], 'must_sign'],

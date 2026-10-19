@@ -225,7 +225,7 @@ return [
      *                         default: all.
      *   'enabled'             Set to false to stop accepting its key.
      *
-     * Example: 'clients' => ['my-blog' => ['key_sha256' => '…', 'providers' => ['stadia']]],
+     * Example: 'clients' => ['my-blog' => ['key_sha256' => '…', 'providers' => ['carto']]],
      */
     'clients' => [],
 
@@ -303,6 +303,14 @@ return [
      *                   cached as the provider's own HTTP headers allow.
      *                   'off': for providers whose terms forbid caching proxies;
      *                   their map images are sent as private.
+     *   'headers'       (array) Request headers sent with every tile request,
+     *                   name => value; {key} is replaced with the API key. For
+     *                   providers that take the key in a header rather than the
+     *                   URL, e.g. ['Authorization' => 'Bearer {key}']. A style
+     *                   whose headers use {key} needs a key, like one whose
+     *                   URLs do. Tile requests that send headers don't follow
+     *                   redirects, so a key is never sent to another server.
+     *                   Headers are never shown by the query API.
      *   'key'           (string) API key inserted into {key}. Put keys in
      *                   data/config.php only, never in this file. A style
      *                   whose layers use {key} is unavailable (requests get the
@@ -321,23 +329,27 @@ return [
      *   // Limit OpenTopoMap to the zoom levels it serves
      *   'providers' => ['opentopomap' => ['maxzoom' => 17]],
      *
-     *   // Add a provider that needs an API key (one key for all its styles)
+     *   // Add a provider that needs an API key (one key for all its styles),
+     *   // in the URL ({key} in 'layers') or in a request header ('headers').
+     *   // Check the provider's terms first: many forbid serving their tiles
+     *   // through a server like this one, or limit free keys to non-commercial use.
      *   'providers' => [
-     *       'stadia' => [
-     *           'name'          => 'Stadia Maps',
-     *           'key'           => 'your-stadia-api-key',
-     *           'default_style' => 'toner',
+     *       'example' => [
+     *           'name'          => 'Example Tiles',
+     *           'key'           => 'your-api-key',
+     *           'headers'       => ['Authorization' => 'Bearer {key}'],
+     *           'default_style' => 'streets',
      *           'styles' => [
-     *               'toner' => [
-     *                   'name'   => 'Stamen Toner',
-     *                   'layers' => ['https://tiles.stadiamaps.com/tiles/stamen_toner/{z}/{x}/{y}.png?api_key={key}'],
+     *               'streets' => [
+     *                   'name'   => 'Streets',
+     *                   'layers' => ['https://tiles.example.com/streets/{z}/{x}/{y}.png'],
      *               ],
      *           ],
      *       ],
      *   ],
      *
      * The provider id 'custom' is reserved: `provider=custom` uses the `tileurl`
-     * request parameter and always requires a valid token.
+     * request parameter and always requires a valid client key.
      */
     'providers' => [
 

@@ -62,17 +62,24 @@ final class RemoteFetcher
      * @param list<string>  $requestHeaders Extra request header lines, e.g. `If-None-Match: "x"`.
      * @param callable|null $onHeader       Called with each response header line (curl's
      *                                      CURLOPT_HEADERFUNCTION, without the handle).
+     * @param bool          $redirects      Whether to follow redirects. Off for requests whose
+     *                                      headers carry a secret, because curl would send
+     *                                      them to whatever server a redirect points at.
      *
      * @return CurlHandle The handle.
      */
-    public function handle(string $url, array $requestHeaders = [], ?callable $onHeader = null): CurlHandle
-    {
+    public function handle(
+        string $url,
+        array $requestHeaders = [],
+        ?callable $onHeader = null,
+        bool $redirects = true
+    ): CurlHandle {
         $ch = curl_init();
         $maxBytes = $this->maxBytes;
         curl_setopt_array($ch, [
             CURLOPT_URL            => $url,
             CURLOPT_RETURNTRANSFER => true,
-            CURLOPT_FOLLOWLOCATION => true,
+            CURLOPT_FOLLOWLOCATION => $redirects,
             CURLOPT_MAXREDIRS      => $this->maxRedirects,
             CURLOPT_TIMEOUT        => $this->timeout,
             CURLOPT_CONNECTTIMEOUT => $this->connectTimeout,

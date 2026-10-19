@@ -98,6 +98,24 @@ return [
             ],
         ],
         // Provider-level settings that its styles inherit.
+        // The key in a request header instead of the URL (#28).
+        'headered' => [
+            'name'          => 'Fixture with its key in a header',
+            'key'           => 'fixture-header-key',
+            'headers'       => ['X-Api-Key' => '{key}', 'X-Client' => 'static-maps-tests'],
+            'default_style' => 'main',
+            'styles' => [
+                'main'   => ['name' => 'Main', 'layers' => [$tiles . '/header/{z}/{x}/{y}.png']],
+                // Redirects; a request carrying the key must not follow it.
+                'bounce' => ['name' => 'Bounce', 'layers' => [$tiles . '/bounce/{z}/{x}/{y}.png']],
+                // Fixed headers only: no key needed.
+                'plain'  => [
+                    'name'    => 'Plain',
+                    'headers' => ['X-Client' => 'static-maps-tests'],
+                    'layers'  => [$tiles . '/base/{z}/{x}/{y}.png'],
+                ],
+            ],
+        ],
         'keyed' => [
             'name'          => 'Fixture with an API key and Esri attribution',
             'key'           => 'a b&c',
