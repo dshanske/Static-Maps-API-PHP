@@ -50,6 +50,7 @@ final class ApiTest extends RenderTestCase
         $this->assertSame(['min' => 2, 'max' => 18, 'max_limit' => null], $data['zoom']);
         $this->assertFalse($data['custom_tiles']);
         $this->assertSame('/api/v1/providers', $data['links']['providers']);
+        $this->assertSame('/api/v1/attribution', $data['links']['attribution']);
         $this->assertSame([], $this->tileRequests());
     }
 
@@ -90,7 +91,8 @@ final class ApiTest extends RenderTestCase
         $this->assertSame('© Fixture tiles contributors', $styles['credited']['attribution_text']);
         $this->assertSame(
             ['id' => 'zoom', 'name' => 'Limited to zoom 5-10', 'minzoom' => 5, 'maxzoom' => 10,
-                'attribution' => 'osm', 'attribution_text' => null, 'labels_layer' => false, 'requires_auth' => false],
+                'attribution' => 'osm', 'attribution_text' => null, 'attribution_html' => null,
+                'labels_layer' => false, 'requires_auth' => false],
             $styles['zoom']
         );
         $this->assertTrue($styles['overlay']['labels_layer']);
@@ -134,7 +136,9 @@ final class ApiTest extends RenderTestCase
      */
     public function testNoTileUrlsOrKeys(): void
     {
-        foreach (['/api/v1/', '/api/v1/providers', '/api/v1/providers?token=test-token', '/api/v1/icons'] as $path) {
+        $paths = ['/api/v1/', '/api/v1/providers', '/api/v1/providers?token=test-token', '/api/v1/icons',
+            '/api/v1/attribution?provider=keyed', '/api/v1/attribution?provider=custom&token=test-token&tileurl=x'];
+        foreach ($paths as $path) {
             $body = self::$app->get($path)->body;
             $this->assertStringNotContainsString((string) self::$tiles?->url, $body, $path);
             $this->assertStringNotContainsString('{z}', $body, $path);
@@ -143,6 +147,70 @@ final class ApiTest extends RenderTestCase
             $this->assertStringNotContainsString('"key"', $body, $path);
             $this->assertStringNotContainsString('"layers"', $body, $path);
         }
+    }
+
+    /**
+     * `/api/v1/attribution` gives the credit for the map the same parameters would draw (#29).
+     *
+     * @return array<string, array{string, array<string, mixed>}> Query string and expected fields.
+     */
+    public static function attributionCases(): array
+    {
+        return [
+            'default map, no text'   => ['', [
+                'provider' => 'fixture', 'style' => 'base', 'fallback' => null, 'attribution' => 'osm',
+                'text' => null, 'html' => null, 'plain' => null,
+            ]],
+            'text only, html derived' => ['style=credited', [
+                'provider' => 'fixture', 'style' => 'credited', 'attribution' => 'text',
+                'text' => '© Fixture tiles contributors', 'html' => '© Fixture tiles contributors',
+                'plain' => '© Fixture tiles contributors',
+            ]],
+            'full html with links'   => ['provider=fixture&style=credited-logo', [
+                'attribution' => 'esri',
+                'html'        => 'Powered by <a href="https://fixture.example/">Fixture</a> &amp; friends',
+                'plain'       => 'Powered by Fixture & friends',
+            ]],
+            'request picks the logo' => ['style=credited&attribution=mapbox', ['attribution' => 'mapbox']],
+            'fallback is reported'   => ['provider=nope', [
+                'provider' => 'fixture',
+                'style'    => 'base',
+                'fallback' => 'unavailable; requested=nope; drawn=fixture/base',
+            ]],
+        ];
+    }
+
+    /**
+     * The attribution endpoint's fields for a request.
+     *
+     * @param string               $query    Query string (as for an image).
+     * @param array<string, mixed> $expected Fields that must have these values.
+     *
+     * @return void
+     */
+    #[DataProvider('attributionCases')]
+    public function testAttribution(string $query, array $expected): void
+    {
+        [$response, $data] = $this->api('/api/v1/attribution' . ($query === '' ? '' : "?$query"));
+
+        $this->assertSame(200, $response->status);
+        $this->assertSame($expected, array_intersect_key($data, $expected));
+        $this->assertSame([], $this->tileRequests(), 'no tiles fetched');
+    }
+
+    /**
+     * The attribution endpoint passes on the fallback and deprecation headers too.
+     *
+     * @return void
+     */
+    public function testAttributionHeaders(): void
+    {
+        $this->assertSame(
+            'unavailable; requested=nope; drawn=fixture/base',
+            self::$app->get('/api/v1/attribution?provider=nope')->header('X-Map-Fallback')
+        );
+        $old = self::$app->get('/api/v1/attribution?basemap=fixture-esri');
+        $this->assertSame('@1792281600', $old->header('Deprecation'));
     }
 
     /**

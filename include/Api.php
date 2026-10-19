@@ -15,6 +15,8 @@ namespace StaticMaps;
  * - `/api/v1/providers` Providers and styles that can be drawn, removed ids and
  *                       deprecated basemap ids.
  * - `/api/v1/icons`     Built-in marker icons.
+ * - `/api/v1/attribution` The credit for one map, chosen by the same
+ *                       `provider` / `style` / `basemap` parameters as the image.
  *
  * It never returns tile URLs or API keys. Token-only providers and styles are
  * only listed for requests with a valid `token`, as `X-Map-Fallback` doesn't
@@ -50,20 +52,23 @@ final class Api
     /**
      * Answer one API request.
      *
-     * @param string $method HTTP method.
-     * @param string $path   Request path relative to the install, e.g. `/api/v1/icons`.
+     * @param string  $method  HTTP method.
+     * @param string  $path    Request path relative to the install, e.g. `/api/v1/icons`.
+     * @param Request $request The request parameters (used by /attribution).
      *
      * @return Response JSON (no body for HEAD), or a JSON error: 404 for an unknown
      *                  endpoint, 405 for a method other than GET, HEAD or OPTIONS.
      */
-    public function handle(string $method, string $path): Response
+    public function handle(string $method, string $path, Request $request): Response
     {
         $endpoint = rtrim($path, '/');
+        $extraHeaders = [];
         $data = match ($endpoint) {
-            '/api/v1'           => $this->root(),
-            '/api/v1/providers' => $this->providers(),
-            '/api/v1/icons'     => $this->icons(),
-            default             => null,
+            '/api/v1'             => $this->root(),
+            '/api/v1/providers'   => $this->providers(),
+            '/api/v1/icons'       => $this->icons(),
+            '/api/v1/attribution' => $this->attribution($request, $extraHeaders),
+            default               => null,
         };
 
         if ($data === null) {
@@ -78,7 +83,7 @@ final class Api
             return $response->withHeaders(['Allow: GET, HEAD, OPTIONS']);
         }
 
-        return $this->json(200, $data, $method);
+        return $this->json(200, $data, $method)->withHeaders($extraHeaders);
     }
 
     /**
@@ -141,6 +146,7 @@ final class Api
                     'maxzoom'       => $style['maxzoom'],
                     'attribution'   => $style['attribution'] ?? $this->config['defaults']['attribution'],
                     'attribution_text' => $style['attribution_text'] ?? null,
+                    'attribution_html' => $style['attribution_html'] ?? null,
                     'labels_layer'  => count($style['layers']) > 1,
                     'requires_auth' => (bool) ($style['requires_auth'] ?? false),
                 ];
@@ -185,6 +191,51 @@ final class Api
     }
 
     /**
+     * `/api/v1/attribution`: the credit for the map a request would draw.
+     *
+     * Takes the same `provider`, `style`, `basemap`, `tileurl`, `token` and
+     * `attribution` parameters as a map request, so a client can pass the
+     * image's query string and show the result next to the image.
+     *
+     * @param Request      $request The request.
+     * @param list<string> $headers Receives headers to send (fallback and deprecation notices).
+     *
+     * @return array<string, mixed> The response data.
+     */
+    private function attribution(Request $request, array &$headers): array
+    {
+        [$map, $headers] = (new MapChooser($this->config))->choose($request, $this->authenticated);
+
+        $logo = $request->get('attribution');
+        if (!Attribution::isKnown($logo)) {
+            $logo = $map['attribution'] ?? $this->config['defaults']['attribution'];
+        }
+        $text = isset($map['attribution_text']) ? (string) $map['attribution_text'] : null;
+        $html = isset($map['attribution_html'])
+            ? (string) $map['attribution_html']
+            : ($text === null ? null : htmlspecialchars($text, ENT_QUOTES | ENT_HTML5));
+
+        $notice = null;
+        foreach ($headers as $header) {
+            if (stripos($header, 'X-Map-Fallback:') === 0) {
+                $notice = trim(substr($header, strlen('X-Map-Fallback:')));
+            }
+        }
+
+        return [
+            'provider'    => $map['provider'] ?? null,
+            'style'       => $map['style'] ?? null,
+            'fallback'    => $notice,
+            'attribution' => $logo,
+            'text'        => $text,
+            'html'        => $html,
+            'plain'       => $html === null
+                ? null
+                : html_entity_decode(strip_tags($html), ENT_QUOTES | ENT_HTML5, 'UTF-8'),
+        ];
+    }
+
+    /**
      * `/api/v1/icons`: the built-in marker icons.
      *
      * @return array<string, mixed> The response data.
@@ -220,6 +271,7 @@ final class Api
             'self'      => $this->base . '/api/v1/',
             'providers' => $this->base . '/api/v1/providers',
             'icons'     => $this->base . '/api/v1/icons',
+            'attribution' => $this->base . '/api/v1/attribution',
         ];
     }
 

@@ -61,6 +61,7 @@ return [
                     'attribution'      => 'esri',
                     'attribution_text' => 'Sources: Fixture, Another Source, Yet Another Source, More Data Ltd, '
                         . 'Some Agency, A Community, and many other contributors around the world',
+                    'attribution_html' => 'Powered by <a href="https://fixture.example/">Fixture</a> &amp; friends',
                 ],
                 'zoom' => [
                     'name'    => 'Limited to zoom 5-10',

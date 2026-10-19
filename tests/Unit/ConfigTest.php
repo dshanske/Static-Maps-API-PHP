@@ -122,6 +122,13 @@ final class ConfigTest extends TestCase
                 $resolved = Config::resolve($config, $provider, $style, false);
                 $this->assertSame($attribution, $resolved['attribution'] ?? null, "$provider/$style");
                 $this->assertNotEmpty($resolved['attribution_text'] ?? null, "$provider/$style has credit text");
+                $html = (string) ($resolved['attribution_html'] ?? '');
+                $this->assertStringContainsString('<a href="https://', $html, "$provider/$style links");
+                if ($provider === 'esri') {
+                    $this->assertStringStartsWith('Powered by <a href="https://www.esri.com">Esri</a>', $html);
+                    $onMap = mb_strlen($resolved['attribution_text']);
+                    $this->assertLessThanOrEqual(80, $onMap, "$style on-map text is short");
+                }
             }
         }
     }

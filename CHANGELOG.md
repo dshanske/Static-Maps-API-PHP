@@ -51,9 +51,12 @@ stable interface; pin a commit if you need a fixed point.
   the credit its terms require, drawn on a light strip in the attribution
   corner (wrapped to two lines, cut short with "…" on small images), with the
   logo, if any, next to it. New `attribution=text` (text only) and
-  `attribution_position=bottomright|bottomleft|topright|topleft`. The query
-  API reports each style's `attribution_text`. A font (DejaVu Sans, free
-  licence) is bundled in `assets/fonts/`.
+  `attribution_position=bottomright|bottomleft|topright|topleft`. The text on
+  the image is kept to what the provider requires there; the full credit, as
+  HTML with links (`attribution_html`), comes from the new
+  `GET /api/v1/attribution`, which takes the same parameters as the image, so
+  a page can show it next to the image. A font (DejaVu Sans, free licence) is
+  bundled in `assets/fonts/`.
 - `limits.max_width` / `limits.max_height` settings (default 1280 each): the
   largest image a request can get. Larger `width`/`height` values are drawn at
   the limit, and the response has an `X-Map-Size` header saying so. Reported
@@ -68,7 +71,8 @@ stable interface; pin a commit if you need a fixed point.
 
 - The shipped maps draw the credit their providers require: OpenStreetMap,
   OpenTopoMap and CARTO draw their credit text instead of the OpenStreetMap
-  logo, and Esri maps draw the data sources under the "Powered by Esri" logo.
+  logo, and Esri maps draw their main data sources under the "Powered by Esri"
+  logo (the full list is in `/api/v1/attribution`).
   (#29)
 
 - **Breaking:** `polyline=enc:...` now reads each point in latitude, longitude
