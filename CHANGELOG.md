@@ -59,6 +59,13 @@ stable interface; pin a commit if you need a fixed point.
 
 ### Changed
 
+- **Breaking:** `polyline=enc:...` now reads each point in latitude, longitude
+  order, as Google's Encoded Polyline Algorithm defines it and as Google Maps,
+  Mapbox, OSRM and other encoders produce it. It used to read longitude,
+  latitude, so a standard polyline was drawn far from where it belonged.
+  If you encoded points as longitude, latitude to match the old behaviour,
+  re-encode them as latitude, longitude. (#43)
+
 - PHP 8.1 or later is required. (#13)
 - Basemaps are defined in the settings files instead of in `public/img.php`.
   If you edited the basemap list in `img.php`, move your changes to

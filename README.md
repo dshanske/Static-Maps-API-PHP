@@ -26,7 +26,7 @@ Numbers are checked: a value that isn't a number, or is out of the range given b
 * `location` - **deprecated, ignored** - Geocoding addresses was removed (#16): convert addresses to coordinates in your client and pass `latitude` / `longitude`. A request with `location` gets `Deprecation` and `Link` headers; with nothing else to place the map, it gets HTTP 400.
 * `marker[]` - Specify one or more markers to overlay on the map. Parameters are specified as: `key:value;`. See below for the full list of parameters. 
 * `path[]` - Specify one or more paths to draw on the map. See below for the full list of parameters to draw a path.
-* `polyline` - Alternative to path, this allows for a path to be specified as an encoded polyline, allowing for shorter URLs.
+* `polyline` - Alternative to path: one path as a Google encoded polyline (latitude, longitude order), for shorter URLs. See [Polylines](#polylines).
 * `format` - default "png" - `png` or `jpg` (`jpeg` also works). Anything else gets HTTP 400.
 * `quality` - default 75 - JPEG quality for `format=jpg`, a whole number from 1 to 100.
 * `bezier` - Specify a bezier curve to your path, an angle in degrees between -89 and 89. 25 will give you a nicely curved line. [More Info](https://aaronparecki.com/2017/01/02/6/day-13-curved-map-lines)
@@ -287,11 +287,27 @@ path[]=[-122.651082,45.508543],[-122.653617,45.506468],[-122.654183,45.506756];w
 
 ## Polylines
 
-A polyline is an encoded string representing a set of points, as well as optional properties to specify the weight and color of the path.
+`polyline` draws one path given as an encoded polyline, which makes long paths much shorter than `path[]`. It uses [Google's Encoded Polyline Algorithm](https://developers.google.com/maps/documentation/utilities/polylinealgorithm): points in **latitude, longitude** order, precision 5 (1e-5 degrees). That is what Google Maps, Mapbox, OSRM, Valhalla, GraphHopper and polyline libraries such as `@mapbox/polyline` produce, so their output can be passed straight in. (Note that `path[]` writes each point the other way round, as `[lng,lat]`.)
 
-The encoded polyline first value of the property, followed by the optional color and weight.
+The value starts with `enc:` and the encoded string, optionally followed by `color` and `weight` like a path. `polyline` is ignored when the request also has `path[]`. A polyline with points out of range is left out with an `X-Path-1` header.
 
 ### Examples
+
+Google's example line from California into Oregon, with the default color and weight:
+
+```
+polyline=enc:_p~iF~ps|U_ulLnnqC_mqNvxq`@
+```
+
+The same line in blue, 6 pixels wide:
+
+```
+polyline=enc:_p~iF~ps|U_ulLnnqC_mqNvxq`@;weight:6;color:0033ff
+```
+
+Characters such as `|` and `` ` `` must be URL-encoded in a query string (`%7C`, `%60`); most HTTP libraries do this for you.
+
+## Examples
 
 Simple path with default color and weight.
 

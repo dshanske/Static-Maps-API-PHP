@@ -12,8 +12,9 @@ namespace StaticMaps;
  * A path is a string of `key:value;` pairs (`color`, `weight`) followed by
  * points written as `[lng,lat]`, e.g. `color:ff0000;weight:4;[-122.6,45.5][-122.7,45.6]`.
  * `polyline` is used only when there is no `path[]`; it holds one path as
- * `enc:<encoded polyline>;color:...;weight:...`, whose decoded pairs are
- * read in the same [lng, lat] order as path[] (see #43).
+ * `enc:<encoded polyline>;color:...;weight:...`, in Google's Encoded Polyline
+ * format (lat,lng pairs, precision 5), as produced by Google Maps, Mapbox,
+ * OSRM and other routing services (#43).
  */
 final class PathParser
 {
@@ -78,7 +79,11 @@ final class PathParser
             }
             $properties = $this->styleProperties($polyline);
             if (array_key_exists('enc', $properties)) {
-                $points = Polyline::pair(Polyline::decode($properties['enc']));
+                // Google's encoding stores each point as lat,lng (#43); paths use [lng, lat].
+                $points = array_map(
+                    static fn (array $pair): array => count($pair) === 2 ? [$pair[1], $pair[0]] : $pair,
+                    Polyline::pair(Polyline::decode($properties['enc']))
+                );
                 if (!self::validPoints($points)) {
                     return ['paths' => [], 'headers' => ['X-Path-1: the polyline has points out of range']];
                 }

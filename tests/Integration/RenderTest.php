@@ -8,6 +8,7 @@ namespace StaticMaps\Tests\Integration;
 
 use PHPUnit\Framework\Attributes\DataProvider;
 use StaticMaps\Polyline;
+use StaticMaps\WebMercator;
 use StaticMaps\Tests\Support\RenderTestCase;
 
 /**
@@ -367,22 +368,43 @@ final class RenderTest extends RenderTestCase
     }
 
     /**
-     * An encoded polyline draws the same image as the same points in path[].
-     *
-     * The encoded points are read as [lng,lat] pairs, like path[] (Google's
-     * format encodes lat,lng).
+     * An encoded polyline (Google's format: lat,lng) draws the same image as the
+     * same points in path[] (written [lng,lat]) (#43).
      *
      * @return void
      */
     public function testPolylineMatchesPath(): void
     {
-        $points = [[-122.68, 45.51], [-122.67, 45.52], [-122.66, 45.515]];
+        $points = [[45.51, -122.68], [45.52, -122.67], [45.515, -122.66]];
         $style = 'color:0033ff;weight:5';
 
         $path = $this->render(['path' => [$style . ';' . self::PATH]]);
         $polyline = $this->render(['polyline' => 'enc:' . Polyline::encode($points) . ';' . $style]);
 
         $this->assertSame($path->body, $polyline->body);
+    }
+
+    /**
+     * Google's documented example polyline is fitted and drawn over California
+     * and Oregon, not swapped into Antarctica (#43).
+     *
+     * @return void
+     */
+    public function testGoogleExamplePolylineIsInCalifornia(): void
+    {
+        $response = $this->render(['polyline' => 'enc:_p~iF~ps|U_ulLnnqC_mqNvxq`@;color:ff0000;weight:4']);
+        $this->assertSame(200, $response->status);
+
+        $wm = new WebMercator();
+        foreach ($this->tilePaths() as $path) {
+            [, , $z, $x, $y] = explode('/', str_replace('.png', '', $path));
+            $corner = $wm->pixelsToLatLng(((int) $x + 0.5) * 256, ((int) $y + 0.5) * 256, (int) $z);
+            $this->assertGreaterThan(30, $corner['lat'], $path);
+            $this->assertLessThan(52, $corner['lat'], $path);
+            $this->assertGreaterThan(-135, $corner['lng'], $path);
+            $this->assertLessThan(-110, $corner['lng'], $path);
+        }
+        $this->assertNotSame([], $this->tilePaths());
     }
 
     /**
