@@ -204,26 +204,26 @@ polyline=enc:abcdefghghgk;weight:6;color:0033ff
 ### Simple map centered at a location
 
 ```
-http://static-maps.pdx.esri.com/img.php?basemap=gray&width=400&height=240&zoom=14&latitude=45.5165&longitude=-122.6764
+http://static-maps.pdx.esri.com/?basemap=gray&width=400&height=240&zoom=14&latitude=45.5165&longitude=-122.6764
 ```
 
-<img src="http://static-maps.pdx.esri.com/img.php?basemap=gray&width=400&height=240&zoom=14&latitude=45.5165&longitude=-122.6764">
+<img src="http://static-maps.pdx.esri.com/?basemap=gray&width=400&height=240&zoom=14&latitude=45.5165&longitude=-122.6764">
 
 ### Map with a marker centered at an address
 
 ```
-http://static-maps.pdx.esri.com/img.php?marker[]=location:920%20SW%203rd%20Ave,%20Portland,%20OR;icon:small-blue-cutout&basemap=gray&width=400&height=240&zoom=14
+http://static-maps.pdx.esri.com/?marker[]=location:920%20SW%203rd%20Ave,%20Portland,%20OR;icon:small-blue-cutout&basemap=gray&width=400&height=240&zoom=14
 ```
 
-<img src="http://static-maps.pdx.esri.com/img.php?marker[]=location:920%20SW%203rd%20Ave,%20Portland,%20OR;icon:small-blue-cutout&basemap=gray&width=400&height=240&zoom=14">
+<img src="http://static-maps.pdx.esri.com/?marker[]=location:920%20SW%203rd%20Ave,%20Portland,%20OR;icon:small-blue-cutout&basemap=gray&width=400&height=240&zoom=14">
 
 ### Map with an external marker image
 
 ```
-http://static-maps.pdx.esri.com/img.php?basemap=gray&width=400&height=240&zoom=14&marker[]=lat:45.5165;lng:-122.6764;icon:http://aaronparecki.com/images/map-pin-green.png
+http://static-maps.pdx.esri.com/?basemap=gray&width=400&height=240&zoom=14&marker[]=lat:45.5165;lng:-122.6764;icon:http://aaronparecki.com/images/map-pin-green.png
 ```
 
-<img src="http://static-maps.pdx.esri.com/img.php?basemap=gray&width=400&height=240&zoom=14&marker[]=lat:45.5165;lng:-122.6764;icon:http://aaronparecki.com/images/map-pin-green.png">
+<img src="http://static-maps.pdx.esri.com/?basemap=gray&width=400&height=240&zoom=14&marker[]=lat:45.5165;lng:-122.6764;icon:http://aaronparecki.com/images/map-pin-green.png">
 
 
 ## How to install
@@ -259,7 +259,7 @@ Add the below server block to /usr/local/nginx/conf/nginx.conf and remove the de
     server {
         listen 80;
         root /var/www/static-maps-api/public;
-	try_files $uri /img.php?$args;
+	try_files $uri /index.php?$args;
 
 	location ~ \.php$ {
 	       fastcgi_pass    unix:/var/run/php7.4-fpm.sock;
@@ -303,7 +303,7 @@ The first release will be **1.0.0**, once the first phase of the rewrite is comp
 
 | Deprecated | Use instead | Deprecated in | Removed no earlier than |
 |---|---|---|---|
-| *(nothing yet)* | | | |
+| Requesting `/img.php?...` | `/?...` (or `/index.php?...`) with the same parameters (#24) | 1.0.0 | 2.0.0 |
 
 ## Development
 
@@ -319,7 +319,7 @@ composer stan      # static analysis (PHPStan)
 composer test      # PHPUnit test suite
 ```
 
-The code lives in `include/` as classes in the `StaticMaps` namespace (loaded by `include/autoload.php`). `public/img.php` only loads the configuration and hands the request to `StaticMaps\Renderer`, which runs the stages in order: `MarkerParser` and `PathParser` (overlays and their `Bounds`) → `Viewport` (centre and zoom) → `TileFetcher` → `Compositor` (tiles, paths, markers) → `Attribution` → image encoding.
+The code lives in `include/` as classes in the `StaticMaps` namespace (loaded by `include/autoload.php`). `public/index.php` only loads the configuration and hands the request to `StaticMaps\Renderer`, which runs the stages in order: `MarkerParser` and `PathParser` (overlays and their `Bounds`) → `Viewport` (centre and zoom) → `TileFetcher` → `Compositor` (tiles, paths, markers) → `Attribution` → image encoding.
 
 Known PHPStan errors are recorded in `phpstan-baseline.neon` until they are fixed. When you fix one, regenerate the baseline with `vendor/bin/phpstan analyse --generate-baseline`.
 
@@ -329,7 +329,7 @@ Every pull request that changes something users or installs can notice (request 
 
 ### Tests
 
-`tests/Unit` tests the classes in `include/`. `tests/Integration` renders maps through `public/img.php` with PHP's built-in web server, using a fake tile server (`tests/fixtures/tile-server.php`) and a test configuration (`tests/fixtures/config.php`) that switches off every real basemap, so the tests never contact a real tile host and need no network access.
+`tests/Unit` tests the classes in `include/`. `tests/Integration` renders maps through `public/index.php` (and the deprecated `public/img.php`) with PHP's built-in web server, using a fake tile server (`tests/fixtures/tile-server.php`) and a test configuration (`tests/fixtures/config.php`) that switches off every real basemap, so the tests never contact a real tile host and need no network access.
 
 - Any PHP warning, notice or deprecation fails the tests. Problems that are known and tracked in an issue are listed in `RenderTestCase::knownErrors()` until they are fixed.
 - Rendered maps are compared with reference images in `tests/fixtures/expected/`, with a small tolerance for anti-aliasing differences between ImageMagick versions. After a change that is meant to alter the output, run `UPDATE_SNAPSHOTS=1 composer test`, look at the changed images, and commit them with the change. When a comparison fails, the rendered image is saved to the directory in `SNAPSHOT_FAILURES_DIR` (default: `static-maps-snapshots` in the system temp directory); in CI it is attached to the run as an artifact.

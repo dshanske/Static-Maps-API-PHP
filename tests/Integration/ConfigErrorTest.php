@@ -34,7 +34,7 @@ final class ConfigErrorTest extends RenderTestCase
      */
     public function testConfigErrorIsA500(): void
     {
-        $response = self::$app->get('/img.php?latitude=45&longitude=-122&zoom=10');
+        $response = self::$app->get('/?latitude=45&longitude=-122&zoom=10');
 
         $this->assertSame(500, $response->status);
         $this->assertSame('Server configuration error', $response->body);

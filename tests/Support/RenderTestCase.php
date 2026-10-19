@@ -9,7 +9,7 @@ namespace StaticMaps\Tests\Support;
 use PHPUnit\Framework\TestCase;
 
 /**
- * Runs `public/img.php` under `php -S` against the fake tile server.
+ * Runs the renderer (`public/index.php`) under `php -S` against the fake tile server.
  *
  * One tile server and one renderer are started per test class. The renderer
  * loads tests/fixtures/config.php (via STATIC_MAPS_CONFIG), so every basemap
@@ -94,13 +94,15 @@ abstract class RenderTestCase extends TestCase
      * Render a map and check that PHP logged nothing unexpected.
      *
      * @param array<string, mixed> $query Request parameters (arrays become `name[]=...`).
+     * @param string               $path  Path to request: `/` (the renderer), `/index.php`
+     *                                    or the deprecated `/img.php`.
      *
      * @return Response The renderer's response.
      */
-    protected function render(array $query): Response
+    protected function render(array $query, string $path = '/'): Response
     {
         $qs = preg_replace('/%5B\d+%5D/', '%5B%5D', http_build_query($query));
-        $response = self::$app->get('/img.php?' . $qs);
+        $response = self::$app->get($path . '?' . $qs);
 
         $unexpected = array_values(array_filter(
             self::$app->errors(),
