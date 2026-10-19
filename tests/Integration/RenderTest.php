@@ -353,6 +353,7 @@ final class RenderTest extends RenderTestCase
             'disabled → default'    => [['basemap' => 'fixture-off'], $base, 'base'],
             'needs token → default' => [['basemap' => 'fixture-auth'], $base, 'base'],
             'shipped, switched off' => [['basemap' => 'osm'], $base, 'base'],
+            'removed Stamen id'     => [['basemap' => 'stamen-toner'], $base, 'base'],
             'custom without token'  => [
                 ['basemap' => 'custom', 'tileurl' => '__TILES__/overlay/{z}/{x}/{y}.png'],
                 $base,

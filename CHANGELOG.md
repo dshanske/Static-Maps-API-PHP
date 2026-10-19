@@ -83,6 +83,11 @@ stable interface; pin a commit if you need a fixed point.
 
 ### Removed
 
+- The Stamen basemaps (`stamen-toner`, `stamen-toner-background`,
+  `stamen-toner-lite`, `stamen-terrain`, `stamen-terrain-background`,
+  `stamen-watercolor`). Stamen's tile hosting shut down in 2023, so they only
+  drew gray tiles; requests for them now get the default map. (#17, #40)
+
 - `include/helpers.php` (`request()` and `is_authenticated()`), replaced by the
   `StaticMaps\Request` and `StaticMaps\Tokens` classes. (#14, #44)
 

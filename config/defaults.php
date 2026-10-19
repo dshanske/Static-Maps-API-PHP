@@ -276,40 +276,6 @@ return [
                 ],
             ],
         ],
-
-        // Stamen: tile hosting shut down in 2023; these no longer return tiles.
-        // Kept only so the old basemap ids behave as before until #17 decides
-        // what replaces them (likely Stadia Maps, #33).
-        'stamen' => [
-            'name'          => 'Stamen',
-            'default_style' => 'toner',
-            'styles' => [
-                'toner' => [
-                    'name'   => 'Toner',
-                    'layers' => ['https://stamen-tiles.a.ssl.fastly.net/toner/{z}/{x}/{y}.png'],
-                ],
-                'toner-nolabels' => [
-                    'name'   => 'Toner without labels',
-                    'layers' => ['https://stamen-tiles.a.ssl.fastly.net/toner-background/{z}/{x}/{y}.png'],
-                ],
-                'toner-lite' => [
-                    'name'   => 'Toner Lite',
-                    'layers' => ['https://stamen-tiles.a.ssl.fastly.net/toner-lite/{z}/{x}/{y}.png'],
-                ],
-                'terrain' => [
-                    'name'   => 'Terrain',
-                    'layers' => ['https://stamen-tiles.a.ssl.fastly.net/terrain/{z}/{x}/{y}.png'],
-                ],
-                'terrain-nolabels' => [
-                    'name'   => 'Terrain without labels',
-                    'layers' => ['https://stamen-tiles.a.ssl.fastly.net/terrain-background/{z}/{x}/{y}.png'],
-                ],
-                'watercolor' => [
-                    'name'   => 'Watercolor',
-                    'layers' => ['https://stamen-tiles.a.ssl.fastly.net/watercolor/{z}/{x}/{y}.png'],
-                ],
-            ],
-        ],
     ],
 
     /*
@@ -318,27 +284,22 @@ return [
      * `Deprecation` and `Link` response headers). New providers and styles get
      * no entry here; they are only available through `provider` and `style`.
      * This table will be removed in a future major version, 2.0.0 at the
-     * earliest. `basemap=custom` maps to `provider=custom`.
+     * earliest. `basemap=custom` maps to `provider=custom`. The Stamen ids were
+     * removed (their tiles no longer exist), so they get the default map.
      */
     'basemap_aliases' => [
-        'osm'                       => 'osm/streets',
-        'streets'                   => 'esri/streets',
-        'satellite'                 => 'esri/satellite',
-        'hybrid'                    => 'esri/hybrid',
-        'topo'                      => 'esri/topo',
-        'gray'                      => 'esri/light',
-        'gray-background'           => 'esri/light-nolabels',
-        'oceans'                    => 'esri/oceans',
-        'national-geographic'       => 'esri/natgeo',
-        'otm'                       => 'opentopomap/topo',
-        'carto-light'               => 'carto/light',
-        'carto-dark'                => 'carto/dark',
-        'carto-voyager'             => 'carto/streets',
-        'stamen-toner'              => 'stamen/toner',
-        'stamen-toner-background'   => 'stamen/toner-nolabels',
-        'stamen-toner-lite'         => 'stamen/toner-lite',
-        'stamen-terrain'            => 'stamen/terrain',
-        'stamen-terrain-background' => 'stamen/terrain-nolabels',
-        'stamen-watercolor'         => 'stamen/watercolor',
+        'osm'                 => 'osm/streets',
+        'streets'             => 'esri/streets',
+        'satellite'           => 'esri/satellite',
+        'hybrid'              => 'esri/hybrid',
+        'topo'                => 'esri/topo',
+        'gray'                => 'esri/light',
+        'gray-background'     => 'esri/light-nolabels',
+        'oceans'              => 'esri/oceans',
+        'national-geographic' => 'esri/natgeo',
+        'otm'                 => 'opentopomap/topo',
+        'carto-light'         => 'carto/light',
+        'carto-dark'          => 'carto/dark',
+        'carto-voyager'       => 'carto/streets',
     ],
 ];

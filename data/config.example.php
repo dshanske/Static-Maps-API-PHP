@@ -65,7 +65,7 @@ return [
     // 'providers' => [
     //
     //     // Switch off a whole provider, or a single style.
-    //     'stamen' => ['enabled' => false],
+    //     'carto'  => ['enabled' => false],
     //     'esri'   => ['styles' => ['natgeo' => ['enabled' => false]]],
     //
     //     // Narrow the zoom range of a provider.
@@ -93,4 +93,5 @@ return [
 
     // Deprecated: point an old `basemap=` id at another provider/style.
     // 'basemap_aliases' => ['stamen-toner-lite' => 'carto/light'],
+    // (The Stamen ids were removed; an alias like this one brings one back.)
 ];

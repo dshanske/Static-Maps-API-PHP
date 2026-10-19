@@ -94,7 +94,7 @@ final class ConfigTest extends TestCase
 
         $this->assertSame(['osm', 'streets'], [$config['defaults']['provider'], $config['defaults']['style']]);
         $this->assertSame(['min' => 2, 'max' => 18], $config['zoom']);
-        $this->assertSame(['osm', 'esri', 'opentopomap', 'carto', 'stamen'], array_keys($config['providers']));
+        $this->assertSame(['osm', 'esri', 'opentopomap', 'carto'], array_keys($config['providers']));
         $this->assertSame([], $config['deprecations']);
     }
 
@@ -107,7 +107,7 @@ final class ConfigTest extends TestCase
     {
         $config = Config::load(null, '/nonexistent/config.php');
 
-        $this->assertCount(19, $config['basemap_aliases']);
+        $this->assertCount(13, $config['basemap_aliases']);
         foreach (array_keys($config['basemap_aliases']) as $id) {
             $alias = Config::alias($config, $id);
             $this->assertNotNull($alias, $id);
@@ -117,6 +117,7 @@ final class ConfigTest extends TestCase
         $this->assertSame(['esri', 'light-nolabels'], Config::alias($config, 'gray-background'));
         $this->assertSame(['opentopomap', 'topo'], Config::alias($config, 'otm'));
         $this->assertNull(Config::alias($config, 'custom'));
+        $this->assertNull(Config::alias($config, 'stamen-toner'), 'Stamen ids were removed');
     }
 
     /**

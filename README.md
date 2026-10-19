@@ -49,14 +49,13 @@ Shipped providers (the first style is the provider's default):
 | `esri` | `streets`: [World Street Map](https://www.arcgis.com/home/webmap/viewer.html?webmap=7990d7ea55204450b8110d57e20c99ab) · `satellite`: [World Imagery](https://www.arcgis.com/home/webmap/viewer.html?webmap=d802f08316e84c6592ef681c50178f17&center=-71.055499,42.364247&level=15) · `hybrid` · `topo`: [World Topographic Map](https://www.arcgis.com/home/webmap/viewer.html?webmap=a72b0766aea04b48bf7a0e8c27ccc007) · `light`: Light Gray Canvas · `light-nolabels`: [Light Gray Canvas](https://www.arcgis.com/home/webmap/viewer.html?webmap=8b3d38c0819547faa83f7b7aca80bd76) without labels · `oceans`: Oceans (retired by Esri, #17) · `natgeo`: [National Geographic](https://www.arcgis.com/home/webmap/viewer.html?webmap=d94dcdbe78e141c2b2d3a91d5ca8b9c9) |
 | `opentopomap` | `topo`: [OpenTopoMap](https://www.opentopomap.org/) |
 | `carto` | `light`: Positron · `dark`: Dark Matter · `streets`: Voyager. [CARTO](https://carto.com/basemaps/): free for non-commercial use; CARTO now requires an API key (#17). |
-| `stamen` | `toner`, `toner-nolabels`, `toner-lite`, `terrain`, `terrain-nolabels`, `watercolor`. Stamen's tile hosting shut down in 2023; these no longer return tiles (#17). |
 | `custom` | Draws `tileurl`; requires a valid `token`. |
 
 Installs can switch providers or styles off, add their own, and set API keys; see [Configuration](#configuration).
 
 ### Deprecated basemap ids
 
-`basemap=<id>` still works for these ids, with `Deprecation` and `Link` response headers. New providers and styles have no `basemap` id.
+`basemap=<id>` still works for these ids, with `Deprecation` and `Link` response headers. New providers and styles have no `basemap` id. The Stamen ids (`stamen-toner`, `stamen-terrain`, `stamen-watercolor` and their variants) were removed because Stamen's tile hosting shut down in 2023; requests for them get the default map.
 
 | `basemap` | Same as |
 |---|---|
@@ -69,8 +68,6 @@ Installs can switch providers or styles off, add their own, and set API keys; se
 | `otm` | `provider=opentopomap&style=topo` |
 | `carto-light`, `carto-dark` | `provider=carto&style=light` / `dark` |
 | `carto-voyager` | `provider=carto&style=streets` |
-| `stamen-toner`, `stamen-toner-lite`, `stamen-terrain`, `stamen-watercolor` | `provider=stamen&style=` `toner`, `toner-lite`, `terrain`, `watercolor` |
-| `stamen-toner-background`, `stamen-terrain-background` | `provider=stamen&style=toner-nolabels` / `terrain-nolabels` |
 | `custom` | `provider=custom` |
 
 ## Markers
@@ -172,7 +169,7 @@ return [
     'providers'  => [
         // Switch a style off, or a whole provider
         'esri'        => ['styles' => ['natgeo' => ['enabled' => false]]],
-        'stamen'      => ['enabled' => false],
+        'carto'       => ['enabled' => false],
         // Limit a provider's zoom range
         'opentopomap' => ['maxzoom' => 17],
         // Add a provider that needs an API key ({key} is replaced with 'key')
