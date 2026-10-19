@@ -18,6 +18,17 @@ stable interface; pin a commit if you need a fixed point.
 
 ### Added
 
+- Output formats (#39): `format=webp` (when PHP's GD supports it; otherwise
+  PNG with an `X-Map-Format` header) and `format=png8` (256-colour PNG).
+  `/api/v1/` lists the formats available. `quality` applies to WebP too.
+- `errors.strict` setting (#39): answer 400 for a marker or path that can't be
+  drawn, instead of leaving it out with a header. Default `false`.
+- Overlay limits (#39): `limits.max_markers` (default 100) and
+  `limits.max_points` (default 10,000); markers or paths over them are left
+  out, with an `X-Map-Limit` header.
+- Error responses carry their reason in an `X-Map-Error` header too (#39).
+- README: tables of response codes and headers (#39).
+
 - Settings files: `config/defaults.php` holds every default, documented, and
   `data/config.php` overrides it per install (template:
   `data/config.example.php`; another path can be set with the
@@ -108,6 +119,12 @@ stable interface; pin a commit if you need a fixed point.
 
 ### Changed
 
+- JPEG maps are sent as `Content-Type: image/jpeg` (was the non-standard
+  `image/jpg`) (#39).
+- A `marker[]` with no `key:value` pairs, a path with no points, and a
+  `polyline` without `enc:` now get an `X-Marker-<n>` / `X-Path-<n>` header
+  instead of being dropped silently (#39).
+
 - Maps whose tiles use a provider API key held by the install (for example
   CARTO once a key is set) now need a client key in the default `open` mode,
   so the install's provider allowance can't be spent by anyone who finds the
@@ -175,6 +192,9 @@ stable interface; pin a commit if you need a fixed point.
   (#24)
 
 ### Fixed
+
+- A nested `marker[]` value (e.g. `marker[0][]=x`) caused a PHP TypeError and
+  an empty response; it is now reported as `X-Marker-<n>: not a marker` (#39).
 
 - Numeric parameters are checked (#9). A `width`, `height`, `zoom`,
   `maxzoom`, `quality`, `bezier`, `latitude` or `longitude` that isn't a

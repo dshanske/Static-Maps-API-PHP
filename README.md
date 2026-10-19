@@ -32,11 +32,35 @@ Numbers are checked: a value that isn't a number, or is out of the range given b
 * `marker[]` - Specify one or more markers to overlay on the map. Parameters are specified as: `key:value;`. See below for the full list of parameters. 
 * `path[]` - Specify one or more paths to draw on the map. See below for the full list of parameters to draw a path.
 * `polyline` - Alternative to path: one path as a Google encoded polyline (latitude, longitude order), for shorter URLs. See [Polylines](#polylines).
-* `format` - default "png" - `png` or `jpg` (`jpeg` also works). Anything else gets HTTP 400.
-* `quality` - default 75 - JPEG quality for `format=jpg`, a whole number from 1 to 100.
+* `format` - default "png" - `png`, `png8` (a 256-colour PNG: much smaller, good for most maps), `jpg` (`jpeg` also works) or `webp` (smaller still; when the server's PHP has no WebP support, the map is sent as PNG with an `X-Map-Format` header, and `/api/v1/` lists the formats available). Anything else gets HTTP 400.
+* `quality` - default 75 - JPEG and WebP quality, a whole number from 1 to 100.
 * `bezier` - Specify a bezier curve to your path, an angle in degrees between -89 and 89. 25 will give you a nicely curved line. [More Info](https://aaronparecki.com/2017/01/02/6/day-13-curved-map-lines)
 
-Markers and paths whose coordinates aren't numbers in range are left out, with an `X-Marker-<n>` or `X-Path-<n>` header saying why.
+Markers and paths that can't be drawn (coordinates that aren't numbers in range, an unknown icon, no points) are left out, with an `X-Marker-<n>` or `X-Path-<n>` header saying why; an install with `errors.strict` answers HTTP 400 instead. A map draws at most 100 markers and 10,000 path points by default (`limits.max_markers`, `limits.max_points`); more are left out, with an `X-Map-Limit` header.
+
+### Responses
+
+| Status | When | Body |
+|---|---|---|
+| `200` | The map. `Content-Type` is `image/png`, `image/jpeg` or `image/webp`. | The image |
+| `200` `text/html` | A request with no parameters at all: the install's home page. | HTML |
+| `400` | A parameter is invalid (a number out of range, unknown `format` or `attribution_position`, only one of `latitude`/`longitude`), the request doesn't place the map (no coordinates, markers or paths), or, with `errors.strict`, a marker or path can't be drawn. | One line of text saying why |
+| `403` | A key or signature problem: no valid key on a [restricted](#access-and-client-keys) server, or an invalid or expired signature. | One line of text saying why |
+| `500` | The install's configuration is invalid (details are in the server log). | One line of text |
+
+Error responses also send the reason as an `X-Map-Error` header (handy for an `<img>` that failed to load: see the browser's network panel) and `Cache-Control: no-store`.
+
+Headers on a map that was drawn, but not quite as requested:
+
+| Header | Meaning |
+|---|---|
+| `X-Map-Fallback` | The default map was drawn instead of the requested provider or style: `removed` or `unavailable`, with `requested=` and `drawn=` (see [Providers and styles](#providers-and-styles)). |
+| `X-Map-Size` | `width` / `height` were over the install's limits and the map was drawn smaller. |
+| `X-Map-Limit` | Markers or paths over the install's limits were left out. |
+| `X-Map-Format` | The requested `format` isn't available on this server; the map was sent as PNG. |
+| `X-Map-Attribution` | The `attribution` image URL wasn't used (it needs a valid key). |
+| `X-Marker-<n>`, `X-Path-<n>` | Marker or path number n (counting from 1) was left out, and why. |
+| `Deprecation`, `Link` | The request used something deprecated (see [Deprecated](#deprecated)). |
 
 ## Providers and styles
 
@@ -390,7 +414,9 @@ return [
 ];
 ```
 
-`limits.max_width` / `limits.max_height` (default 1280 each) are the largest image a request can get. Larger requests are drawn at the limit, with an `X-Map-Size` header. Bigger images download more tiles from the tile providers.
+`limits.max_width` / `limits.max_height` (default 1280 each) are the largest image a request can get. Larger requests are drawn at the limit, with an `X-Map-Size` header. Bigger images download more tiles from the tile providers. `limits.max_markers` (default 100) and `limits.max_points` (default 10,000 points in all paths together) cap the overlays; more are left out, with an `X-Map-Limit` header.
+
+`errors.strict` (default `false`) decides what happens to a marker or path that can't be drawn: left out with an `X-Marker-<n>` / `X-Path-<n>` header, or, when `true`, HTTP 400 with the reason.
 
 `zoom.min` / `zoom.max` (default 2 and 18) is the zoom range for providers and styles that don't set their own `minzoom` / `maxzoom`. `zoom.max_limit` (not set by default) caps every map, whatever its own maximum, for example `'zoom' => ['max_limit' => 17]` to limit how many tiles high-zoom maps download.
 

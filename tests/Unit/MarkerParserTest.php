@@ -110,15 +110,41 @@ final class MarkerParserTest extends TestCase
     }
 
     /**
-     * Strings without any key:value pair are ignored silently.
+     * Values without any key:value pair, or that aren't strings, are skipped with a header (#39).
      *
      * @return void
      */
-    public function testGarbageIsIgnored(): void
+    public function testGarbageIsReported(): void
     {
-        $result = self::parser()->parse(['nothing here'], false, new Bounds());
+        $result = self::parser()->parse(['nothing here', ['nested']], false, new Bounds());
 
-        $this->assertSame(['markers' => [], 'headers' => [], 'deprecated' => false], $result);
+        $this->assertSame([], $result['markers']);
+        $this->assertSame([
+            'X-Marker-1: not a marker (key:value pairs separated by ;)',
+            'X-Marker-2: not a marker (key:value pairs separated by ;)',
+        ], $result['headers']);
+    }
+
+    /**
+     * Valid markers over the limit are left out before their icons load, and not in the bounds (#39).
+     *
+     * @return void
+     */
+    public function testLimit(): void
+    {
+        $bounds = new Bounds();
+        $result = (new MarkerParser(null, 2))->parse([
+            'lat:1;lng:1;icon:dot-small-blue',
+            'lat:x;lng:1;icon:dot-small-blue',
+            'lat:2;lng:2;icon:dot-small-blue',
+            'lat:50;lng:50;icon:dot-small-blue',
+            'lat:60;lng:60;icon:dot-small-blue',
+        ], false, $bounds);
+
+        $this->assertCount(2, $result['markers']);
+        $this->assertSame('X-Map-Limit: left out 2 marker(s) over the limit of 2', end($result['headers']));
+        $this->assertStringStartsWith('X-Marker-2:', $result['headers'][0], 'invalid ones are not counted');
+        $this->assertEqualsWithDelta(2.0, $bounds->maxLat, 0.0001);
     }
 
     /**

@@ -116,7 +116,7 @@ final class Api
                 'max'       => $this->config['zoom']['max'],
                 'max_limit' => $this->config['zoom']['max_limit'] ?? null,
             ],
-            'formats'      => ['png', 'jpg'],
+            'formats'      => Renderer::formats(),
             'attributions' => Attribution::NAMES,
             'attribution_positions' => Attribution::POSITIONS,
             'access'       => [

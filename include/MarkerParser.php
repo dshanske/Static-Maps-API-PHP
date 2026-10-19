@@ -25,9 +25,11 @@ final class MarkerParser
     private RemoteFetcher $remote;
 
     /**
-     * @param RemoteFetcher|null $remote Downloads icon URLs; null for one with the shipped limits.
+     * @param RemoteFetcher|null $remote     Downloads icon URLs; null for one with default limits.
+     * @param int                $maxMarkers Most markers drawn (`limits.max_markers`); later
+     *                                       ones are left out, with an `X-Map-Limit` header.
      */
-    public function __construct(?RemoteFetcher $remote = null)
+    public function __construct(?RemoteFetcher $remote = null, private int $maxMarkers = PHP_INT_MAX)
     {
         $this->remote = $remote ?? new RemoteFetcher(10, 5, 5000000, 3, 'Static Maps API');
     }
@@ -39,6 +41,8 @@ final class MarkerParser
      * loaded (the marker is then left out). Invalid definitions, including
      * markers with only a `location` or with invalid coordinates, and icons that
      * can't be used are reported as `X-Marker-<n>` headers, n counting from 1.
+     * Valid markers over `$maxMarkers` are left out (not drawn, not in the bounds)
+     * and counted in one `X-Map-Limit` header.
      * `lat` and `lng` are converted to floats.
      *
      * @param mixed  $value         The `marker` parameter: a string, a list of strings, or false.
@@ -61,8 +65,11 @@ final class MarkerParser
             $value = array($value);
         }
 
-        foreach ($value as $i => $m) {
-            if (!preg_match_all('/(?P<k>[a-z]+):(?P<v>[^;]+)/', $m, $matches)) {
+        $valid = 0;
+        $over = 0;
+        foreach (array_values($value) as $i => $m) {
+            if (!is_string($m) || !preg_match_all('/(?P<k>[a-z]+):(?P<v>[^;]+)/', $m, $matches)) {
+                $headers[] = 'X-Marker-' . ($i + 1) . ': not a marker (key:value pairs separated by ;)';
                 continue;
             }
             $properties = array();
@@ -97,6 +104,12 @@ final class MarkerParser
             $properties['lat'] = (float) $properties['lat'];
             $properties['lng'] = (float) $properties['lng'];
 
+            // Over the limit: left out before its icon is loaded, and not counted in the bounds.
+            if (++$valid > $this->maxMarkers) {
+                $over++;
+                continue;
+            }
+
             [$properties['iconImg'], $problem] = $this->loadIcon($properties['icon'], $mayFetchUrls);
             if ($properties['iconImg'] !== null) {
                 $markers[] = $properties;
@@ -105,6 +118,9 @@ final class MarkerParser
             }
 
             $bounds->extend($properties['lat'], $properties['lng']);
+        }
+        if ($over > 0) {
+            $headers[] = "X-Map-Limit: left out $over marker(s) over the limit of $this->maxMarkers";
         }
 
         return ['markers' => $markers, 'headers' => $headers, 'deprecated' => $deprecated];
