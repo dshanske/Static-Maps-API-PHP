@@ -16,7 +16,16 @@ use RuntimeException;
 class Config
 {
     /** @var list<string> Settings that every style inherits from its provider and can override. */
-    private const INHERITED = ['attribution', 'minzoom', 'maxzoom', 'requires_auth', 'enabled', 'key'];
+    private const INHERITED = [
+        'attribution',
+        'attribution_text',
+        'attribution_html',
+        'minzoom',
+        'maxzoom',
+        'requires_auth',
+        'enabled',
+        'key',
+    ];
 
     /**
      * Load the default settings and merge the per-install settings over them.
@@ -87,8 +96,8 @@ class Config
     /**
      * Find the settings of one provider's style.
      *
-     * The style inherits `attribution`, `minzoom`, `maxzoom`, `requires_auth`,
-     * `enabled` and `key` from its provider unless it sets them itself. Without
+     * The style inherits `attribution`, `attribution_text`, `attribution_html`, `minzoom`, `maxzoom`,
+     * `requires_auth`, `enabled` and `key` from its provider unless it sets them itself. Without
      * either, `zoom.min` / `zoom.max` apply. `zoom.max_limit`, if set, caps the
      * result (and the minimum, if that is higher).
      *
@@ -364,9 +373,19 @@ class Config
             if (isset($provider['default_style']) && !isset($styles[$provider['default_style']])) {
                 throw new RuntimeException("Provider '$id' has an unknown default_style");
             }
+            foreach (['attribution_text', 'attribution_html'] as $key) {
+                if (isset($provider[$key]) && !is_string($provider[$key])) {
+                    throw new RuntimeException("Provider '$id' $key must be a string");
+                }
+            }
             foreach ($styles as $styleId => $style) {
                 if (!is_array($style)) {
                     throw new RuntimeException("Style '$id/$styleId' must be an array");
+                }
+                foreach (['attribution_text', 'attribution_html'] as $key) {
+                    if (isset($style[$key]) && !is_string($style[$key])) {
+                        throw new RuntimeException("Style '$id/$styleId' $key must be a string");
+                    }
                 }
                 $enabled = ($provider['enabled'] ?? true) !== false
                     && ($style['enabled'] ?? $provider['enabled'] ?? true) !== false;

@@ -49,7 +49,7 @@ if ($base !== '' && str_starts_with($path, $base)) {
 if (Api::handles($path)) {
     $tokens = new Tokens($config['token_file']);
     $api = new Api($config, $tokens->isValid($request->get('token')), $base);
-    $response = $api->handle((string) ($_SERVER['REQUEST_METHOD'] ?? 'GET'), $path);
+    $response = $api->handle((string) ($_SERVER['REQUEST_METHOD'] ?? 'GET'), $path, $request);
 } elseif ($request->isEmpty()) {
     // No parameters at all (someone opened the address in a browser): say what this is.
     try {

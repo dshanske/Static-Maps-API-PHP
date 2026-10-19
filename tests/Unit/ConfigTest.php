@@ -101,9 +101,10 @@ final class ConfigTest extends TestCase
     }
 
     /**
-     * Every shipped style sets its own attribution, so changing defaults.attribution
-     * never changes the credit on a shipped map (#50): Esri styles use Esri, and the
-     * OpenStreetMap-based providers use OpenStreetMap.
+     * Every shipped style sets its own attribution and credit text, so changing
+     * defaults.attribution never changes the credit on a shipped map (#50, #29):
+     * Esri styles draw the Esri logo with their sources, and the OpenStreetMap-based
+     * providers draw only text.
      *
      * @return void
      */
@@ -114,12 +115,20 @@ final class ConfigTest extends TestCase
             'providers' => ['carto' => ['key' => 'k']],
         ]));
 
-        $expected = ['osm' => 'osm', 'esri' => 'esri', 'opentopomap' => 'osm', 'carto' => 'osm'];
+        $expected = ['osm' => 'text', 'esri' => 'esri', 'opentopomap' => 'text', 'carto' => 'text'];
         $this->assertSame(array_keys($expected), array_keys($config['providers']));
         foreach ($expected as $provider => $attribution) {
             foreach (array_keys($config['providers'][$provider]['styles']) as $style) {
                 $resolved = Config::resolve($config, $provider, $style, false);
                 $this->assertSame($attribution, $resolved['attribution'] ?? null, "$provider/$style");
+                $this->assertNotEmpty($resolved['attribution_text'] ?? null, "$provider/$style has credit text");
+                $html = (string) ($resolved['attribution_html'] ?? '');
+                $this->assertStringContainsString('<a href="https://', $html, "$provider/$style links");
+                if ($provider === 'esri') {
+                    $this->assertStringStartsWith('Powered by <a href="https://www.esri.com">Esri</a>', $html);
+                    $onMap = mb_strlen($resolved['attribution_text']);
+                    $this->assertLessThanOrEqual(80, $onMap, "$style on-map text is short");
+                }
             }
         }
     }
@@ -360,6 +369,11 @@ final class ConfigTest extends TestCase
             'unknown format'        => [['defaults' => ['format' => 'gif']], "'defaults.format' must be"],
             'max_limit not int'     => [['zoom' => ['max_limit' => '15']], "'zoom.max_limit' must be null or"],
             'max_limit negative'    => [['zoom' => ['max_limit' => -1]], "'zoom.max_limit' must be null or"],
+            'provider text'         => [['providers' => ['one' => ['attribution_text' => 5]]], 'must be a string'],
+            'style text'            => [
+                ['providers' => ['one' => ['styles' => ['base' => ['attribution_text' => ['x']]]]]],
+                'attribution_text must be a string',
+            ],
             'removed not array'     => [['removed' => 'x'], "'removed' must be an array"],
             'removed reason'        => [['removed' => ['gone' => false]], "'removed' must map ids to reasons"],
             'home page not string'  => [['home_page' => false], "'home_page' must be a string"],
@@ -443,6 +457,7 @@ final class ConfigTest extends TestCase
                 'name'        => 'P',
                 'key'         => 'provider-key',
                 'attribution' => 'esri',
+                'attribution_text' => '© P',
                 'maxzoom'     => 12,
                 'styles'      => [
                     'plain' => ['name' => 'Plain', 'layers' => ['a']],
@@ -459,6 +474,7 @@ final class ConfigTest extends TestCase
         $this->assertSame('Plain', $plain['name']);
         $this->assertSame('provider-key', $plain['key']);
         $this->assertSame('esri', $plain['attribution']);
+        $this->assertSame('© P', $plain['attribution_text'], 'inherited from the provider');
         $this->assertSame([2, 12], [$plain['minzoom'], $plain['maxzoom']]);
         $this->assertSame(['p', 'plain'], [$plain['provider'], $plain['style']]);
 

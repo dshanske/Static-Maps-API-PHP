@@ -58,8 +58,9 @@ return [
 
         // Attribution drawn when the request has no `attribution` and the
         // provider or style has no `attribution` of its own. Every shipped
-        // provider sets its own, so this only applies to providers you add. One of 'osm', 'esri' or
-        // 'mapbox' (any other value currently draws the OSM logo, see #18).
+        // provider sets its own, so this only applies to providers you add
+        // (and custom tile URLs). One of 'text', 'osm', 'esri', 'mapbox',
+        // 'mapbox-small' or 'none'.
         // Default: 'osm'.
         'attribution'  => 'osm',
     ],
@@ -154,7 +155,21 @@ return [
      *                   Placeholders: {z} zoom, {x} column, {y} row, and {key}
      *                   for the API key. {Z}, {X}, {Y} also work.
      *   'attribution'   (string) Default attribution, used when the request has
-     *                   no `attribution`. Same values as `defaults.attribution`.
+     *                   no `attribution`: 'text' (only the attribution_text),
+     *                   a logo ('osm', 'esri', 'mapbox', 'mapbox-small', drawn
+     *                   with the text if there is any) or 'none'.
+     *                   Falls back to `defaults.attribution`.
+     *   'attribution_text' (string) Credit text the provider requires, e.g.
+     *                   '© OpenStreetMap contributors'. Drawn on a light strip
+     *                   in the attribution corner, wrapped to at most two lines
+     *                   (cut short with "…" on small images). Keep it short:
+     *                   only what the provider requires on the image.
+     *   'attribution_html' (string) The full credit as HTML, with links, for
+     *                   clients to show next to the image (for example under a
+     *                   map with attribution=none, or for providers that allow
+     *                   their full source list near the map instead of on it).
+     *                   Served by /api/v1/attribution. Default: the
+     *                   attribution_text.
      *   'minzoom'       (int) Lowest zoom served. Default: `zoom.min`.
      *   'maxzoom'       (int) Highest zoom with real tiles (not placeholders).
      *                   Default: `zoom.max`. Capped by `zoom.max_limit` if set.
@@ -206,9 +221,12 @@ return [
         // OpenStreetMap (https://operations.osmfoundation.org/policies/tiles/)
         'osm' => [
             'name'          => 'OpenStreetMap',
-            // Set here, not left to defaults.attribution, so changing that
-            // default never takes the OpenStreetMap credit off these maps.
-            'attribution'   => 'osm',
+            // Credit text required by the OSM tile policy (no logo). Set here, not
+            // left to defaults.attribution, so changing that default never takes
+            // the OpenStreetMap credit off these maps.
+            'attribution'      => 'text',
+            'attribution_text' => '© OpenStreetMap contributors',
+            'attribution_html' => '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
             // Zoom 0-19 (checked 2026-10-18; 20 returns 404).
             'maxzoom'       => 19,
             'default_style' => 'streets',
@@ -223,7 +241,12 @@ return [
         // Esri basemaps (https://www.arcgis.com/home/group.html?id=702026e41f6641fb85da88efe79dc166)
         'esri' => [
             'name'          => 'Esri',
-            // Esri's terms require Esri attribution on its basemaps.
+            // Esri's terms require "Powered by Esri" on or near the image, and the
+            // data sources near the map or anywhere the user can find them
+            // (https://developers.arcgis.com/documentation/esri-and-data-attribution/static-maps/).
+            // So the image gets the logo and a short source list (attribution_text),
+            // and the full list as published by each service is in attribution_html,
+            // which clients get from /api/v1/attribution.
             'attribution'   => 'esri',
             // Streets, imagery and topo have real tiles to zoom 19 everywhere
             // checked (2026-10-18); above that Esri returns "Map data not yet
@@ -234,12 +257,16 @@ return [
             'styles' => [
                 'streets' => [
                     'name'   => 'World Street Map',
+                    'attribution_text' => 'Esri, HERE, Garmin, USGS, © OpenStreetMap contributors and others',
+                    'attribution_html' => 'Powered by <a href="https://www.esri.com">Esri</a> | Sources: Esri, HERE, Garmin, USGS, Intermap, INCREMENT P, NRCan, Esri Japan, METI, Esri China (Hong Kong), Esri Korea, Esri (Thailand), NGCC, © <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors, and the GIS User Community',
                     'layers' => [
                         'https://services.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}',
                     ],
                 ],
                 'satellite' => [
                     'name'   => 'World Imagery',
+                    'attribution_text' => 'Esri, Vantor, Earthstar Geographics',
+                    'attribution_html' => 'Powered by <a href="https://www.esri.com">Esri</a> | Source: Esri, Vantor, Earthstar Geographics, and the GIS User Community',
                     'layers' => [
                         'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
                     ],
@@ -247,6 +274,8 @@ return [
                 // Labels end at zoom 16; above that the imagery shows without them.
                 'hybrid' => [
                     'name'   => 'World Imagery with labels',
+                    'attribution_text' => 'Esri, Vantor, Earthstar Geographics, HERE, Garmin, © OpenStreetMap contributors',
+                    'attribution_html' => 'Powered by <a href="https://www.esri.com">Esri</a> | Source: Esri, Vantor, Earthstar Geographics, and the GIS User Community. Labels: Esri, HERE, Garmin, © <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors, and the GIS user community',
                     'layers' => [
                         'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
                         'https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}',
@@ -254,6 +283,8 @@ return [
                 ],
                 'topo' => [
                     'name'   => 'World Topographic Map',
+                    'attribution_text' => 'Esri, HERE, Garmin, USGS, © OpenStreetMap contributors and others',
+                    'attribution_html' => 'Powered by <a href="https://www.esri.com">Esri</a> | Sources: Esri, HERE, Garmin, Intermap, increment P Corp., GEBCO, USGS, FAO, NPS, NRCAN, GeoBase, IGN, Kadaster NL, Ordnance Survey, Esri Japan, METI, Esri China (Hong Kong), © <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors, and the GIS User Community',
                     'layers' => [
                         'https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}',
                     ],
@@ -261,6 +292,8 @@ return [
                 // Light Gray Canvas has real tiles to zoom 16 (checked 2026-10-18).
                 'light' => [
                     'name'    => 'Light Gray Canvas',
+                    'attribution_text' => 'Esri, HERE, Garmin, © OpenStreetMap contributors',
+                    'attribution_html' => 'Powered by <a href="https://www.esri.com">Esri</a> | Esri, HERE, Garmin, © <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors, and the GIS user community',
                     'maxzoom' => 16,
                     'layers'  => [
                         'https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}',
@@ -269,6 +302,8 @@ return [
                 ],
                 'light-nolabels' => [
                     'name'    => 'Light Gray Canvas without labels',
+                    'attribution_text' => 'Esri, HERE, Garmin, © OpenStreetMap contributors',
+                    'attribution_html' => 'Powered by <a href="https://www.esri.com">Esri</a> | Esri, HERE, Garmin, © <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors, and the GIS user community',
                     'maxzoom' => 16,
                     'layers'  => [
                         'https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}',
@@ -280,6 +315,8 @@ return [
                 // inland); beyond that Esri returns "Map data not yet available".
                 'oceans' => [
                     'name'    => 'Oceans',
+                    'attribution_text' => 'Esri, Garmin, GEBCO, NOAA NGDC and others',
+                    'attribution_html' => 'Powered by <a href="https://www.esri.com">Esri</a> | Esri, Garmin, GEBCO, NOAA NGDC, and other contributors. Labels: Esri, GEBCO, NOAA, National Geographic, Garmin, HERE, Geonames.org, and other contributors',
                     'maxzoom' => 13,
                     'layers'  => [
                         'https://server.arcgisonline.com/ArcGIS/rest/services/Ocean/World_Ocean_Base/MapServer/tile/{z}/{y}/{x}',
@@ -290,6 +327,8 @@ return [
                 // (checked 2026-10-18 in New York, Kansas, Paris, Nairobi, Tokyo).
                 'natgeo' => [
                     'name'    => 'National Geographic World Map',
+                    'attribution_text' => 'National Geographic, Esri, Garmin, HERE and others',
+                    'attribution_html' => 'Powered by <a href="https://www.esri.com">Esri</a> | National Geographic, Esri, Garmin, HERE, UNEP-WCMC, USGS, NASA, ESA, METI, NRCAN, GEBCO, NOAA, increment P Corp.',
                     'maxzoom' => 16,
                     'layers'  => [
                         'https://server.arcgisonline.com/ArcGIS/rest/services/NatGeo_World_Map/MapServer/tile/{z}/{y}/{x}',
@@ -301,8 +340,10 @@ return [
         // OpenTopoMap (https://opentopomap.org/about)
         'opentopomap' => [
             'name'          => 'OpenTopoMap',
-            // OpenStreetMap data; credit text for OpenTopoMap itself comes with #29.
-            'attribution'   => 'osm',
+            // Credit text as OpenTopoMap requires (no logo).
+            'attribution'      => 'text',
+            'attribution_text' => 'Map data: © OpenStreetMap contributors, SRTM | Map style: © OpenTopoMap (CC-BY-SA)',
+            'attribution_html' => 'Map data: © <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors, <a href="http://viewfinderpanoramas.org">SRTM</a> | Map style: © <a href="https://opentopomap.org">OpenTopoMap</a> (<a href="https://creativecommons.org/licenses/by-sa/3.0/">CC-BY-SA</a>)',
             // Zoom 0-17, as documented (checked 2026-10-18; 18 returns a placeholder).
             'maxzoom'       => 17,
             'default_style' => 'topo',
@@ -322,8 +363,10 @@ return [
         // requests a month for non-commercial use, 1 million for commercial use.
         'carto' => [
             'name'          => 'CARTO',
-            // OpenStreetMap data; credit text for CARTO itself comes with #29.
-            'attribution'   => 'osm',
+            // Credit text as CARTO requires (no logo).
+            'attribution'      => 'text',
+            'attribution_text' => '© OpenStreetMap contributors, © CARTO',
+            'attribution_html' => '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors, © <a href="https://carto.com/attributions">CARTO</a>',
             // Zoom 0-20 per CARTO's documentation. Not sampled: CARTO serves only
             // "API KEY REQUIRED" tiles without a key (#17).
             'maxzoom'       => 20,

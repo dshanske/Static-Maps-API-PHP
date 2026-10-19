@@ -804,6 +804,82 @@ final class RenderTest extends RenderTestCase
     }
 
     /**
+     * Credit text and logos in each corner (#29).
+     *
+     * @return array<string, array{array<string, mixed>, string}> Extra parameters and snapshot name.
+     */
+    public static function textAttributionCases(): array
+    {
+        return [
+            'text, bottom right'      => [['style' => 'credited'], 'attr-text.png'],
+            'text, top left'          => [
+                ['style' => 'credited', 'attribution_position' => 'topleft'],
+                'attr-text-topleft.png',
+            ],
+            'logo and long text'      => [['style' => 'credited-logo', 'width' => 400], 'attr-text-logo.png'],
+            'logo and text, top right' => [
+                ['style' => 'credited-logo', 'width' => 400, 'attribution_position' => 'topright'],
+                'attr-text-logo-topright.png',
+            ],
+            'long text, small image'  => [
+                ['style' => 'credited-logo', 'width' => 150, 'height' => 150],
+                'attr-text-small.png',
+            ],
+            'osm logo with text'      => [['style' => 'credited', 'attribution' => 'osm'], 'attr-text-osm-logo.png'],
+        ];
+    }
+
+    /**
+     * The attribution drawn for a style with credit text.
+     *
+     * @param array<string, mixed> $params   Extra request parameters.
+     * @param string               $snapshot Snapshot file name.
+     *
+     * @return void
+     */
+    #[DataProvider('textAttributionCases')]
+    public function testTextAttribution(array $params, string $snapshot): void
+    {
+        $response = $this->render(self::TILE_CENTER + ['provider' => 'fixture'] + $params);
+
+        $this->assertSame(200, $response->status);
+        $this->assertMatchesSnapshot($snapshot, $response->body);
+    }
+
+    /**
+     * attribution=none hides the credit text as well; the strip is drawn only where the text goes.
+     *
+     * @return void
+     */
+    public function testTextAttributionPlacement(): void
+    {
+        $tile = self::tileColor(2608, 5860);
+        $none = $this->render(self::TILE_CENTER + ['style' => 'credited', 'attribution' => 'none'])->image();
+        $this->assertPixel(self::tileColor(2609, 5861), $none, 298, 298);
+
+        $text = $this->render(self::TILE_CENTER + ['style' => 'credited'])->image();
+        $this->assertNotSame(self::rgbAt($none, 298, 298), self::rgbAt($text, 298, 298), 'strip in the corner');
+        $this->assertPixel($tile, $text, 150, 150);
+        $this->assertPixel(self::tileColor(2607, 5859), $text, 2, 2, 0);
+    }
+
+    /**
+     * An unknown attribution_position is a 400.
+     *
+     * @return void
+     */
+    public function testUnknownAttributionPositionIsRejected(): void
+    {
+        $response = $this->render(self::TILE_CENTER + ['attribution_position' => 'middle']);
+
+        $this->assertSame(400, $response->status);
+        $this->assertSame(
+            "attribution_position must be bottomright, bottomleft, topright, topleft\n",
+            $response->body
+        );
+    }
+
+    /**
      * attribution=none draws no logo (#18): the corner shows the tile underneath.
      *
      * @return void

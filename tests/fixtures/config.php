@@ -49,6 +49,20 @@ return [
                     'layers'      => [$tiles . '/base/{z}/{x}/{y}.png'],
                     'attribution' => 'esri',
                 ],
+                'credited' => [
+                    'name'             => 'With credit text',
+                    'layers'           => [$tiles . '/base/{z}/{x}/{y}.png'],
+                    'attribution'      => 'text',
+                    'attribution_text' => '© Fixture tiles contributors',
+                ],
+                'credited-logo' => [
+                    'name'             => 'With a logo and long credit text',
+                    'layers'           => [$tiles . '/base/{z}/{x}/{y}.png'],
+                    'attribution'      => 'esri',
+                    'attribution_text' => 'Sources: Fixture, Another Source, Yet Another Source, More Data Ltd, '
+                        . 'Some Agency, A Community, and many other contributors around the world',
+                    'attribution_html' => 'Powered by <a href="https://fixture.example/">Fixture</a> &amp; friends',
+                ],
                 'zoom' => [
                     'name'    => 'Limited to zoom 5-10',
                     'layers'  => [$tiles . '/base/{Z}/{X}/{Y}.png'],
