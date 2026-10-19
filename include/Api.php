@@ -112,7 +112,8 @@ final class Api
                 'max_limit' => $this->config['zoom']['max_limit'] ?? null,
             ],
             'formats'      => ['png', 'jpg'],
-            'attributions' => ['osm', 'esri', 'mapbox', 'none'],
+            'attributions' => Attribution::NAMES,
+            'attribution_positions' => Attribution::POSITIONS,
             'custom_tiles' => $this->authenticated,
             'links'        => $this->links(),
         ];
@@ -139,6 +140,7 @@ final class Api
                     'minzoom'       => $style['minzoom'],
                     'maxzoom'       => $style['maxzoom'],
                     'attribution'   => $style['attribution'] ?? $this->config['defaults']['attribution'],
+                    'attribution_text' => $style['attribution_text'] ?? null,
                     'labels_layer'  => count($style['layers']) > 1,
                     'requires_auth' => (bool) ($style['requires_auth'] ?? false),
                 ];

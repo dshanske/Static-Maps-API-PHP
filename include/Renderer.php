@@ -58,6 +58,13 @@ final class Renderer
         if (!in_array($format, self::FORMATS, true)) {
             return Response::error(400, 'format must be png or jpg');
         }
+        $position = $request->get('attribution_position', 'bottomright');
+        if ($position === '') {
+            $position = 'bottomright';
+        }
+        if (!in_array($position, Attribution::POSITIONS, true)) {
+            return Response::error(400, 'attribution_position must be ' . implode(', ', Attribution::POSITIONS));
+        }
 
         $config = $this->config;
         $headers = array();
@@ -140,7 +147,8 @@ final class Renderer
         if (!Attribution::isKnown($attribution)) {
             $attribution = $basemap['attribution'] ?? $config['defaults']['attribution'];
         }
-        (new Attribution())->draw($im, $attribution, $width, $height);
+        $text = isset($basemap['attribution_text']) ? (string) $basemap['attribution_text'] : null;
+        (new Attribution())->draw($im, $attribution, $text, $position, $width, $height);
 
         [$formatHeaders, $body] = $this->encode($im, $request, $params->quality);
 

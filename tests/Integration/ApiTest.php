@@ -82,10 +82,15 @@ final class ApiTest extends RenderTestCase
         $this->assertSame(['fixture', 'keyed'], array_keys($byId));
 
         $styles = array_column($byId['fixture']['styles'], null, 'id');
-        $this->assertSame(['base', 'overlay', 'broken', 'esri', 'zoom'], array_keys($styles), 'no auth or off');
+        $this->assertSame(
+            ['base', 'overlay', 'broken', 'esri', 'credited', 'credited-logo', 'zoom'],
+            array_keys($styles),
+            'no auth or off'
+        );
+        $this->assertSame('© Fixture tiles contributors', $styles['credited']['attribution_text']);
         $this->assertSame(
             ['id' => 'zoom', 'name' => 'Limited to zoom 5-10', 'minzoom' => 5, 'maxzoom' => 10,
-                'attribution' => 'osm', 'labels_layer' => false, 'requires_auth' => false],
+                'attribution' => 'osm', 'attribution_text' => null, 'labels_layer' => false, 'requires_auth' => false],
             $styles['zoom']
         );
         $this->assertTrue($styles['overlay']['labels_layer']);

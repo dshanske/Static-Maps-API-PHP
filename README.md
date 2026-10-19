@@ -20,7 +20,12 @@ Numbers are checked: a value that isn't a number, or is out of the range given b
 * `style` - default: the provider's default style - The map style of that provider. With only `style`, the default provider's style of that name is used. An unknown, disabled, removed or token-only (without a token) provider or style gets the default map, and the response says so in an `X-Map-Fallback` header (see [Providers and styles](#providers-and-styles)).
 * `tileurl` - With `provider=custom` and a valid `token`: a tile URL template (`{z}`, `{x}`, `{y}`) to draw instead of a provider.
 * `basemap` - **deprecated** - The old single-id way to pick a map; see [Deprecated basemap ids](#deprecated-basemap-ids). Ignored when `provider` or `style` is given.
-* `attribution` - default: the provider's, else "osm" - "esri", "osm", "mapbox" or "none" or specify a full URL to a png image - If you add attribution on the image in some other way, you can set this to "none" to hide all logos.
+* `attribution` - default: the map's own - What to draw in the attribution corner:
+  * `text` - only the map's credit text (for example "© OpenStreetMap contributors"), on a light strip at the edge.
+  * `osm`, `esri`, `mapbox`, `mapbox-small`, or a full URL to a PNG image - that logo, together with the map's credit text.
+  * `none` - nothing. Only use this if you show the attribution elsewhere: the providers' terms require it. The query API gives each map's credit text for that purpose.
+  * Any other value counts as not given.
+* `attribution_position` - default "bottomright" - The corner for the attribution: `bottomright`, `bottomleft`, `topright` or `topleft`. Anything else gets HTTP 400.
 * `latitude` - Latitude to center the map at, -85.0511 to 85.0511 (the limits of Web Mercator maps). Not needed if specifying one or more markers or paths. Must be given together with `longitude`.
 * `longitude` - Longitude to center the map at, -180 to 180. Must be given together with `latitude`.
 * `location` - **deprecated, ignored** - Geocoding addresses was removed (#16): convert addresses to coordinates in your client and pass `latitude` / `longitude`. A request with `location` gets `Deprecation` and `Link` headers; with nothing else to place the map, it gets HTTP 400.
@@ -57,7 +62,7 @@ Shipped providers (the first style is the provider's default). Max zoom is the h
 | `carto` | `light`: Positron · `dark`: Dark Matter · `streets`: Voyager. [CARTO](https://carto.com/basemaps/) **needs an API key**: these styles are unavailable until the install sets `'providers' => ['carto' => ['key' => '...']]`. Keys are [free](https://carto.com/basemaps/apikey) (5 million requests a month non-commercial, 1 million commercial). | 20 |
 | `custom` | Draws `tileurl`; requires a valid `token`. | `zoom.max` (18) |
 
-Esri styles draw the "Powered by Esri" logo by default; the OpenStreetMap, OpenTopoMap and CARTO styles draw the OpenStreetMap logo. Each shipped provider sets this itself, so changing `defaults.attribution` only affects providers you add. The `attribution` parameter overrides either.
+Every shipped map draws the credit its provider requires: the OpenStreetMap, OpenTopoMap and CARTO styles draw their credit text (for example "© OpenStreetMap contributors"), and the Esri styles draw the "Powered by Esri" logo with the data sources Esri publishes for that map. Long credits are wrapped to two lines and cut short with "…" on small images; the full text is in the query API. Each shipped provider sets this itself, so changing `defaults.attribution` only affects providers you add.
 
 Installs can switch providers or styles off, add their own, and set API keys; see [Configuration](#configuration).
 
@@ -102,7 +107,7 @@ A read-only JSON API tells clients what this install supports, so they don't hav
 | Endpoint | Returns |
 |---|---|
 | `GET /api/v1/` | Version, defaults (provider, style, size, format, attribution), size limits, zoom settings, formats, attribution values, whether custom tile URLs are available to this request, and links to the other endpoints |
-| `GET /api/v1/providers` | Every provider and style that can be drawn: id, name, `minzoom` / `maxzoom` (after `zoom.max_limit`), default attribution, whether it has a labels layer; the default map; deprecated `basemap` ids with what they map to; removed ids with the reason |
+| `GET /api/v1/providers` | Every provider and style that can be drawn: id, name, `minzoom` / `maxzoom` (after `zoom.max_limit`), default attribution and credit text (`attribution_text`), whether it has a labels layer; the default map; deprecated `basemap` ids with what they map to; removed ids with the reason |
 | `GET /api/v1/icons` | Every built-in marker icon: name, width and height in pixels, anchor (`bottom-center`, or `center` for `dot-*` icons) and the URL of its image |
 
 Providers or styles that are switched off, need an API key the install hasn't set, or need a token are left out. Token-only maps are listed when the request includes a valid `token`, and such responses aren't cached (`Cache-Control: private, no-store`). Unknown endpoints get `404`, methods other than `GET`, `HEAD` and `OPTIONS` get `405`; both with a JSON `error`. The `v1` in the path changes only if the response format changes incompatibly.
@@ -119,9 +124,11 @@ Example, `GET /api/v1/providers` (shortened):
             "default_style": "streets",
             "styles": [
                 { "id": "streets", "name": "World Street Map", "minzoom": 2, "maxzoom": 19,
-                  "attribution": "esri", "labels_layer": false, "requires_auth": false },
+                  "attribution": "esri", "attribution_text": "Sources: Esri, HERE, Garmin, USGS, …",
+                  "labels_layer": false, "requires_auth": false },
                 { "id": "hybrid", "name": "World Imagery with labels", "minzoom": 2, "maxzoom": 19,
-                  "attribution": "esri", "labels_layer": true, "requires_auth": false }
+                  "attribution": "esri", "attribution_text": "Source: Esri, Vantor, Earthstar Geographics, …",
+                  "labels_layer": true, "requires_auth": false }
             ]
         }
     ],
@@ -255,7 +262,7 @@ return [
 
 The `removed` setting lists removed provider, style and basemap ids for the `X-Map-Fallback` notice; an install can add its own when it takes a map out of service.
 
-Each provider has a `name`, an optional `default_style`, and `styles`. Each style has a `name` and a list of one or two tile URL `layers` (a base map and an optional overlay drawn on top). A provider can set a default `attribution`, `minzoom` / `maxzoom`, `requires_auth` (only usable with a valid token), `enabled` and an API `key`; its styles inherit these and can override any of them. A style whose tile URLs contain `{key}` is unavailable until a key is set, so a provider that needs a key (such as CARTO) can ship switched on and starts working once the install adds one. See `config/defaults.php` for details.
+Each provider has a `name`, an optional `default_style`, and `styles`. Each style has a `name` and a list of one or two tile URL `layers` (a base map and an optional overlay drawn on top). A provider can set a default `attribution` (`text`, a logo name or `none`), its `attribution_text` (the credit text its terms require), `minzoom` / `maxzoom`, `requires_auth` (only usable with a valid token), `enabled` and an API `key`; its styles inherit these and can override any of them. A style whose tile URLs contain `{key}` is unavailable until a key is set, so a provider that needs a key (such as CARTO) can ship switched on and starts working once the install adds one. See `config/defaults.php` for details.
 
 Install files written for the older format (`basemaps` and `defaults.basemap`) keep working: they are translated to providers and styles, and each request logs a deprecation message until you update the file.
 
