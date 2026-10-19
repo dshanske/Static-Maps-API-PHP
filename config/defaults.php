@@ -188,6 +188,8 @@ return [
         // Esri basemaps (https://www.arcgis.com/home/group.html?id=702026e41f6641fb85da88efe79dc166)
         'esri' => [
             'name'          => 'Esri',
+            // Esri's terms require Esri attribution on its basemaps.
+            'attribution'   => 'esri',
             'default_style' => 'streets',
             'styles' => [
                 'streets' => [

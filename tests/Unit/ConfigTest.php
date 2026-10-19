@@ -99,6 +99,22 @@ final class ConfigTest extends TestCase
     }
 
     /**
+     * Esri styles default to Esri attribution; other providers fall back to defaults.attribution (#50).
+     *
+     * @return void
+     */
+    public function testShippedAttribution(): void
+    {
+        $config = Config::load(null, '/nonexistent/config.php');
+
+        foreach (array_keys($config['providers']['esri']['styles']) as $style) {
+            $this->assertSame('esri', Config::resolve($config, 'esri', $style, false)['attribution'] ?? null, $style);
+        }
+        $this->assertArrayNotHasKey('attribution', Config::resolve($config, 'osm', 'streets', false));
+        $this->assertSame('osm', $config['defaults']['attribution']);
+    }
+
+    /**
      * Every old basemap id still maps to an enabled style (#40).
      *
      * @return void
