@@ -65,15 +65,25 @@ return [
     ],
 
     /*
-     * Zoom limits for every map. A provider or style can narrow these with its own
-     * `minzoom` / `maxzoom`. Requested or automatically chosen zoom levels
-     * outside the range are clamped to it.
-     * Default: 2 to 18.
-     * Example override: 'zoom' => ['max' => 17],
+     * Zoom range. Requested or automatically chosen zoom levels outside a map's
+     * range are clamped to it.
+     *
+     * 'min' / 'max'  The range for providers and styles that don't set their
+     *                own `minzoom` / `maxzoom`. A provider or style that sets
+     *                its own uses that instead, even if it is wider.
+     *                Default: 2 to 18.
+     * 'max_limit'    Optional cap on every map: when set, no provider or style
+     *                goes above it, whatever its own `maxzoom`. Use it to limit
+     *                how many tiles high-zoom maps download. Not set (null) by
+     *                default.
+     *
+     * Example overrides: 'zoom' => ['max' => 17],
+     *                    'zoom' => ['max_limit' => 17],
      */
     'zoom' => [
-        'min' => 2,
-        'max' => 18,
+        'min'       => 2,
+        'max'       => 18,
+        'max_limit' => null,
     ],
 
     /*
@@ -133,7 +143,11 @@ return [
      *   'attribution'   (string) Default attribution, used when the request has
      *                   no `attribution`. Same values as `defaults.attribution`.
      *   'minzoom'       (int) Lowest zoom served. Default: `zoom.min`.
-     *   'maxzoom'       (int) Highest zoom served. Default: `zoom.max`.
+     *   'maxzoom'       (int) Highest zoom with real tiles (not placeholders).
+     *                   Default: `zoom.max`. Capped by `zoom.max_limit` if set.
+     *                   The shipped values were checked by sampling tiles in
+     *                   several places; the comments say when, and where
+     *                   coverage varies by region.
      *   'requires_auth' (bool) Only requests with a valid `token` may use it.
      *                   Default: false.
      *   'enabled'       (bool) Set to false to switch it off on your install.
@@ -180,6 +194,8 @@ return [
             // Set here, not left to defaults.attribution, so changing that
             // default never takes the OpenStreetMap credit off these maps.
             'attribution'   => 'osm',
+            // Zoom 0-19 (checked 2026-10-18; 20 returns 404).
+            'maxzoom'       => 19,
             'default_style' => 'streets',
             'styles' => [
                 'streets' => [
@@ -194,6 +210,11 @@ return [
             'name'          => 'Esri',
             // Esri's terms require Esri attribution on its basemaps.
             'attribution'   => 'esri',
+            // Streets, imagery and topo have real tiles to zoom 19 everywhere
+            // checked (2026-10-18); above that Esri returns "Map data not yet
+            // available" tiles, except imagery in some cities (zoom 20+).
+            // Styles with less detail set their own maxzoom below.
+            'maxzoom'       => 19,
             'default_style' => 'streets',
             'styles' => [
                 'streets' => [
@@ -208,6 +229,7 @@ return [
                         'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
                     ],
                 ],
+                // Labels end at zoom 16; above that the imagery shows without them.
                 'hybrid' => [
                     'name'   => 'World Imagery with labels',
                     'layers' => [
@@ -221,16 +243,19 @@ return [
                         'https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}',
                     ],
                 ],
+                // Light Gray Canvas has real tiles to zoom 16 (checked 2026-10-18).
                 'light' => [
-                    'name'   => 'Light Gray Canvas',
-                    'layers' => [
+                    'name'    => 'Light Gray Canvas',
+                    'maxzoom' => 16,
+                    'layers'  => [
                         'https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}',
                         'https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Reference/MapServer/tile/{z}/{y}/{x}',
                     ],
                 ],
                 'light-nolabels' => [
-                    'name'   => 'Light Gray Canvas without labels',
-                    'layers' => [
+                    'name'    => 'Light Gray Canvas without labels',
+                    'maxzoom' => 16,
+                    'layers'  => [
                         'https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}',
                     ],
                 ],
@@ -246,9 +271,12 @@ return [
                         'https://server.arcgisonline.com/ArcGIS/rest/services/Ocean/World_Ocean_Reference/MapServer/tile/{z}/{y}/{x}',
                     ],
                 ],
+                // Real tiles to zoom 16 in the US, but only to 12 elsewhere
+                // (checked 2026-10-18 in New York, Kansas, Paris, Nairobi, Tokyo).
                 'natgeo' => [
-                    'name'   => 'National Geographic World Map',
-                    'layers' => [
+                    'name'    => 'National Geographic World Map',
+                    'maxzoom' => 16,
+                    'layers'  => [
                         'https://server.arcgisonline.com/ArcGIS/rest/services/NatGeo_World_Map/MapServer/tile/{z}/{y}/{x}',
                     ],
                 ],
@@ -260,6 +288,8 @@ return [
             'name'          => 'OpenTopoMap',
             // OpenStreetMap data; credit text for OpenTopoMap itself comes with #29.
             'attribution'   => 'osm',
+            // Zoom 0-17, as documented (checked 2026-10-18; 18 returns a placeholder).
+            'maxzoom'       => 17,
             'default_style' => 'topo',
             'styles' => [
                 'topo' => [
@@ -275,6 +305,9 @@ return [
             'name'          => 'CARTO',
             // OpenStreetMap data; credit text for CARTO itself comes with #29.
             'attribution'   => 'osm',
+            // Zoom 0-20 per CARTO's documentation. Not sampled: CARTO serves only
+            // "API KEY REQUIRED" tiles without a key (#17).
+            'maxzoom'       => 20,
             'default_style' => 'light',
             'styles' => [
                 'light' => [

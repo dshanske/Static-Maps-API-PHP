@@ -43,6 +43,8 @@ stable interface; pin a commit if you need a fixed point.
   a `Link` to the README's list of removed maps) or `unavailable`, plus the
   requested and drawn ids. The `removed` setting lists removed ids; installs
   can add their own. (#52)
+- `zoom.max_limit` setting: an optional cap on the zoom of every map, whatever
+  its own maximum. Not set by default. (#54)
 - A request without any parameters (for example opening the service's address
   in a browser) returns an HTML page that describes the service. Installs can
   use their own page with the `home_page` setting. (#47)
@@ -63,6 +65,15 @@ stable interface; pin a commit if you need a fixed point.
   root: `/?latitude=...&longitude=...`. In nginx, change
   `try_files $uri /img.php?$args;` to `try_files $uri /index.php?$args;`.
   (#24)
+
+- Each shipped provider and style now has its own maximum zoom, checked by
+  sampling tiles: OpenStreetMap and most Esri styles 19, Esri Light Gray Canvas
+  and National Geographic 16, Esri Oceans 13, OpenTopoMap 17, CARTO 20.
+  Requests above a style's maximum are drawn at it, instead of getting
+  placeholder tiles (e.g. Esri Light Gray Canvas at 17 and 18), and maps that go
+  deeper than the old cap of 18 can now be requested at those levels.
+  `zoom.min` / `zoom.max` remain the range for providers and styles without
+  their own. (#54)
 
 ### Deprecated
 

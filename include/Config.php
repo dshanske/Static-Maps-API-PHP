@@ -88,7 +88,9 @@ class Config
      * Find the settings of one provider's style.
      *
      * The style inherits `attribution`, `minzoom`, `maxzoom`, `requires_auth`,
-     * `enabled` and `key` from its provider unless it sets them itself.
+     * `enabled` and `key` from its provider unless it sets them itself. Without
+     * either, `zoom.min` / `zoom.max` apply. `zoom.max_limit`, if set, caps the
+     * result (and the minimum, if that is higher).
      *
      * @param array<string, mixed> $config        The loaded configuration.
      * @param string               $provider      Provider id.
@@ -124,6 +126,11 @@ class Config
 
         $resolved['minzoom'] = (int) ($resolved['minzoom'] ?? $config['zoom']['min']);
         $resolved['maxzoom'] = (int) ($resolved['maxzoom'] ?? $config['zoom']['max']);
+        $limit = $config['zoom']['max_limit'] ?? null;
+        if ($limit !== null) {
+            $resolved['maxzoom'] = min($resolved['maxzoom'], (int) $limit);
+            $resolved['minzoom'] = min($resolved['minzoom'], $resolved['maxzoom']);
+        }
         $resolved['provider'] = $provider;
         $resolved['style'] = $style;
 
@@ -358,6 +365,11 @@ class Config
             if (count($parts) !== 2 || !isset($config['providers'][$parts[0]]['styles'][$parts[1]])) {
                 throw new RuntimeException("Basemap alias '$old' must point to an existing 'provider/style'");
             }
+        }
+
+        $limit = $config['zoom']['max_limit'] ?? null;
+        if ($limit !== null && (!is_int($limit) || $limit < 0)) {
+            throw new RuntimeException("Setting 'zoom.max_limit' must be null or a whole number of 0 or more");
         }
 
         foreach ($config['removed'] as $key => $reason) {

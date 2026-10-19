@@ -94,7 +94,7 @@ final class ConfigTest extends TestCase
         $config = Config::load(null, '/nonexistent/config.php');
 
         $this->assertSame(['osm', 'streets'], [$config['defaults']['provider'], $config['defaults']['style']]);
-        $this->assertSame(['min' => 2, 'max' => 18], $config['zoom']);
+        $this->assertSame(['min' => 2, 'max' => 18, 'max_limit' => null], $config['zoom']);
         $this->assertSame(['osm', 'esri', 'opentopomap', 'carto'], array_keys($config['providers']));
         $this->assertSame([], $config['deprecations']);
     }
@@ -118,6 +118,68 @@ final class ConfigTest extends TestCase
                 $this->assertSame($attribution, $resolved['attribution'] ?? null, "$provider/$style");
             }
         }
+    }
+
+    /**
+     * Every shipped style has its own checked maximum zoom (#54), not the zoom.max default.
+     *
+     * @return void
+     */
+    public function testShippedZoomRanges(): void
+    {
+        $config = Config::load(null, $this->configFile(['zoom' => ['max' => 5]]));
+        $expected = [
+            'osm/streets'         => 19,
+            'esri/streets'        => 19,
+            'esri/satellite'      => 19,
+            'esri/hybrid'         => 19,
+            'esri/topo'           => 19,
+            'esri/light'          => 16,
+            'esri/light-nolabels' => 16,
+            'esri/oceans'         => 13,
+            'esri/natgeo'         => 16,
+            'opentopomap/topo'    => 17,
+            'carto/light'         => 20,
+            'carto/dark'          => 20,
+            'carto/streets'       => 20,
+        ];
+
+        $actual = [];
+        foreach ($config['providers'] as $provider => $p) {
+            foreach (array_keys($p['styles']) as $style) {
+                $actual["$provider/$style"] = Config::resolve($config, $provider, $style, false)['maxzoom'];
+            }
+        }
+        $this->assertSame($expected, $actual);
+    }
+
+    /**
+     * zoom.max_limit caps every map's maxzoom (and minzoom when higher); unset, it changes nothing.
+     *
+     * @return void
+     */
+    public function testMaxLimit(): void
+    {
+        $providers = ['providers' => ['p' => ['styles' => [
+            'deep'    => ['layers' => ['a'], 'maxzoom' => 20],
+            'shallow' => ['layers' => ['b'], 'maxzoom' => 13],
+            'plain'   => ['layers' => ['c']],
+            'high'    => ['layers' => ['d'], 'minzoom' => 16, 'maxzoom' => 19],
+        ]]]];
+        $range = static fn (array $c, string $s): array => [
+            Config::resolve($c, 'p', $s, false)['minzoom'],
+            Config::resolve($c, 'p', $s, false)['maxzoom'],
+        ];
+
+        $open = $this->loadMinimal($providers);
+        $this->assertSame([2, 20], $range($open, 'deep'));
+        $this->assertSame([2, 18], $range($open, 'plain'));
+
+        $capped = $this->loadMinimal($providers + ['zoom' => ['max_limit' => 15]]);
+        $this->assertSame([2, 15], $range($capped, 'deep'));
+        $this->assertSame([2, 13], $range($capped, 'shallow'));
+        $this->assertSame([2, 15], $range($capped, 'plain'));
+        $this->assertSame([15, 15], $range($capped, 'high'));
     }
 
     /**
@@ -242,6 +304,8 @@ final class ConfigTest extends TestCase
             'reserved id'           => [['providers' => ['custom' => ['styles' => ['s' => $style]]]], 'is reserved'],
             'alias to nowhere'      => [['basemap_aliases' => ['old' => 'one/nope']], "alias 'old' must point"],
             'alias malformed'       => [['basemap_aliases' => ['old' => 'one']], "alias 'old' must point"],
+            'max_limit not int'     => [['zoom' => ['max_limit' => '15']], "'zoom.max_limit' must be null or"],
+            'max_limit negative'    => [['zoom' => ['max_limit' => -1]], "'zoom.max_limit' must be null or"],
             'removed not array'     => [['removed' => 'x'], "'removed' must be an array"],
             'removed reason'        => [['removed' => ['gone' => false]], "'removed' must map ids to reasons"],
             'home page not string'  => [['home_page' => false], "'home_page' must be a string"],

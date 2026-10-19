@@ -41,15 +41,15 @@ Pick a map with `provider` and `style`, for example `provider=carto&style=dark`.
 | `oceans` | Ocean floor (bathymetry) |
 | `…-nolabels` | The same style without labels |
 
-Shipped providers (the first style is the provider's default):
+Shipped providers (the first style is the provider's default). Max zoom is the highest level with real tiles, checked by sampling; requests above it are drawn at that level. An install can lower every maximum with `zoom.max_limit`:
 
-| `provider` | Styles |
-|---|---|
-| `osm` | `streets`: [OpenStreetMap](https://www.openstreetmap.org/) |
-| `esri` | `streets`: [World Street Map](https://www.arcgis.com/home/webmap/viewer.html?webmap=7990d7ea55204450b8110d57e20c99ab) · `satellite`: [World Imagery](https://www.arcgis.com/home/webmap/viewer.html?webmap=d802f08316e84c6592ef681c50178f17&center=-71.055499,42.364247&level=15) · `hybrid` · `topo`: [World Topographic Map](https://www.arcgis.com/home/webmap/viewer.html?webmap=a72b0766aea04b48bf7a0e8c27ccc007) · `light`: Light Gray Canvas · `light-nolabels`: [Light Gray Canvas](https://www.arcgis.com/home/webmap/viewer.html?webmap=8b3d38c0819547faa83f7b7aca80bd76) without labels · `oceans`: [World Ocean Base](https://server.arcgisonline.com/ArcGIS/rest/services/Ocean/World_Ocean_Base/MapServer) with labels, up to zoom 13 · `natgeo`: [National Geographic](https://www.arcgis.com/home/webmap/viewer.html?webmap=d94dcdbe78e141c2b2d3a91d5ca8b9c9) |
-| `opentopomap` | `topo`: [OpenTopoMap](https://www.opentopomap.org/) |
-| `carto` | `light`: Positron · `dark`: Dark Matter · `streets`: Voyager. [CARTO](https://carto.com/basemaps/): free for non-commercial use; CARTO now requires an API key (#17). |
-| `custom` | Draws `tileurl`; requires a valid `token`. |
+| `provider` | Styles | Max zoom |
+|---|---|---|
+| `osm` | `streets`: [OpenStreetMap](https://www.openstreetmap.org/) | 19 |
+| `esri` | `streets`: [World Street Map](https://www.arcgis.com/home/webmap/viewer.html?webmap=7990d7ea55204450b8110d57e20c99ab) · `satellite`: [World Imagery](https://www.arcgis.com/home/webmap/viewer.html?webmap=d802f08316e84c6592ef681c50178f17&center=-71.055499,42.364247&level=15) · `hybrid` · `topo`: [World Topographic Map](https://www.arcgis.com/home/webmap/viewer.html?webmap=a72b0766aea04b48bf7a0e8c27ccc007) · `light`: Light Gray Canvas · `light-nolabels`: [Light Gray Canvas](https://www.arcgis.com/home/webmap/viewer.html?webmap=8b3d38c0819547faa83f7b7aca80bd76) without labels · `oceans`: [World Ocean Base](https://server.arcgisonline.com/ArcGIS/rest/services/Ocean/World_Ocean_Base/MapServer) with labels, up to zoom 13 · `natgeo`: [National Geographic](https://www.arcgis.com/home/webmap/viewer.html?webmap=d94dcdbe78e141c2b2d3a91d5ca8b9c9) | 19; `light`, `light-nolabels`, `natgeo`: 16 (NatGeo only 12 outside the US); `oceans`: 13 |
+| `opentopomap` | `topo`: [OpenTopoMap](https://www.opentopomap.org/) | 17 |
+| `carto` | `light`: Positron · `dark`: Dark Matter · `streets`: Voyager. [CARTO](https://carto.com/basemaps/): free for non-commercial use; CARTO now requires an API key (#17). | 20 |
+| `custom` | Draws `tileurl`; requires a valid `token`. | `zoom.max` (18) |
 
 Esri styles draw the "Powered by Esri" logo by default; the OpenStreetMap, OpenTopoMap and CARTO styles draw the OpenStreetMap logo. Each shipped provider sets this itself, so changing `defaults.attribution` only affects providers you add. The `attribution` parameter overrides either.
 
@@ -205,6 +205,8 @@ return [
     ],
 ];
 ```
+
+`zoom.min` / `zoom.max` (default 2 and 18) is the zoom range for providers and styles that don't set their own `minzoom` / `maxzoom`. `zoom.max_limit` (not set by default) caps every map, whatever its own maximum, for example `'zoom' => ['max_limit' => 17]` to limit how many tiles high-zoom maps download.
 
 The `removed` setting lists removed provider, style and basemap ids for the `X-Map-Fallback` notice; an install can add its own when it takes a map out of service.
 
