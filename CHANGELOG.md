@@ -100,6 +100,25 @@ stable interface; pin a commit if you need a fixed point.
 
 ### Fixed
 
+- PHP 8 errors and warnings (#18):
+  - `attribution=mapbox-small` was a fatal error; it now draws the Mapbox
+    logo at half size.
+  - `attribution=none` drew the OpenStreetMap logo; it now draws no logo. An
+    unknown `attribution` value counts as none given, so the map's own
+    attribution is used.
+  - An unknown `format` returned an empty page; it now returns HTTP 400. The
+    `defaults.format` setting is checked when the configuration loads.
+  - A marker whose icon can't be used (unknown icon name, icon URL without a
+    valid token, or a URL that isn't an image) is skipped with an
+    `X-Marker-<n>` header saying why, instead of a PHP warning or a fatal
+    error. An attribution URL that isn't an image is skipped instead of
+    failing.
+  - Overlay tiles (labels) are requested with the configured User-Agent, like
+    base tiles.
+  - No more deprecation notices on PHP 8.1-8.5 (`imagedestroy()`, float to
+    int conversions in GD calls, `ord()` in polyline decoding). Rendered maps
+    are unchanged.
+
 - CARTO maps (`provider=carto`, old `basemap=carto-*`) drew CARTO's "API KEY
   REQUIRED" image across the whole map, because CARTO stopped serving raster
   tiles without a key on 2026-09-25. The CARTO styles now use CARTO's keyed

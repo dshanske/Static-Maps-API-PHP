@@ -26,8 +26,8 @@ final class MarkerParser
      *
      * Every valid marker definition widens $bounds, even if its icon can't be
      * loaded (the marker is then left out). Invalid definitions, including
-     * markers with only a `location`, are reported as `X-Marker-<n>` headers,
-     * n counting from 1.
+     * markers with only a `location`, and icons that can't be used are reported
+     * as `X-Marker-<n>` headers, n counting from 1.
      *
      * @param mixed  $value         The `marker` parameter: a string, a list of strings, or false.
      * @param bool   $authenticated Whether the request has a valid token (allows icon URLs).
@@ -78,9 +78,11 @@ final class MarkerParser
                 continue;
             }
 
-            $properties['iconImg'] = $this->loadIcon($properties['icon'], $authenticated);
-            if ($properties['iconImg']) {
+            [$properties['iconImg'], $problem] = $this->loadIcon($properties['icon'], $authenticated);
+            if ($properties['iconImg'] !== null) {
                 $markers[] = $properties;
+            } else {
+                $headers[] = 'X-Marker-' . ($i + 1) . ': ' . $problem;
             }
 
             $bounds->extend($properties['lat'], $properties['lng']);
@@ -95,22 +97,30 @@ final class MarkerParser
      * @param string $icon          Built-in icon name, or an http(s) URL.
      * @param bool   $authenticated Whether URLs may be fetched.
      *
-     * @return \GdImage|false|null The icon; false if it could not be read; null for a URL
-     *                             without a valid token (not fetched).
+     * @return array{\GdImage|null, string|null} The icon, or null and the reason it
+     *         couldn't be used (for the `X-Marker-<n>` header).
      */
-    private function loadIcon(string $icon, bool $authenticated): \GdImage|false|null
+    private function loadIcon(string $icon, bool $authenticated): array
     {
         if (preg_match('/https?:\/\/(.+)/', $icon)) {
             if (!$authenticated) {
-                return null;
+                return [null, 'icon URLs need a valid token'];
             }
             // Looks like an external image, attempt to download it
             $ch = curl_init($icon);
             curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
             $img = curl_exec($ch);
-            return @imagecreatefromstring($img);
+            $image = is_string($img) && $img !== '' ? @imagecreatefromstring($img) : false;
+
+            return $image === false ? [null, 'icon could not be loaded'] : [$image, null];
         }
 
-        return imagecreatefrompng(self::ICON_DIR . '/' . $icon . '.png');
+        $file = self::ICON_DIR . '/' . $icon . '.png';
+        if (!is_file($file)) {
+            return [null, 'unknown icon'];
+        }
+        $image = @imagecreatefrompng($file);
+
+        return $image === false ? [null, 'icon could not be loaded'] : [$image, null];
     }
 }

@@ -17,8 +17,7 @@ use GdImage;
 final class TileFetcher
 {
     /**
-     * @param string $userAgent User-Agent sent with base layer requests. (Overlay requests
-     *                          send none; see #18.)
+     * @param string $userAgent User-Agent sent with every tile request.
      */
     public function __construct(private string $userAgent)
     {
@@ -78,6 +77,7 @@ final class TileFetcher
                     $ochs[$x][$y] = curl_init($url);
                     curl_setopt($ochs[$x][$y], CURLOPT_RETURNTRANSFER, true);
                     curl_setopt($ochs[$x][$y], CURLOPT_FOLLOWLOCATION, true);
+                    curl_setopt($ochs[$x][$y], CURLOPT_USERAGENT, $this->userAgent);
                     curl_multi_add_handle($mh, $ochs[$x][$y]);
                 }
             }

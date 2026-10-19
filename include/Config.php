@@ -390,6 +390,10 @@ class Config
             }
         }
 
+        if (!in_array($config['defaults']['format'] ?? null, Renderer::FORMATS, true)) {
+            throw new RuntimeException("Setting 'defaults.format' must be 'png' or 'jpg'");
+        }
+
         $limit = $config['zoom']['max_limit'] ?? null;
         if ($limit !== null && (!is_int($limit) || $limit < 0)) {
             throw new RuntimeException("Setting 'zoom.max_limit' must be null or a whole number of 0 or more");

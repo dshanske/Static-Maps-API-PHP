@@ -22,6 +22,9 @@ use GdImage;
  */
 final class Renderer
 {
+    /** @var list<string> Accepted values of `format` (`jpeg` is the same as `jpg`). */
+    public const FORMATS = ['png', 'jpg', 'jpeg'];
+
     /** @var WebMercator Projection maths. */
     private WebMercator $webmercator;
 
@@ -40,13 +43,17 @@ final class Renderer
      * @param Request $request The request parameters.
      *
      * @return Response Headers and the encoded image; a 400 with a plain-text reason
-     *                  if the request doesn't locate the map. An unknown `format`
-     *                  gives an empty body and no Content-type (#18).
+     *                  if the request doesn't locate the map or asks for an
+     *                  unknown `format`.
      */
     public function render(Request $request): Response
     {
         if (($request->get('latitude') === false) !== ($request->get('longitude') === false)) {
             return Response::error(400, 'latitude and longitude must be given together');
+        }
+        $format = $request->get('format', $this->config['defaults']['format']);
+        if (!in_array($format, self::FORMATS, true)) {
+            return Response::error(400, 'format must be png or jpg');
         }
 
         $config = $this->config;
@@ -120,9 +127,10 @@ final class Renderer
         $compositor->drawPaths($im, $paths, $zoom, $leftEdge, $topEdge, $width, $height, $request->get('bezier'));
         $compositor->drawMarkers($im, $markers, $zoom, $leftEdge, $topEdge, $width, $height);
 
-        // The request's attribution, else the basemap's default, else the global default
+        // The request's attribution, else the basemap's default, else the global
+        // default. An unknown value counts as no value.
         $attribution = $request->get('attribution');
-        if ($attribution === false) {
+        if (!Attribution::isKnown($attribution)) {
             $attribution = $basemap['attribution'] ?? $config['defaults']['attribution'];
         }
         (new Attribution())->draw($im, $attribution, $width, $height);
@@ -279,32 +287,26 @@ final class Renderer
     }
 
     /**
-     * Encode the image as the requested `format`.
+     * Encode the image as the requested `format` (already checked to be one of FORMATS).
      *
      * @param GdImage $im      The finished map.
      * @param Request $request The request (`format`, `quality`).
      *
-     * @return array{list<string>, string} Content-type header (none for an unknown format)
-     *                                     and the encoded image.
+     * @return array{list<string>, string} Content-type header and the encoded image.
      */
     private function encode(GdImage $im, Request $request): array
     {
         $headers = array();
         ob_start();
         $fmt = $request->get('format', $this->config['defaults']['format']);
-        switch ($fmt) {
-            case "jpg":
-            case "jpeg":
-                $headers[] = 'Content-type: image/jpg';
-                $quality = $request->get('quality', $this->config['defaults']['jpeg_quality']);
-                imagejpeg($im, null, $quality);
-                break;
-            case "png":
-                $headers[] = 'Content-type: image/png';
-                imagepng($im);
-                break;
+        if ($fmt === 'jpg' || $fmt === 'jpeg') {
+            $headers[] = 'Content-type: image/jpg';
+            $quality = $request->get('quality', $this->config['defaults']['jpeg_quality']);
+            imagejpeg($im, null, $quality);
+        } else {
+            $headers[] = 'Content-type: image/png';
+            imagepng($im);
         }
-        imagedestroy($im);
 
         return [$headers, (string) ob_get_clean()];
     }
