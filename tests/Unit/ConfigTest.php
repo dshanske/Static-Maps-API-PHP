@@ -120,6 +120,21 @@ final class ConfigTest extends TestCase
     }
 
     /**
+     * The oceans style uses Esri's current ocean services, whose detailed data ends at zoom 13 (#17).
+     *
+     * @return void
+     */
+    public function testOceansUsesCurrentServices(): void
+    {
+        $oceans = Config::resolve(Config::load(null, '/nonexistent/config.php'), 'esri', 'oceans', false);
+
+        $this->assertCount(2, $oceans['layers']);
+        $this->assertStringContainsString('/Ocean/World_Ocean_Base/', $oceans['layers'][0]);
+        $this->assertStringContainsString('/Ocean/World_Ocean_Reference/', $oceans['layers'][1]);
+        $this->assertSame(13, $oceans['maxzoom']);
+    }
+
+    /**
      * Every old basemap id still maps to an enabled style (#40).
      *
      * @return void

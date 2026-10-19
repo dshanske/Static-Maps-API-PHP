@@ -234,11 +234,16 @@ return [
                         'https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}',
                     ],
                 ],
-                // Retired by Esri; no longer returns tiles (#17).
+                // Esri's World Ocean Base with its reference (labels) layer. These
+                // replace the retired Ocean_Basemap service (#17). Detailed data
+                // ends at zoom 13 along coasts (around zoom 10 in open ocean and
+                // inland); beyond that Esri returns "Map data not yet available".
                 'oceans' => [
-                    'name'   => 'Oceans',
-                    'layers' => [
-                        'https://server.arcgisonline.com/ArcGIS/rest/services/Ocean_Basemap/MapServer/tile/{z}/{y}/{x}',
+                    'name'    => 'Oceans',
+                    'maxzoom' => 13,
+                    'layers'  => [
+                        'https://server.arcgisonline.com/ArcGIS/rest/services/Ocean/World_Ocean_Base/MapServer/tile/{z}/{y}/{x}',
+                        'https://server.arcgisonline.com/ArcGIS/rest/services/Ocean/World_Ocean_Reference/MapServer/tile/{z}/{y}/{x}',
                     ],
                 ],
                 'natgeo' => [
