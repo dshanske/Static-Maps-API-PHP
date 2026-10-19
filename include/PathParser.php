@@ -28,27 +28,41 @@ final class PathParser
     /**
      * Parse the paths of a request.
      *
+     * A path whose points can't be read, or are out of range, is left out and
+     * reported in an `X-Path-<n>` header (n counting from 1, the polyline is 1).
+     *
      * @param mixed  $paths    The `path` parameter: a string, a list of strings, or false.
      * @param mixed  $polyline The `polyline` parameter, or false.
      * @param Bounds $bounds   Box to widen with every point.
      *
-     * @return list<array<string, mixed>> The paths: `color`, `weight` and `path`, a list of
-     *                                    [lng, lat] points (plus any other `key:value` pairs).
+     * @return array{paths: list<array<string, mixed>>, headers: list<string>} The paths
+     *         (`color`, `weight` and `path`, a list of [lng, lat] points, plus any other
+     *         `key:value` pairs) and headers to send.
      */
     public function parse(mixed $paths, mixed $polyline, Bounds $bounds): array
     {
         $result = array();
+        $headers = array();
         if ($paths) {
             if (!is_array($paths)) {
                 $paths = array($paths);
             }
 
-            foreach ($paths as $path) {
+            foreach (array_values($paths) as $n => $path) {
+                if (!is_string($path)) {
+                    $headers[] = 'X-Path-' . ($n + 1) . ': not a path';
+                    continue;
+                }
                 $properties = $this->styleProperties($path);
 
                 // Now parse the points into an array
                 if (preg_match_all('/(?P<point>\[[0-9\.-]+,[0-9\.-]+\])/', $path, $matches)) {
-                    $properties['path'] = json_decode('[' . implode(',', $matches['point']) . ']');
+                    $points = json_decode('[' . implode(',', $matches['point']) . ']');
+                    if (!self::validPoints($points)) {
+                        $headers[] = 'X-Path-' . ($n + 1) . ': points must be [lng,lat] numbers in range';
+                        continue;
+                    }
+                    $properties['path'] = $points;
                     // Adjust the bounds to fit the path
                     foreach ($properties['path'] as $point) {
                         $bounds->extend($point[1], $point[0]);
@@ -59,9 +73,16 @@ final class PathParser
                 }
             }
         } elseif ($polyline) {
+            if (!is_string($polyline)) {
+                return ['paths' => [], 'headers' => ['X-Path-1: not a polyline']];
+            }
             $properties = $this->styleProperties($polyline);
             if (array_key_exists('enc', $properties)) {
-                $properties['path'] = Polyline::pair(Polyline::decode($properties['enc']));
+                $points = Polyline::pair(Polyline::decode($properties['enc']));
+                if (!self::validPoints($points)) {
+                    return ['paths' => [], 'headers' => ['X-Path-1: the polyline has points out of range']];
+                }
+                $properties['path'] = $points;
                 foreach ($properties['path'] as $point) {
                     $bounds->extend($point[1], $point[0]);
                 }
@@ -70,7 +91,28 @@ final class PathParser
             }
         }
 
-        return $result;
+        return ['paths' => $result, 'headers' => $headers];
+    }
+
+    /**
+     * Whether a decoded list of points is usable.
+     *
+     * @param mixed $points Decoded points: a list of [lng, lat] pairs.
+     *
+     * @return bool True if it is a non-empty list of valid pairs.
+     */
+    private static function validPoints(mixed $points): bool
+    {
+        if (!is_array($points) || $points === []) {
+            return false;
+        }
+        foreach ($points as $point) {
+            if (!is_array($point) || count($point) !== 2 || !Parameters::isValidPoint($point[1], $point[0])) {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     /**

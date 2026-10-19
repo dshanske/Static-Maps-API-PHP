@@ -22,24 +22,18 @@ final class Viewport
      * The map centre: `latitude`/`longitude`, else the centre of the markers and
      * paths (0,0 if there are none).
      *
-     * `longitude` is only read when `latitude` is given (Renderer rejects a request
-     * that has only one of them).
-     *
-     * @param Request $request The request.
-     * @param Bounds  $bounds  Bounds of the markers and paths.
+     * @param float|null $latitude  The checked `latitude` (Parameters), or null.
+     * @param float|null $longitude The checked `longitude`, or null.
+     * @param Bounds     $bounds    Bounds of the markers and paths.
      *
      * @return array{latitude: mixed, longitude: mixed, located: bool} The centre in
-     *         degrees (request values are passed through unchanged), and whether the
-     *         request located the map at all (false means the 0,0 fallback).
+     *         degrees, and whether the request located the map at all (false means
+     *         the 0,0 fallback).
      */
-    public function center(Request $request, Bounds $bounds): array
+    public function center(?float $latitude, ?float $longitude, Bounds $bounds): array
     {
-        if ($request->get('latitude') !== false) {
-            return [
-                'latitude'  => $request->get('latitude'),
-                'longitude' => $request->get('longitude'),
-                'located'   => true,
-            ];
+        if ($latitude !== null && $longitude !== null) {
+            return ['latitude' => $latitude, 'longitude' => $longitude, 'located' => true];
         }
 
         $default = $bounds->center();
@@ -50,12 +44,12 @@ final class Viewport
     /**
      * The zoom level, before clamping.
      *
-     * A truthy `zoom` parameter is used as is. Otherwise the zoom steps down from
+     * A given `zoom` (including 0) is used as is. Otherwise the zoom steps down from
      * 20 and stops one level *below* the first one at which $bounds fits into
      * width × height (or at 1); this extra step is existing behaviour and gives
      * the markers some margin.
      *
-     * @param mixed  $zoom      The `zoom` parameter, or false.
+     * @param int|null $zoom    The checked `zoom` parameter, or null.
      * @param mixed  $latitude  Centre latitude in degrees.
      * @param mixed  $longitude Centre longitude in degrees.
      * @param mixed  $width     Image width in pixels.
@@ -65,14 +59,14 @@ final class Viewport
      * @return mixed The zoom level (the request value when given, else an int).
      */
     public function zoom(
-        mixed $zoom,
+        ?int $zoom,
         mixed $latitude,
         mixed $longitude,
         mixed $width,
         mixed $height,
         Bounds $bounds
     ): mixed {
-        if ($zoom) {
+        if ($zoom !== null) {
             return $zoom;
         }
 
@@ -106,15 +100,15 @@ final class Viewport
      * Limit a zoom level by `maxzoom` and the basemap's zoom range, in that order.
      *
      * @param mixed $zoom    Zoom level from zoom().
-     * @param mixed $maxzoom The `maxzoom` parameter, or false (ignored when falsy or not lower).
+     * @param int|null $maxzoom The checked `maxzoom` parameter, or null (ignored when not lower).
      * @param int   $minZoom The basemap's lowest zoom level.
      * @param int   $maxZoom The basemap's highest zoom level.
      *
      * @return mixed The zoom level to render at.
      */
-    public function clampZoom(mixed $zoom, mixed $maxzoom, int $minZoom, int $maxZoom): mixed
+    public function clampZoom(mixed $zoom, ?int $maxzoom, int $minZoom, int $maxZoom): mixed
     {
-        if ($maxzoom && $maxzoom < $zoom) {
+        if ($maxzoom !== null && $maxzoom < $zoom) {
             $zoom = $maxzoom;
         }
 

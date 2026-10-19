@@ -9,7 +9,6 @@ namespace StaticMaps\Tests\Unit;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 use StaticMaps\Bounds;
-use StaticMaps\Request;
 use StaticMaps\Viewport;
 use StaticMaps\WebMercator;
 
@@ -43,8 +42,7 @@ final class ViewportTest extends TestCase
     }
 
     /**
-     * The centre is latitude/longitude if given, else the centre of the bounds;
-     * `location` plays no part (#16).
+     * The centre is latitude/longitude if given, else the centre of the bounds.
      *
      * @return void
      */
@@ -55,24 +53,18 @@ final class ViewportTest extends TestCase
         $bounds->extend(10, 20);
         $bounds->extend(20, 40);
 
-        $given = $vp->center(new Request(['latitude' => '1', 'longitude' => '2', 'location' => 'Portland']), $bounds);
-        $this->assertSame(['latitude' => '1', 'longitude' => '2', 'located' => true], $given);
-
-        $fromBounds = $vp->center(new Request(['location' => 'Portland']), $bounds);
-        $this->assertEquals(['latitude' => 15, 'longitude' => 30, 'located' => true], $fromBounds);
+        $this->assertSame(['latitude' => 1.0, 'longitude' => 2.0, 'located' => true], $vp->center(1.0, 2.0, $bounds));
+        $this->assertEquals(['latitude' => 15, 'longitude' => 30, 'located' => true], $vp->center(null, null, $bounds));
     }
 
     /**
-     * Without coordinates or any bounds, the map is not located, even with a `location`.
+     * Without coordinates or any bounds, the map is not located.
      *
      * @return void
      */
     public function testNotLocated(): void
     {
-        $vp = self::viewport();
-
-        $this->assertFalse($vp->center(new Request(['zoom' => '5']), new Bounds())['located']);
-        $this->assertFalse($vp->center(new Request(['location' => 'Portland']), new Bounds())['located']);
+        $this->assertFalse(self::viewport()->center(null, null, new Bounds())['located']);
     }
 
     /**
@@ -82,7 +74,8 @@ final class ViewportTest extends TestCase
      */
     public function testGivenZoom(): void
     {
-        $this->assertSame('14', self::viewport()->zoom('14', 45.5, -122.6, 300, 300, new Bounds()));
+        $this->assertSame(14, self::viewport()->zoom(14, 45.5, -122.6, 300, 300, new Bounds()));
+        $this->assertSame(0, self::viewport()->zoom(0, 45.5, -122.6, 300, 300, new Bounds()), 'zoom 0 is a zoom');
     }
 
     /**
@@ -96,7 +89,7 @@ final class ViewportTest extends TestCase
         $bounds = self::portlandBounds();
         $center = $bounds->center();
 
-        $zoom = $vp->zoom(false, $center['lat'], $center['lng'], 300, 300, $bounds);
+        $zoom = $vp->zoom(null, $center['lat'], $center['lng'], 300, 300, $bounds);
         $this->assertSame(15, $zoom);
 
         // The bounds really do fit at 16 and not at 17.
@@ -115,41 +108,40 @@ final class ViewportTest extends TestCase
      */
     public function testFittedZoomWithoutBounds(): void
     {
-        $this->assertSame(1, self::viewport()->zoom(false, 0, 0, 300, 300, new Bounds()));
+        $this->assertSame(1, self::viewport()->zoom(null, 0, 0, 300, 300, new Bounds()));
     }
 
     /**
      * Clamping cases.
      *
-     * @return array<string, array{mixed, mixed, int, int, mixed}> Zoom, maxzoom, basemap min and max, expected.
+     * @return array<string, array{int, int|null, int, int, int}> Zoom, maxzoom, basemap min and max, expected.
      */
     public static function clampCases(): array
     {
         return [
-            'in range'            => [12, false, 2, 18, 12],
-            'maxzoom lower'       => [14, '9', 2, 18, '9'],
-            'maxzoom higher'      => [9, '14', 2, 18, 9],
-            'maxzoom 0 ignored'   => [14, '0', 2, 18, 14],
-            'below basemap min'   => [1, false, 2, 18, 2],
-            'above basemap max'   => [20, false, 2, 18, 18],
-            'maxzoom below min'   => [10, '1', 5, 18, 5],
-            'string zoom clamped' => ['20', false, 2, 18, 18],
+            'in range'            => [12, null, 2, 18, 12],
+            'maxzoom lower'       => [14, 9, 2, 18, 9],
+            'maxzoom higher'      => [9, 14, 2, 18, 9],
+            'maxzoom 0'           => [14, 0, 2, 18, 2],
+            'below basemap min'   => [1, null, 2, 18, 2],
+            'above basemap max'   => [20, null, 2, 18, 18],
+            'maxzoom below min'   => [10, 1, 5, 18, 5],
         ];
     }
 
     /**
      * clampZoom() applies maxzoom, then the basemap minimum, then its maximum.
      *
-     * @param mixed $zoom     Zoom level.
-     * @param mixed $maxzoom  The maxzoom parameter.
-     * @param int   $min      Basemap minimum zoom.
-     * @param int   $max      Basemap maximum zoom.
-     * @param mixed $expected Expected result.
+     * @param int      $zoom     Zoom level.
+     * @param int|null $maxzoom  The checked maxzoom parameter.
+     * @param int      $min      Basemap minimum zoom.
+     * @param int      $max      Basemap maximum zoom.
+     * @param int      $expected Expected result.
      *
      * @return void
      */
     #[DataProvider('clampCases')]
-    public function testClampZoom(mixed $zoom, mixed $maxzoom, int $min, int $max, mixed $expected): void
+    public function testClampZoom(int $zoom, ?int $maxzoom, int $min, int $max, int $expected): void
     {
         $this->assertSame($expected, self::viewport()->clampZoom($zoom, $maxzoom, $min, $max));
     }

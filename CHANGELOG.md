@@ -47,6 +47,10 @@ stable interface; pin a commit if you need a fixed point.
   a `Link` to the README's list of removed maps) or `unavailable`, plus the
   requested and drawn ids. The `removed` setting lists removed ids; installs
   can add their own. (#52)
+- `limits.max_width` / `limits.max_height` settings (default 1280 each): the
+  largest image a request can get. Larger `width`/`height` values are drawn at
+  the limit, and the response has an `X-Map-Size` header saying so. Reported
+  by `/api/v1/`. (#9)
 - `zoom.max_limit` setting: an optional cap on the zoom of every map, whatever
   its own maximum. Not set by default. (#54)
 - A request without any parameters (for example opening the service's address
@@ -99,6 +103,14 @@ stable interface; pin a commit if you need a fixed point.
   (#24)
 
 ### Fixed
+
+- Numeric parameters are checked (#9). A `width`, `height`, `zoom`,
+  `maxzoom`, `quality`, `bezier`, `latitude` or `longitude` that isn't a
+  number, or is out of range, gets HTTP 400 with the reason, instead of a PHP
+  error (`width=abc` was a 500) or a huge image (`width=50000`). Markers and
+  paths with invalid coordinates are left out with an `X-Marker-<n>` /
+  `X-Path-<n>` header. An empty value counts as not given, and `zoom=0` is now
+  zoom level 0 (raised to the map's minimum) instead of "fit the markers".
 
 - PHP 8 errors and warnings (#18):
   - `attribution=mapbox-small` was a fatal error; it now draws the Mapbox

@@ -65,6 +65,19 @@ return [
     ],
 
     /*
+     * Largest image a request may ask for, in pixels. A larger `width` or
+     * `height` is drawn at the limit instead, and the response says so in an
+     * `X-Map-Size` header. Bigger images download more tiles from the tile
+     * providers (a 1280x1280 map needs up to about 36 tiles per layer).
+     * Default: 1280 x 1280.
+     * Example override: 'limits' => ['max_width' => 2048, 'max_height' => 2048],
+     */
+    'limits' => [
+        'max_width'  => 1280,
+        'max_height' => 1280,
+    ],
+
+    /*
      * Zoom range. Requested or automatically chosen zoom levels outside a map's
      * range are clamped to it.
      *
