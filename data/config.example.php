@@ -55,6 +55,9 @@ return [
     // File with access tokens, one per line (default: data/apikeys.txt).
     // 'token_file' => '/etc/static-maps/tokens.txt',
 
+    // Your own HTML page for requests without parameters (default: assets/home.html).
+    // 'home_page' => __DIR__ . '/home.html',
+
     // Change, add or switch off basemaps. Only list what you change.
     // 'basemaps' => [
     //

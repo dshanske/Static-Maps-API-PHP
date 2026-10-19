@@ -8,6 +8,8 @@ Static Maps API
 
 Parameters can be sent in either the query string or in the POST body.
 
+Every map needs a location: `latitude` **and** `longitude`, or at least one valid marker or path (the map is then fitted to them), or a `location` to geocode. A request without one gets HTTP 400 with the reason as plain text, as does a request with only one of `latitude` / `longitude`. A request with no parameters at all, such as opening the service's address in a browser, gets an HTML page describing the service (see `home_page` under Configuration).
+
 * `zoom` - optional - Set the zoom level for the map. If not specified, a zoom level will be chosen that contains all markers on the map.
 * `maxzoom` - optional - When a zoom level is chosen automatically, this sets an upper limit on the zoom level that will be chosen. Useful if you know your basemaps don't have imagery past a certain zoom level.
 * `width` - default 300 - Width in pixels of the final image
@@ -34,8 +36,8 @@ Parameters can be sent in either the query string or in the POST body.
   * `carto-voyager` - [Carto](https://carto.com/location-data-services/basemaps/) Free usage for up to 75,000 mapviews per month, non-commercial services only. 
   * `custom` - Pass through the tile URL using parameter `tileurl`, requires authentication
 * `attribution` - default "osm" - "esri", "osm", "mapbox" or "none" or specify a full URL to a png image - If you add attribution on the image in some other way, you can set this to "none" to hide all logos.
-* `latitude` - optional - Latitude to center the map at. Not needed if using the location parameter, or if specifying one or more markers.
-* `longitude` - optional - Longitude to center the map at.
+* `latitude` - Latitude to center the map at. Not needed if using the location parameter, or if specifying one or more markers or paths. Must be given together with `longitude`.
+* `longitude` - Longitude to center the map at. Must be given together with `latitude`.
 * `location` - optional - Free-form text that will be geocoded to center the map. Not needed if specifying a location with the latitude and longitude parameters, or if a marker is specified.
 * `marker[]` - Specify one or more markers to overlay on the map. Parameters are specified as: `key:value;`. See below for the full list of parameters. 
 * `path[]` - Specify one or more paths to draw on the map. See below for the full list of parameters to draw a path.
@@ -154,6 +156,8 @@ return [
 ```
 
 Each basemap has a `name` and a list of one or two tile URL `layers` (a base map and an optional overlay drawn on top). It can also set a default `attribution`, `minzoom` / `maxzoom`, `requires_auth` (only usable with a valid token), `enabled`, `alias_of` (serve another basemap under this id) and `key`. See `config/defaults.php` for details.
+
+A request without any parameters returns the HTML page in `home_page` (default `assets/home.html`, which names the service and links to this documentation). To describe your own install, point `home_page` at your own HTML file. It is sent as-is and is not run as PHP.
 
 To keep the file somewhere else, set the `STATIC_MAPS_CONFIG` environment variable to its full path, for example with `env[STATIC_MAPS_CONFIG] = /etc/static-maps/config.php` in your PHP-FPM pool.
 

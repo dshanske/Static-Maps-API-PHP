@@ -91,6 +91,16 @@ return [
     'token_file' => __DIR__ . '/../data/apikeys.txt',
 
     /*
+     * HTML page returned for a request without any parameters, for example
+     * when someone opens the service's address in a browser. The file is sent
+     * as-is (it is not run as PHP), with Content-Type text/html. Point this at
+     * your own file to describe your install.
+     * Default: assets/home.html.
+     * Example override: 'home_page' => __DIR__ . '/home.html',
+     */
+    'home_page' => __DIR__ . '/../assets/home.html',
+
+    /*
      * Basemaps, keyed by the id used in the `basemap` request parameter.
      *
      * Each basemap supports these keys:

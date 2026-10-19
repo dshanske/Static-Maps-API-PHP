@@ -31,6 +31,17 @@ final class RequestTest extends TestCase
     }
 
     /**
+     * isEmpty() is true only without any parameter, even an empty one.
+     *
+     * @return void
+     */
+    public function testIsEmpty(): void
+    {
+        $this->assertTrue((new Request([]))->isEmpty());
+        $this->assertFalse((new Request(['x' => '']))->isEmpty());
+    }
+
+    /**
      * fromGlobals() reads $_REQUEST.
      *
      * @return void

@@ -44,4 +44,31 @@ final class ConfigErrorTest extends RenderTestCase
         $this->assertCount(1, $errors);
         $this->assertStringContainsString('Static Maps API: Default basemap must be', $errors[0]);
     }
+
+    /**
+     * A home_page file that doesn't exist is a configuration error, also for map requests.
+     *
+     * @return void
+     */
+    public function testMissingHomePageIsA500(): void
+    {
+        $missing = new \StaticMaps\Tests\Support\PhpServer(
+            dirname(__DIR__, 2) . '/public',
+            null,
+            ['STATIC_MAPS_CONFIG' => dirname(__DIR__) . '/fixtures/config-home-missing.php']
+                + parent::appEnvironment((string) self::$tiles?->url)
+        );
+        try {
+            foreach (['/', '/?latitude=45&longitude=-122&zoom=10'] as $path) {
+                $response = $missing->get($path);
+                $this->assertSame(500, $response->status, $path);
+                $this->assertSame('Server configuration error', $response->body, $path);
+            }
+            $errors = $missing->errors();
+            $this->assertCount(2, $errors);
+            $this->assertStringContainsString("'home_page' must name a readable file", $errors[0]);
+        } finally {
+            $missing->stop();
+        }
+    }
 }
