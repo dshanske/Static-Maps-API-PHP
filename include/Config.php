@@ -102,19 +102,32 @@ class Config
      * either, `zoom.min` / `zoom.max` apply. `zoom.max_limit`, if set, caps the
      * result (and the minimum, if that is higher).
      *
-     * @param array<string, mixed> $config        The loaded configuration.
-     * @param string               $provider      Provider id.
-     * @param string               $style         Style id.
-     * @param bool                 $authenticated Whether the request has a valid token.
+     * Who may use it (#28): a style that uses a server-held provider key (its
+     * tile URLs contain {key} and a key is set) or has `requires_auth` needs a
+     * client, and one allowed to use the provider; with `access.mode` =
+     * `restricted`, every style does. A style whose {key} isn't set is
+     * unavailable to everyone.
+     *
+     * @param array<string, mixed> $config      The loaded configuration.
+     * @param string               $provider    Provider id.
+     * @param string               $style       Style id.
+     * @param Client|null          $client      The request's client, or null without a valid key.
+     * @param bool                 $isDefault   True when resolving the default map: a client's
+     *                                          provider list doesn't apply to it.
      *
      * @return array<string, mixed>|null The style's settings (`name`, `layers`, the
      *         inherited keys, with `minzoom` and `maxzoom` always filled in, plus
-     *         `provider` and `style` ids), or null if the provider or style is
-     *         unknown, disabled, needs an API key that isn't set, or needs a
-     *         token the request doesn't have.
+     *         `provider`, `style` and `needs_client`), or null if the provider or
+     *         style is unknown, disabled, needs an API key that isn't set, or
+     *         needs a client the request doesn't have.
      */
-    public static function resolve(array $config, string $provider, string $style, bool $authenticated): ?array
-    {
+    public static function resolve(
+        array $config,
+        string $provider,
+        string $style,
+        ?Client $client,
+        bool $isDefault = false
+    ): ?array {
         $p = $config['providers'][$provider] ?? null;
         $s = is_array($p) ? ($p['styles'][$style] ?? null) : null;
         if (!is_array($p) || !is_array($s) || ($p['enabled'] ?? true) === false) {
@@ -135,9 +148,13 @@ class Config
         if (self::needsKey($resolved) && !(is_string($resolved['key'] ?? null) && $resolved['key'] !== '')) {
             return null;
         }
-        if (($resolved['requires_auth'] ?? false) && !$authenticated) {
+        $needsClient = ($resolved['requires_auth'] ?? false)
+            || self::needsKey($resolved)
+            || ($config['access']['mode'] ?? 'open') === 'restricted';
+        if ($needsClient && ($client === null || (!$isDefault && !$client->mayUse($provider)))) {
             return null;
         }
+        $resolved['needs_client'] = $needsClient;
 
         $resolved['minzoom'] = (int) ($resolved['minzoom'] ?? $config['zoom']['min']);
         $resolved['maxzoom'] = (int) ($resolved['maxzoom'] ?? $config['zoom']['max']);
@@ -354,7 +371,10 @@ class Config
      */
     private static function validate(array $config): void
     {
-        $sections = ['defaults', 'limits', 'cache', 'remote', 'zoom', 'providers', 'basemap_aliases', 'removed'];
+        $sections = [
+            'defaults', 'access', 'clients', 'limits', 'cache', 'remote', 'zoom',
+            'providers', 'basemap_aliases', 'removed',
+        ];
         foreach ($sections as $section) {
             if (!isset($config[$section]) || !is_array($config[$section])) {
                 throw new RuntimeException("Configuration setting '$section' must be an array");
@@ -417,6 +437,23 @@ class Config
             }
         }
 
+        if (!in_array($config['access']['mode'] ?? null, Access::MODES, true)) {
+            throw new RuntimeException("Setting 'access.mode' must be 'open' or 'restricted'");
+        }
+        if (!is_string($config['access']['clients_file'] ?? null)) {
+            throw new RuntimeException("Setting 'access.clients_file' must be a path");
+        }
+        foreach ($config['clients'] as $id => $client) {
+            $hasKey = is_array($client)
+                && (is_string($client['key'] ?? null) || is_string($client['key_sha256'] ?? null));
+            if (!$hasKey || !preg_match('/^[a-z0-9-]{1,64}$/', (string) $id)) {
+                throw new RuntimeException("Client '$id' needs an id of a-z, 0-9 and -, and a 'key' or 'key_sha256'");
+            }
+            if (isset($client['providers']) && !is_array($client['providers'])) {
+                throw new RuntimeException("Client '$id' providers must be a list of provider ids");
+            }
+        }
+
         foreach (['max_age', 'fallback_max_age'] as $setting) {
             if (!is_int($config['cache'][$setting] ?? null) || $config['cache'][$setting] < 0) {
                 throw new RuntimeException("Setting 'cache.$setting' must be a whole number of 0 or more");
@@ -473,9 +510,14 @@ class Config
 
         $provider = $config['defaults']['provider'] ?? null;
         $style = $config['defaults']['style'] ?? null;
-        if (!is_string($provider) || !is_string($style) || self::resolve($config, $provider, $style, false) === null) {
+        // In open mode the default map must be free to everyone; in restricted
+        // mode every map needs a client anyway.
+        $probe = $config['access']['mode'] === 'restricted' ? new Client('default-check') : null;
+        $usable = is_string($provider) && is_string($style)
+            && self::resolve($config, $provider, $style, $probe, true) !== null;
+        if (!$usable) {
             throw new RuntimeException(
-                "Default provider and style must be an enabled style that doesn't require a token"
+                "Default provider and style must be an enabled style that doesn't need a key"
             );
         }
     }

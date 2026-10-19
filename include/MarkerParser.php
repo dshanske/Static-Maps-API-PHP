@@ -42,14 +42,14 @@ final class MarkerParser
      * `lat` and `lng` are converted to floats.
      *
      * @param mixed  $value         The `marker` parameter: a string, a list of strings, or false.
-     * @param bool   $authenticated Whether the request has a valid token (allows icon URLs).
+     * @param bool   $mayFetchUrls  Whether the request's client may use icon URLs.
      * @param Bounds $bounds        Box to widen with each marker's position.
      *
      * @return array{markers: list<array<string, mixed>>, headers: list<string>, deprecated: bool}
      *         The markers (their `key:value` pairs plus `iconImg`, a GdImage), response
      *         headers to send, and whether any marker used the removed `location`.
      */
-    public function parse(mixed $value, bool $authenticated, Bounds $bounds): array
+    public function parse(mixed $value, bool $mayFetchUrls, Bounds $bounds): array
     {
         $markers = array();
         $headers = array();
@@ -97,7 +97,7 @@ final class MarkerParser
             $properties['lat'] = (float) $properties['lat'];
             $properties['lng'] = (float) $properties['lng'];
 
-            [$properties['iconImg'], $problem] = $this->loadIcon($properties['icon'], $authenticated);
+            [$properties['iconImg'], $problem] = $this->loadIcon($properties['icon'], $mayFetchUrls);
             if ($properties['iconImg'] !== null) {
                 $markers[] = $properties;
             } else {
@@ -114,16 +114,16 @@ final class MarkerParser
      * Load a marker icon.
      *
      * @param string $icon          Built-in icon name (letters, digits, `-`, `_`), or an http(s) URL.
-     * @param bool   $authenticated Whether URLs may be fetched.
+     * @param bool   $mayFetchUrls  Whether URLs may be fetched.
      *
      * @return array{\GdImage|null, string|null} The icon, or null and the reason it
      *         couldn't be used (for the `X-Marker-<n>` header).
      */
-    private function loadIcon(string $icon, bool $authenticated): array
+    private function loadIcon(string $icon, bool $mayFetchUrls): array
     {
         if (preg_match('/https?:\/\/(.+)/', $icon)) {
-            if (!$authenticated) {
-                return [null, 'icon URLs need a valid token'];
+            if (!$mayFetchUrls) {
+                return [null, 'icon URLs need a valid key'];
             }
             // Looks like an external image, attempt to download it
             $img = $this->remote->fetch($icon);

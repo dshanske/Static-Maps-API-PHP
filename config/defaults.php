@@ -179,13 +179,52 @@ return [
     'user_agent' => 'Static Maps API/ github.com/dshanske/Static-Maps-API-PHP',
 
     /*
-     * File with the access tokens, one per line. A request whose `token`
-     * parameter matches a line may use external marker icon URLs, attribution
-     * image URLs,
-     * `provider=custom` with `tileurl`, and providers or styles with `requires_auth`.
-     * If the file doesn't exist, no token is valid.
+     * Who may draw which maps (#28).
+     *
+     * 'mode'          'open' (default): anyone may draw free maps. Maps whose
+     *                 tiles use a provider key set below (in `providers`),
+     *                 maps with `requires_auth`, and the URL features (marker
+     *                 icon, attribution image and custom tile URLs) need a
+     *                 client key.
+     *                 'restricted': every map needs a client key; requests
+     *                 without one get HTTP 403. (The home page and the query
+     *                 API stay open.)
+     *                 An install that only offers free maps simply issues no
+     *                 client keys.
+     * 'clients_file'  Where bin/clients.php keeps the clients it issues keys to.
+     *                 Default: data/clients.json.
+     *
+     * Clients send their key in the `key` request parameter.
+     *
+     * Example override: 'access' => ['mode' => 'restricted'],
+     */
+    'access' => [
+        'mode'         => 'open',
+        'clients_file' => __DIR__ . '/../data/clients.json',
+    ],
+
+    /*
+     * Clients defined by hand, in addition to those in the clients file. The
+     * easier way is bin/clients.php, which makes random keys and stores only
+     * their hash:
+     *     php bin/clients.php add simple-location
+     *
+     * Each client, keyed by its id (a-z, 0-9 and -), has:
+     *   'key' or 'key_sha256' The key, or its SHA-256 hash (hex).
+     *   'external_urls'       May it use icon, attribution and tile URLs? Default: true.
+     *   'providers'           Providers it may use among those that need a key;
+     *                         default: all.
+     *   'enabled'             Set to false to stop accepting its key.
+     *
+     * Example: 'clients' => ['my-blog' => ['key_sha256' => '…', 'providers' => ['stadia']]],
+     */
+    'clients' => [],
+
+    /*
+     * DEPRECATED (#28): file with access tokens, one per line. Each line still
+     * works as a client key with every permission, but move them to the clients
+     * file with `php bin/clients.php import`. Removed no earlier than 2.0.0.
      * Default: data/apikeys.txt.
-     * Example override: 'token_file' => '/etc/static-maps/tokens.txt',
      */
     'token_file' => __DIR__ . '/../data/apikeys.txt',
 

@@ -10,6 +10,7 @@
  * (public/img.php is the deprecated old name for this file.)
  */
 
+use StaticMaps\Access;
 use StaticMaps\Api;
 use StaticMaps\Config;
 use StaticMaps\Deprecation;
@@ -17,7 +18,6 @@ use StaticMaps\HomePage;
 use StaticMaps\Renderer;
 use StaticMaps\Request;
 use StaticMaps\Response;
-use StaticMaps\Tokens;
 
 require_once __DIR__ . '/../include/autoload.php';
 
@@ -26,6 +26,7 @@ $entryHeaders = basename((string) ($_SERVER['SCRIPT_FILENAME'] ?? '')) === 'img.
 
 try {
     $config = Config::load();
+    $access = Access::fromConfig($config);
 } catch (RuntimeException $e) {
     error_log('Static Maps API: ' . $e->getMessage());
     Response::error(500, 'Server configuration error')->withHeaders($entryHeaders)->send();
@@ -47,9 +48,9 @@ if ($base !== '' && str_starts_with($path, $base)) {
 }
 
 if (Api::handles($path)) {
-    $tokens = new Tokens($config['token_file']);
-    $api = new Api($config, $tokens->isValid($request->get('token')), $base);
-    $response = $api->handle((string) ($_SERVER['REQUEST_METHOD'] ?? 'GET'), $path, $request);
+    [$client, $keyHeaders] = $access->client($request);
+    $api = new Api($config, $client, $base);
+    $response = $api->handle((string) ($_SERVER['REQUEST_METHOD'] ?? 'GET'), $path, $request)->withHeaders($keyHeaders);
 } elseif ($request->isEmpty()) {
     // No parameters at all (someone opened the address in a browser): say what this is.
     try {
@@ -60,7 +61,7 @@ if (Api::handles($path)) {
         exit;
     }
 } else {
-    $response = (new Renderer($config, new Tokens($config['token_file'])))->render($request);
+    $response = (new Renderer($config, $access))->render($request);
 }
 
 $ifNoneMatch = isset($_SERVER['HTTP_IF_NONE_MATCH']) ? (string) $_SERVER['HTTP_IF_NONE_MATCH'] : null;

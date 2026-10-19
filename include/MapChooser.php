@@ -26,7 +26,7 @@ final class MapChooser
      *
      * - `provider` and/or `style`: that provider (default: `defaults.provider`)
      *   with that style (default: the provider's `default_style`).
-     *   `provider=custom` uses `tileurl` and needs a valid token.
+     *   `provider=custom` uses `tileurl` and needs a valid key.
      * - Otherwise the deprecated `basemap`: the provider/style its id maps to in
      *   `basemap_aliases`, or `basemap=custom` with `tileurl` and a token. Any use
      *   of `basemap` adds `Deprecation` and `Link` headers.
@@ -35,12 +35,12 @@ final class MapChooser
      *   `X-Map-Fallback` header saying so (#52).
      *
      * @param Request $request          The request.
-     * @param bool    $is_authenticated Whether the request has a valid token.
+     * @param Client|null $client The request's client, or null without a valid key.
      *
      * @return array{array<string, mixed>, list<string>} Map settings (with `layers`,
      *         `minzoom` and `maxzoom`), and headers to send.
      */
-    public function choose(Request $request, bool $is_authenticated): array
+    public function choose(Request $request, ?Client $client): array
     {
         $config = $this->config;
         $provider = $request->get('provider');
@@ -56,13 +56,13 @@ final class MapChooser
         if ($provider !== false || $style !== false) {
             if ('custom' === $provider) {
                 $requested = 'custom';
-                $basemap = $this->customBasemap($request, $is_authenticated);
+                $basemap = $this->customBasemap($request, $client);
             } else {
                 $p = is_string($provider) ? $provider : $config['defaults']['provider'];
                 $s = is_string($style) ? $style : Config::defaultStyle($config, $p);
                 $requested = $s === null ? $p : "$p/$s";
                 $removedKeys = $s === null ? [$p] : ["$p/$s", $p];
-                $basemap = $s === null ? null : Config::resolve($config, $p, $s, $is_authenticated);
+                $basemap = $s === null ? null : Config::resolve($config, $p, $s, $client);
                 if ((!is_string($provider) && $provider !== false) || (!is_string($style) && $style !== false)) {
                     // e.g. provider[]=x: not a usable id, so it's a fallback like an unknown one.
                     $requested = '?';
@@ -73,21 +73,23 @@ final class MapChooser
             $requested = is_string($legacy) ? $legacy : '?';
             $removedKeys = is_string($legacy) ? ["basemap:$legacy"] : [];
             if ('custom' === $legacy) {
-                $basemap = $this->customBasemap($request, $is_authenticated);
+                $basemap = $this->customBasemap($request, $client);
             } elseif (is_string($legacy) && ($alias = Config::alias($config, $legacy)) !== null) {
-                $basemap = Config::resolve($config, $alias[0], $alias[1], $is_authenticated);
+                $basemap = Config::resolve($config, $alias[0], $alias[1], $client);
                 $removedKeys = array_merge($removedKeys, ["$alias[0]/$alias[1]", $alias[0]]);
             }
         }
 
         if ($basemap === null) {
-            // Config::validate() guarantees the default resolves without a token.
+            // Config::validate() guarantees the default resolves without a key in open
+            // mode; in restricted mode the renderer only gets here with a client.
             $default = $config['defaults']['provider'] . '/' . $config['defaults']['style'];
             $basemap = (array) Config::resolve(
                 $config,
                 $config['defaults']['provider'],
                 $config['defaults']['style'],
-                $is_authenticated
+                $client,
+                true
             );
             if ($requested !== null) {
                 $headers = array_merge($headers, self::fallbackHeaders($config, $requested, $removedKeys, $default));
@@ -142,13 +144,13 @@ final class MapChooser
      * It uses the `zoom.min` / `zoom.max` range, capped by `zoom.max_limit`.
      *
      * @param Request $request          The request.
-     * @param bool    $is_authenticated Whether the request has a valid token.
+     * @param Client|null $client The request's client, or null without a valid key.
      *
      * @return array<string, mixed>|null Map settings, or null without a token or `tileurl`.
      */
-    private function customBasemap(Request $request, bool $is_authenticated): ?array
+    private function customBasemap(Request $request, ?Client $client): ?array
     {
-        if (!$is_authenticated || !is_string($request->get('tileurl'))) {
+        if ($client === null || !$client->externalUrls || !is_string($request->get('tileurl'))) {
             return null;
         }
 

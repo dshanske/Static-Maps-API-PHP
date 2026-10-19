@@ -17,8 +17,8 @@ Numbers are checked: a value that isn't a number, or is out of the range given b
 * `width` - default 300 - Width in pixels of the final image, a whole number of 1 or more. At most 1280 by default (the install's `limits.max_width`): a larger width is drawn at the limit and the response has an `X-Map-Size: clamped; requested=5000x300; drawn=1280x300` header.
 * `height` - default 300 - Height in pixels of the final image, a whole number of 1 or more. At most 1280 by default (`limits.max_height`), like `width`.
 * `provider` - default "osm" - The tile provider. See [Providers and styles](#providers-and-styles).
-* `style` - default: the provider's default style - The map style of that provider. With only `style`, the default provider's style of that name is used. An unknown, disabled, removed or token-only (without a token) provider or style gets the default map, and the response says so in an `X-Map-Fallback` header (see [Providers and styles](#providers-and-styles)).
-* `tileurl` - With `provider=custom` and a valid `token`: a tile URL template (`{z}`, `{x}`, `{y}`) to draw instead of a provider.
+* `style` - default: the provider's default style - The map style of that provider. With only `style`, the default provider's style of that name is used. An unknown, disabled or removed provider or style, or one that needs a client key the request doesn't have, gets the default map, and the response says so in an `X-Map-Fallback` header (see [Providers and styles](#providers-and-styles)).
+* `tileurl` - With `provider=custom` and a valid `key`: a tile URL template (`{z}`, `{x}`, `{y}`) to draw instead of a provider.
 * `basemap` - **deprecated** - The old single-id way to pick a map; see [Deprecated basemap ids](#deprecated-basemap-ids). Ignored when `provider` or `style` is given.
 * `attribution` - default: the map's own - What to draw in the attribution corner:
   * `text` - only the map's credit text (for example "© OpenStreetMap contributors"), on a light strip at the edge.
@@ -60,7 +60,7 @@ Shipped providers (the first style is the provider's default). Max zoom is the h
 | `esri` | `streets`: [World Street Map](https://www.arcgis.com/home/webmap/viewer.html?webmap=7990d7ea55204450b8110d57e20c99ab) · `satellite`: [World Imagery](https://www.arcgis.com/home/webmap/viewer.html?webmap=d802f08316e84c6592ef681c50178f17&center=-71.055499,42.364247&level=15) · `hybrid` · `topo`: [World Topographic Map](https://www.arcgis.com/home/webmap/viewer.html?webmap=a72b0766aea04b48bf7a0e8c27ccc007) · `light`: Light Gray Canvas · `light-nolabels`: [Light Gray Canvas](https://www.arcgis.com/home/webmap/viewer.html?webmap=8b3d38c0819547faa83f7b7aca80bd76) without labels · `oceans`: [World Ocean Base](https://server.arcgisonline.com/ArcGIS/rest/services/Ocean/World_Ocean_Base/MapServer) with labels, up to zoom 13 · `natgeo`: [National Geographic](https://www.arcgis.com/home/webmap/viewer.html?webmap=d94dcdbe78e141c2b2d3a91d5ca8b9c9) | 19; `light`, `light-nolabels`, `natgeo`: 16 (NatGeo only 12 outside the US); `oceans`: 13 |
 | `opentopomap` | `topo`: [OpenTopoMap](https://www.opentopomap.org/) | 17 |
 | `carto` | `light`: Positron · `dark`: Dark Matter · `streets`: Voyager. [CARTO](https://carto.com/basemaps/) **needs an API key**: these styles are unavailable until the install sets `'providers' => ['carto' => ['key' => '...']]`. Keys are [free](https://carto.com/basemaps/apikey) (5 million requests a month non-commercial, 1 million commercial). | 20 |
-| `custom` | Draws `tileurl`; requires a valid `token`. | `zoom.max` (18) |
+| `custom` | Draws `tileurl`; requires a valid `key`. | `zoom.max` (18) |
 
 Every shipped map draws the credit its provider requires on the image, kept short: "© OpenStreetMap contributors" on OpenStreetMap, the OpenTopoMap and CARTO credits on theirs, and on Esri maps the "Powered by Esri" logo with the main data sources. Esri's terms allow its full source list near the map rather than on it, so the complete credit, as HTML with links, comes from [`/api/v1/attribution`](#query-api): call it with the same parameters as the image and show the `html` next to it. Each shipped provider sets its own attribution, so changing `defaults.attribution` only affects providers you add.
 
@@ -73,7 +73,7 @@ X-Map-Fallback: removed; requested=stamen-toner; drawn=osm/streets
 X-Map-Fallback: unavailable; requested=esri/nope; drawn=osm/streets
 ```
 
-`removed` means the provider, style or basemap id was taken out because it stopped working (see [Removed providers and styles](#removed-providers-and-styles)); the response then also has `Link: <...#removed-providers-and-styles>; rel="help"`. `unavailable` covers everything else: unknown, switched off on this install, needs an API key the install hasn't set, needs a token, or `provider=custom` without a token and `tileurl`. `requested` echoes the provider/style or basemap id (or `?` if it isn't a plain id), and `drawn` names the map drawn instead.
+`removed` means the provider, style or basemap id was taken out because it stopped working (see [Removed providers and styles](#removed-providers-and-styles)); the response then also has `Link: <...#removed-providers-and-styles>; rel="help"`. `unavailable` covers everything else: unknown, switched off on this install, needs a provider API key the install hasn't set, needs a client key the request doesn't have (or isn't allowed with), or `provider=custom` without a key and `tileurl`. `requested` echoes the provider/style or basemap id (or `?` if it isn't a plain id), and `drawn` names the map drawn instead.
 
 ### Removed providers and styles
 
@@ -106,12 +106,12 @@ A read-only JSON API tells clients what this install supports, so they don't hav
 
 | Endpoint | Returns |
 |---|---|
-| `GET /api/v1/` | Version, defaults (provider, style, size, format, attribution), size limits, zoom settings, formats, attribution values, whether custom tile URLs are available to this request, and links to the other endpoints |
+| `GET /api/v1/` | Version, access mode (and whether the request's key is valid), defaults (provider, style, size, format, attribution), size limits, zoom settings, formats, attribution values, whether custom tile URLs are available to this request, and links to the other endpoints |
 | `GET /api/v1/providers` | Every provider and style that can be drawn: id, name, `minzoom` / `maxzoom` (after `zoom.max_limit`), default attribution, on-image credit (`attribution_text`) and full credit (`attribution_html`), whether it has a labels layer; the default map; deprecated `basemap` ids with what they map to; removed ids with the reason |
-| `GET /api/v1/attribution` | The credit for one map, chosen by the same `provider` / `style` / `basemap` / `token` / `attribution` parameters as the image (so you can pass the image's query string): `provider`, `style`, `fallback` (the `X-Map-Fallback` value if the default map would be drawn instead), `attribution` (the logo setting), `text` (what's drawn on the image), `html` (the full credit with links, for your page) and `plain` (the same without markup) |
+| `GET /api/v1/attribution` | The credit for one map, chosen by the same `provider` / `style` / `basemap` / `key` / `attribution` parameters as the image (so you can pass the image's query string): `provider`, `style`, `fallback` (the `X-Map-Fallback` value if the default map would be drawn instead), `attribution` (the logo setting), `text` (what's drawn on the image), `html` (the full credit with links, for your page) and `plain` (the same without markup) |
 | `GET /api/v1/icons` | Every built-in marker icon: name, width and height in pixels, anchor (`bottom-center`, or `center` for `dot-*` icons) and the URL of its image |
 
-Providers or styles that are switched off, need an API key the install hasn't set, or need a token are left out. Token-only maps are listed when the request includes a valid `token`, and such responses aren't cached (`Cache-Control: private, no-store`). Unknown endpoints get `404`, methods other than `GET`, `HEAD` and `OPTIONS` get `405`; both with a JSON `error`. The `v1` in the path changes only if the response format changes incompatibly.
+Providers or styles that are switched off, need a provider API key the install hasn't set, or need a client key are left out. Maps that need a client key are listed (with `needs_key: true`) when the request includes a valid `key` the client may use them with, and such responses aren't cached (`Cache-Control: private, no-store`). Unknown endpoints get `404`, methods other than `GET`, `HEAD` and `OPTIONS` get `405`; both with a JSON `error`. The `v1` in the path changes only if the response format changes incompatibly.
 
 To credit a map on your page, request the attribution with the image's query string:
 
@@ -233,7 +233,7 @@ The API runs from the same `index.php` as the maps; the nginx configuration unde
 The same request always draws the same map until its tiles change, so map images can be cached:
 
 - `Cache-Control: public, max-age=604800` (7 days, the `cache.max_age` setting) on map images, so browsers, CDNs and proxies such as nginx (see [How to install](#cache-rendered-maps-in-nginx-optional)) can keep them.
-- `private` instead of `public` for maps drawn for a request with a valid token, and for providers whose terms don't allow caching proxies (`cache => 'off'` in their settings): browsers may keep those, shared caches shouldn't.
+- `private` instead of `public` for maps drawn for a request with a valid key, and for providers whose terms don't allow caching proxies (`cache => 'off'` in their settings): browsers may keep those, shared caches shouldn't.
 - A shorter lifetime (`cache.fallback_max_age`, 5 minutes) when the default map was drawn instead of the requested one (`X-Map-Fallback`), since the requested map may become available later.
 - `Cache-Control: no-store` on errors.
 - An `ETag` on every map image; a request with a matching `If-None-Match` gets `304 Not Modified` without the image.
@@ -286,13 +286,36 @@ WantedBy=timers.target
 
 then `sudo systemctl daemon-reload && sudo systemctl enable --now static-maps-prune.timer`. Its output goes to the journal (`journalctl -u static-maps-prune`). If your install file isn't `data/config.php`, set `STATIC_MAPS_CONFIG` for the script too (`Environment=STATIC_MAPS_CONFIG=...` in the service). `--dry-run` shows what would be removed without removing anything.
 
-## Authentication
+## Access and client keys
 
-Features that make the server download from an address given in the request need a valid `token`: marker icon URLs, attribution image URLs, and `provider=custom` with `tileurl`. So do providers and styles with `requires_auth`. This keeps the ability to fetch external resources to trusted users of the system. Without a valid token, those parts of the request are skipped and a header says why (`X-Marker-<n>`, `X-Map-Attribution`, `X-Map-Fallback`).
+Callers that you trust get a **client key**, which they send as the `key` parameter. What needs one depends on `access.mode`:
 
-Every download from another server, for tiles too, is limited by the `remote` setting: http and https only, at most 3 redirects, 10 seconds and 5 MB by default. Tokens are compared exactly.
+| `access.mode` | Without a key | With a valid key |
+|---|---|---|
+| `open` (default) | Free maps. Maps whose tiles use a provider API key your install holds, providers or styles with `requires_auth`, and the URL features (marker icon URLs, attribution image URLs, `provider=custom` with `tileurl`) are left out: the default map is drawn with `X-Map-Fallback: unavailable`, or the marker / attribution is skipped with an `X-Marker-<n>` / `X-Map-Attribution` header | Everything the client is allowed |
+| `restricted` | Every map request gets `403 A valid key is required…`. The home page and the query API stay open | Everything the client is allowed |
 
-Create a file data/apikeys.txt and generate a random string with a tool of your choosing, and with one API key per line. Any value passed in the parameter token that matches the text in a line in this file will enable the request to use the restricted features that reference external URLs. To keep the file somewhere else, set `token_file` in `data/config.php` (see Configuration).
+An install that only offers free maps issues no keys. The server's provider keys never leave it; clients only ever send their own key.
+
+**Issuing keys.** Use `bin/clients.php` (run it as the PHP user, like the prune script). It makes long random keys, shows each one once, and stores only its SHA-256 hash in `data/clients.json` (`access.clients_file`):
+
+```
+php bin/clients.php add simple-location                  # prints the new key
+php bin/clients.php add blog --providers=stadia --no-external-urls
+php bin/clients.php list
+php bin/clients.php set blog --providers=all --external-urls=yes
+php bin/clients.php set blog --disable                   # or --enable
+php bin/clients.php rotate simple-location               # new key, old one stops working
+php bin/clients.php revoke blog
+```
+
+`--providers` limits which providers that need a key the client may use (the default map is always allowed); `--no-external-urls` stops it making the server download URLs. Clients can also be written by hand in the `clients` setting (see `config/defaults.php`).
+
+**From the old token file.** `data/apikeys.txt` (`token_file`) and the `token` parameter still work but are deprecated: run `php bin/clients.php import` to turn each line into a client (`token-1`, …) whose key is the old token, then delete the file and send `key` instead of `token`. Until then each request logs a deprecation message, and requests that send `token` get `Deprecation` headers.
+
+Keys appear in the URL of every image that uses them, so a key embedded in a public page is visible to anyone who looks; give each site its own key so it can be revoked on its own. (Signed URLs, which keep the secret out of the URL, are planned: #12.) Keys are compared exactly and in constant time.
+
+Every download from another server, for tiles too, is limited by the `remote` setting: http and https only, at most 3 redirects, 10 seconds and 5 MB by default.
 
 ## Configuration
 
@@ -341,7 +364,7 @@ return [
 
 The `removed` setting lists removed provider, style and basemap ids for the `X-Map-Fallback` notice; an install can add its own when it takes a map out of service.
 
-Each provider has a `name`, an optional `default_style`, and `styles`. Each style has a `name` and a list of one or two tile URL `layers` (a base map and an optional overlay drawn on top). A provider can set a default `attribution` (`text`, a logo name or `none`), its `attribution_text` (the short credit its terms require on the image), its `attribution_html` (the full credit with links, for `/api/v1/attribution`), `minzoom` / `maxzoom`, `requires_auth` (only usable with a valid token), `enabled` and an API `key`; its styles inherit these and can override any of them. A style whose tile URLs contain `{key}` is unavailable until a key is set, so a provider that needs a key (such as CARTO) can ship switched on and starts working once the install adds one. See `config/defaults.php` for details.
+Each provider has a `name`, an optional `default_style`, and `styles`. Each style has a `name` and a list of one or two tile URL `layers` (a base map and an optional overlay drawn on top). A provider can set a default `attribution` (`text`, a logo name or `none`), its `attribution_text` (the short credit its terms require on the image), its `attribution_html` (the full credit with links, for `/api/v1/attribution`), `minzoom` / `maxzoom`, `requires_auth` (only usable with a client key), `enabled` and an API `key`; its styles inherit these and can override any of them. A style whose tile URLs contain `{key}` is unavailable until a key is set, so a provider that needs a key (such as CARTO) can ship switched on and starts working once the install adds one. See `config/defaults.php` for details.
 
 Install files written for the older format (`basemaps` and `defaults.basemap`) keep working: they are translated to providers and styles, and each request logs a deprecation message until you update the file.
 
@@ -489,7 +512,7 @@ Map images are sent with `Cache-Control` and `ETag` headers (see [Caching](#cach
     add_header              X-Cache-Status $upstream_cache_status;
 ```
 
-nginx follows the `Cache-Control` the service sends: maps are kept for `cache.max_age`, maps drawn for a request with a token (and maps from providers that don't allow shared caching) are `private` and not stored, and errors (`no-store`) are never stored.
+nginx follows the `Cache-Control` the service sends: maps are kept for `cache.max_age`, maps drawn for a request with a key (and maps from providers that don't allow shared caching) are `private` and not stored, and errors (`no-store`) are never stored.
 
 ### Clone the source
 
@@ -540,6 +563,7 @@ The first release will be **1.0.0**, once the first phase of the rewrite is comp
 | The `basemap` parameter | `provider` and `style` ([mapping](#deprecated-basemap-ids), #40) | 1.0.0 | 2.0.0 |
 | Settings `basemaps` and `defaults.basemap` in `data/config.php` | `providers` and `defaults.provider` / `defaults.style` (#40) | 1.0.0 | 2.0.0 |
 | The `location` parameter and `location:` in markers (geocoding, now ignored) | `latitude` / `longitude`, and `lat` / `lng` in markers (#16) | 1.0.0 | 2.0.0 |
+| The `token` parameter, and the token file `data/apikeys.txt` (`token_file`) | The `key` parameter, and clients from `bin/clients.php` (`php bin/clients.php import` moves the file's tokens over) (#28) | 1.0.0 | 2.0.0 |
 
 ## Development
 

@@ -96,7 +96,7 @@ final class RemoteFetcherTest extends RenderTestCase
             'latitude' => 45.5,
             'longitude' => -122.6,
             'zoom' => 12,
-            'token' => 'test-token',
+            'key' => 'test-token',
             'marker' => ["lat:45.5;lng:-122.6;icon:$icon"],
         ]);
 

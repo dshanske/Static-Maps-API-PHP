@@ -9,6 +9,7 @@ namespace StaticMaps\Tests\Unit;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 use RuntimeException;
+use StaticMaps\Client;
 use StaticMaps\Config;
 
 /**
@@ -59,6 +60,8 @@ final class ConfigTest extends TestCase
         return [
             'defaults'        => ['provider' => 'one', 'style' => 'base', 'format' => 'png'],
             'zoom'            => ['min' => 2, 'max' => 18],
+            'access'          => ['mode' => 'open', 'clients_file' => '/nonexistent/clients.json'],
+            'clients'         => [],
             'limits'          => ['max_width' => 1280, 'max_height' => 1280],
             'cache'           => [
                 'max_age'          => 604800,
@@ -136,7 +139,7 @@ final class ConfigTest extends TestCase
         $this->assertSame(array_keys($expected), array_keys($config['providers']));
         foreach ($expected as $provider => $attribution) {
             foreach (array_keys($config['providers'][$provider]['styles']) as $style) {
-                $resolved = Config::resolve($config, $provider, $style, false);
+                $resolved = Config::resolve($config, $provider, $style, new Client('t'));
                 $this->assertSame($attribution, $resolved['attribution'] ?? null, "$provider/$style");
                 $this->assertNotEmpty($resolved['attribution_text'] ?? null, "$provider/$style has credit text");
                 $html = (string) ($resolved['attribution_html'] ?? '');
@@ -180,7 +183,7 @@ final class ConfigTest extends TestCase
         $actual = [];
         foreach ($config['providers'] as $provider => $p) {
             foreach (array_keys($p['styles']) as $style) {
-                $actual["$provider/$style"] = Config::resolve($config, $provider, $style, false)['maxzoom'];
+                $actual["$provider/$style"] = Config::resolve($config, $provider, $style, new Client('t'))['maxzoom'];
             }
         }
         $this->assertSame($expected, $actual);
@@ -200,8 +203,8 @@ final class ConfigTest extends TestCase
             'high'    => ['layers' => ['d'], 'minzoom' => 16, 'maxzoom' => 19],
         ]]]];
         $range = static fn (array $c, string $s): array => [
-            Config::resolve($c, 'p', $s, false)['minzoom'],
-            Config::resolve($c, 'p', $s, false)['maxzoom'],
+            Config::resolve($c, 'p', $s, null)['minzoom'],
+            Config::resolve($c, 'p', $s, null)['maxzoom'],
         ];
 
         $open = $this->loadMinimal($providers);
@@ -231,10 +234,11 @@ final class ConfigTest extends TestCase
         ]];
         $config = $this->loadMinimal($providers);
 
-        $this->assertNull(Config::resolve($config, 'p', 's', true));
-        $this->assertNull(Config::resolve($config, 'empty', 's', true));
-        $this->assertSame('abc', Config::resolve($config, 'set', 's', false)['key']);
-        $this->assertSame('x', Config::resolve($config, 'own', 's', false)['key']);
+        $this->assertNull(Config::resolve($config, 'p', 's', new Client('t')));
+        $this->assertNull(Config::resolve($config, 'empty', 's', new Client('t')));
+        $this->assertSame('abc', Config::resolve($config, 'set', 's', new Client('t'))['key']);
+        $this->assertNull(Config::resolve($config, 'set', 's', null), 'a server-held key needs a client (#28)');
+        $this->assertSame('x', Config::resolve($config, 'own', 's', new Client('t'))['key']);
     }
 
     /**
@@ -246,11 +250,12 @@ final class ConfigTest extends TestCase
     {
         $without = Config::load(null, '/nonexistent/config.php');
         foreach (['light', 'dark', 'streets'] as $style) {
-            $this->assertNull(Config::resolve($without, 'carto', $style, true), $style);
+            $this->assertNull(Config::resolve($without, 'carto', $style, new Client('t')), $style);
         }
 
         $with = Config::load(null, $this->configFile(['providers' => ['carto' => ['key' => 'my-key']]]));
-        $light = Config::resolve($with, 'carto', 'light', false);
+        $this->assertNull(Config::resolve($with, 'carto', 'light', null), 'with a key, it needs a client (#28)');
+        $light = Config::resolve($with, 'carto', 'light', new Client('t'));
         $this->assertSame('my-key', $light['key']);
         $this->assertSame(
             'https://basemaps.cartocdn.com/light_all/3/1/2.png?key=my-key',
@@ -265,7 +270,7 @@ final class ConfigTest extends TestCase
      */
     public function testOceansUsesCurrentServices(): void
     {
-        $oceans = Config::resolve(Config::load(null, '/nonexistent/config.php'), 'esri', 'oceans', false);
+        $oceans = Config::resolve(Config::load(null, '/nonexistent/config.php'), 'esri', 'oceans', null);
 
         $this->assertCount(2, $oceans['layers']);
         $this->assertStringContainsString('/Ocean/World_Ocean_Base/', $oceans['layers'][0]);
@@ -287,7 +292,7 @@ final class ConfigTest extends TestCase
         foreach (array_keys($config['basemap_aliases']) as $id) {
             $alias = Config::alias($config, $id);
             $this->assertNotNull($alias, $id);
-            $this->assertNotNull(Config::resolve($config, $alias[0], $alias[1], false), $id);
+            $this->assertNotNull(Config::resolve($config, $alias[0], $alias[1], new Client('t')), $id);
         }
         $this->assertSame(['carto', 'streets'], Config::alias($config, 'carto-voyager'));
         $this->assertSame(['esri', 'light-nolabels'], Config::alias($config, 'gray-background'));
@@ -310,7 +315,7 @@ final class ConfigTest extends TestCase
 
         $this->assertSame(640, $config['defaults']['width']);
         $this->assertSame(300, $config['defaults']['height']);
-        $topo = Config::resolve($config, 'opentopomap', 'topo', false);
+        $topo = Config::resolve($config, 'opentopomap', 'topo', null);
         $this->assertSame(12, $topo['maxzoom']);
         $this->assertSame('OpenTopoMap', $topo['name']);
         $this->assertSame([], $config['deprecations']);
@@ -447,8 +452,8 @@ final class ConfigTest extends TestCase
             'two' => ['enabled' => false, 'styles' => ['s' => ['name' => 'S']]],
         ]]);
 
-        $this->assertNull(Config::resolve($config, 'one', 'off', true));
-        $this->assertNull(Config::resolve($config, 'two', 's', true));
+        $this->assertNull(Config::resolve($config, 'one', 'off', new Client('t')));
+        $this->assertNull(Config::resolve($config, 'two', 's', new Client('t')));
     }
 
     /**
@@ -494,7 +499,7 @@ final class ConfigTest extends TestCase
             'secret' => ['requires_auth' => true, 'styles' => ['s' => ['name' => 'S', 'layers' => ['e']]]],
         ]]);
 
-        $plain = Config::resolve($config, 'p', 'plain', false);
+        $plain = Config::resolve($config, 'p', 'plain', null);
         $this->assertSame(['a'], $plain['layers']);
         $this->assertSame('Plain', $plain['name']);
         $this->assertSame('provider-key', $plain['key']);
@@ -503,16 +508,16 @@ final class ConfigTest extends TestCase
         $this->assertSame([2, 12], [$plain['minzoom'], $plain['maxzoom']]);
         $this->assertSame(['p', 'plain'], [$plain['provider'], $plain['style']]);
 
-        $own = Config::resolve($config, 'p', 'own', false);
+        $own = Config::resolve($config, 'p', 'own', null);
         $this->assertSame(['style-key', 15, 'esri'], [$own['key'], $own['maxzoom'], $own['attribution']]);
 
-        $this->assertNull(Config::resolve($config, 'p', 'tok', false));
-        $this->assertSame(['c'], Config::resolve($config, 'p', 'tok', true)['layers']);
-        $this->assertNull(Config::resolve($config, 'p', 'off', true));
-        $this->assertNull(Config::resolve($config, 'secret', 's', false));
-        $this->assertNotNull(Config::resolve($config, 'secret', 's', true));
-        $this->assertNull(Config::resolve($config, 'p', 'missing', true));
-        $this->assertNull(Config::resolve($config, 'missing', 'plain', true));
+        $this->assertNull(Config::resolve($config, 'p', 'tok', null));
+        $this->assertSame(['c'], Config::resolve($config, 'p', 'tok', new Client('t'))['layers']);
+        $this->assertNull(Config::resolve($config, 'p', 'off', new Client('t')));
+        $this->assertNull(Config::resolve($config, 'secret', 's', null));
+        $this->assertNotNull(Config::resolve($config, 'secret', 's', new Client('t')));
+        $this->assertNull(Config::resolve($config, 'p', 'missing', new Client('t')));
+        $this->assertNull(Config::resolve($config, 'missing', 'plain', new Client('t')));
     }
 
     /**
@@ -559,13 +564,13 @@ final class ConfigTest extends TestCase
             ["Setting 'basemaps' is deprecated; use 'providers' (see config/defaults.php)"],
             $config['deprecations']
         );
-        $this->assertSame(17, Config::resolve($config, 'opentopomap', 'topo', false)['maxzoom']);
-        $this->assertNull(Config::resolve($config, 'esri', 'natgeo', true));
-        $this->assertNull(Config::resolve($config, 'esri', 'satellite', false));
-        $this->assertNotNull(Config::resolve($config, 'esri', 'satellite', true));
+        $this->assertSame(17, Config::resolve($config, 'opentopomap', 'topo', null)['maxzoom']);
+        $this->assertNull(Config::resolve($config, 'esri', 'natgeo', new Client('t')));
+        $this->assertNull(Config::resolve($config, 'esri', 'satellite', null));
+        $this->assertNotNull(Config::resolve($config, 'esri', 'satellite', new Client('t')));
 
         $this->assertSame(['stadia-toner', 'default'], Config::alias($config, 'stadia-toner'));
-        $stadia = Config::resolve($config, 'stadia-toner', 'default', false);
+        $stadia = Config::resolve($config, 'stadia-toner', 'default', new Client('t'));
         $this->assertSame(['https://t.example/{z}/{x}/{y}.png?k={key}'], $stadia['layers']);
         $this->assertSame('k', $stadia['key']);
 

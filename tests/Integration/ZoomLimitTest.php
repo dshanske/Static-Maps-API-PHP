@@ -42,7 +42,7 @@ final class ZoomLimitTest extends RenderTestCase
             'style with maxzoom 10' => [$portland + ['zoom' => 16, 'style' => 'zoom'], 10],
             'below the cap'         => [$portland + ['zoom' => 9], 9],
             'custom tile URL'       => [
-                $portland + ['zoom' => 16, 'provider' => 'custom', 'token' => 'test-token',
+                $portland + ['zoom' => 16, 'provider' => 'custom', 'key' => 'test-token',
                     'tileurl' => '__TILES__/base/{z}/{x}/{y}.png'],
                 11,
             ],

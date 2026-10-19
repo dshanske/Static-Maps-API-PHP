@@ -83,8 +83,16 @@ return [
     // Identify your install to tile providers (OpenStreetMap requires this).
     // 'user_agent' => 'Static Maps API/ maps.example.com (admin@example.com)',
 
-    // File with access tokens, one per line (default: data/apikeys.txt).
-    // 'token_file' => '/etc/static-maps/tokens.txt',
+    // Who may draw which maps: 'open' (free maps for everyone; maps using your
+    // provider keys need a client key) or 'restricted' (every map needs one).
+    // Issue client keys with: php bin/clients.php add <id>
+    // 'access' => [
+    //     'mode'         => 'open',
+    //     'clients_file' => __DIR__ . '/clients.json',
+    // ],
+
+    // Deprecated: the old token file. Move it with: php bin/clients.php import
+    // 'token_file' => __DIR__ . '/apikeys.txt',
 
     // Your own HTML page for requests without parameters (default: assets/home.html).
     // 'home_page' => __DIR__ . '/home.html',
@@ -107,7 +115,7 @@ return [
     //     // Use a different default attribution for a provider.
     //     'esri' => ['attribution' => 'esri'],
     //
-    //     // Only allow a style for requests with a valid token.
+    //     // Only allow a style for requests with a client key.
     //     'esri' => ['styles' => ['satellite' => ['requires_auth' => true]]],
     //
     //     // Add a provider. {key} in its URLs is replaced with 'key'.
