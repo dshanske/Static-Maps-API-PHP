@@ -21,9 +21,14 @@ final class PathParser
     /**
      * @param mixed $defaultColor  Stroke colour when a path has none: hex RGB without `#`.
      * @param mixed $defaultWeight Stroke width in pixels when a path has none.
+     * @param int   $maxPoints     Most points in all paths together (`limits.max_points`); a
+     *                             path that would go over is left out, with an `X-Map-Limit` header.
      */
-    public function __construct(private mixed $defaultColor, private mixed $defaultWeight)
-    {
+    public function __construct(
+        private mixed $defaultColor,
+        private mixed $defaultWeight,
+        private int $maxPoints = PHP_INT_MAX
+    ) {
     }
 
     /**
@@ -31,6 +36,8 @@ final class PathParser
      *
      * A path whose points can't be read, or are out of range, is left out and
      * reported in an `X-Path-<n>` header (n counting from 1, the polyline is 1).
+     * A path that would take the total number of points over `$maxPoints` is
+     * left out (not drawn, not in the bounds) and counted in an `X-Map-Limit` header.
      *
      * @param mixed  $paths    The `path` parameter: a string, a list of strings, or false.
      * @param mixed  $polyline The `polyline` parameter, or false.
@@ -44,6 +51,8 @@ final class PathParser
     {
         $result = array();
         $headers = array();
+        $total = 0;
+        $over = 0;
         if ($paths) {
             if (!is_array($paths)) {
                 $paths = array($paths);
@@ -63,6 +72,10 @@ final class PathParser
                         $headers[] = 'X-Path-' . ($n + 1) . ': points must be [lng,lat] numbers in range';
                         continue;
                     }
+                    if (!$this->withinLimit($total, count($points))) {
+                        $over++;
+                        continue;
+                    }
                     $properties['path'] = $points;
                     // Adjust the bounds to fit the path
                     foreach ($properties['path'] as $point) {
@@ -71,6 +84,8 @@ final class PathParser
                 }
                 if (array_key_exists('path', $properties)) {
                     $result[] = $properties;
+                } else {
+                    $headers[] = 'X-Path-' . ($n + 1) . ': no points (expected [lng,lat] pairs)';
                 }
             }
         } elseif ($polyline) {
@@ -87,16 +102,54 @@ final class PathParser
                 if (!self::validPoints($points)) {
                     return ['paths' => [], 'headers' => ['X-Path-1: the polyline has points out of range']];
                 }
+                if (!$this->withinLimit($total, count($points))) {
+                    return ['paths' => [], 'headers' => [$this->limitHeader(1)]];
+                }
                 $properties['path'] = $points;
                 foreach ($properties['path'] as $point) {
                     $bounds->extend($point[1], $point[0]);
                 }
 
                 $result[] = $properties;
+            } else {
+                $headers[] = 'X-Path-1: no points (expected enc:<encoded polyline>)';
             }
+        }
+        if ($over > 0) {
+            $headers[] = $this->limitHeader($over);
         }
 
         return ['paths' => $result, 'headers' => $headers];
+    }
+
+    /**
+     * Count a path's points against the limit.
+     *
+     * @param int $total  Points accepted so far; increased if this path fits.
+     * @param int $points Points in this path.
+     *
+     * @return bool True if the path fits within `$maxPoints`.
+     */
+    private function withinLimit(int &$total, int $points): bool
+    {
+        if ($total + $points > $this->maxPoints) {
+            return false;
+        }
+        $total += $points;
+
+        return true;
+    }
+
+    /**
+     * The header for paths left out over the point limit.
+     *
+     * @param int $count How many paths were left out.
+     *
+     * @return string The `X-Map-Limit` header line.
+     */
+    private function limitHeader(int $count): string
+    {
+        return "X-Map-Limit: left out $count path(s) over the limit of $this->maxPoints points";
     }
 
     /**

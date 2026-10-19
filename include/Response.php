@@ -35,7 +35,12 @@ final class Response
     public static function error(int $status, string $message, array $headers = []): self
     {
         return new self(
-            array_merge($headers, ['Content-Type: text/plain; charset=utf-8', 'Cache-Control: no-store']),
+            array_merge($headers, [
+                'Content-Type: text/plain; charset=utf-8',
+                'Cache-Control: no-store',
+                // Also as a header, so a failed <img> shows the reason in the browser's devtools.
+                'X-Map-Error: ' . preg_replace('/[\x00-\x1f\x7f]+/', ' ', $message),
+            ]),
             $message . "\n",
             $status
         );

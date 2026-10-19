@@ -22,8 +22,24 @@ use GdImage;
  */
 final class Renderer
 {
-    /** @var list<string> Accepted values of `format` (`jpeg` is the same as `jpg`). */
-    public const FORMATS = ['png', 'jpg', 'jpeg'];
+    /**
+     * @var list<string> Accepted values of `format`: `jpeg` is the same as `jpg`, `png8` is a
+     *      PNG with a 256-colour palette, and `webp` needs GD built with WebP support (see
+     *      formats()).
+     */
+    public const FORMATS = ['png', 'png8', 'jpg', 'jpeg', 'webp'];
+
+    /**
+     * The formats this server can produce.
+     *
+     * @return list<string> FORMATS without `webp` when GD has no WebP support.
+     */
+    public static function formats(): array
+    {
+        $webp = function_exists('imagewebp') && (gd_info()['WebP Support'] ?? false) === true;
+
+        return $webp ? self::FORMATS : ['png', 'png8', 'jpg', 'jpeg'];
+    }
 
     /** @var WebMercator Projection maths. */
     private WebMercator $webmercator;
@@ -44,8 +60,8 @@ final class Renderer
      *
      * @return Response Headers and the encoded image; a 400 with a plain-text reason
      *                  if a numeric parameter is invalid (see Parameters), the
-     *                  request doesn't locate the map, or it asks for an unknown
-     *                  `format`.
+     *                  request doesn't locate the map, it asks for an unknown
+     *                  `format`, or (with `errors.strict`) a marker or path can't be drawn.
      */
     public function render(Request $request): Response
     {
@@ -65,7 +81,13 @@ final class Renderer
         }
         $format = $request->get('format', $this->config['defaults']['format']);
         if (!in_array($format, self::FORMATS, true)) {
-            return Response::error(400, 'format must be png or jpg');
+            return Response::error(400, 'format must be ' . implode(', ', self::formats()));
+        }
+        $formatHeaders = [];
+        if (!in_array($format, self::formats(), true)) {
+            // Known but not available here (WebP without GD support): PNG, with a notice.
+            $formatHeaders[] = "X-Map-Format: $format is not available on this server; sent png";
+            $format = 'png';
         }
         $position = $request->get('attribution_position', 'bottomright');
         if ($position === '') {
@@ -78,12 +100,13 @@ final class Renderer
         $config = $this->config;
         $headers = array();
         $bounds = new Bounds();
-        $headers = array_merge($headers, $keyHeaders);
+        $headers = array_merge($headers, $keyHeaders, $formatHeaders);
         $mayFetchUrls = $client !== null && $client->externalUrls;
 
         // Markers and paths; with no centre given, the map is centred on them
         $remote = RemoteFetcher::fromConfig($config);
-        $parsed = (new MarkerParser($remote))->parse($request->get('marker'), $mayFetchUrls, $bounds);
+        $parsed = (new MarkerParser($remote, (int) $config['limits']['max_markers']))
+            ->parse($request->get('marker'), $mayFetchUrls, $bounds);
         $markers = $parsed['markers'];
         $headers = array_merge($headers, $parsed['headers']);
 
@@ -93,10 +116,22 @@ final class Renderer
             $headers = array_merge($headers, Deprecation::headers());
         }
 
-        $parsedPaths = (new PathParser($config['defaults']['path_color'], $config['defaults']['path_weight']))
-            ->parse($request->get('path'), $request->get('polyline'), $bounds);
+        $parsedPaths = (new PathParser(
+            $config['defaults']['path_color'],
+            $config['defaults']['path_weight'],
+            (int) $config['limits']['max_points']
+        ))->parse($request->get('path'), $request->get('polyline'), $bounds);
         $paths = $parsedPaths['paths'];
         $headers = array_merge($headers, $parsedPaths['headers']);
+
+        // errors.strict: a marker or path that can't be drawn is an error, not a header (#39).
+        if ($config['errors']['strict']) {
+            foreach ($headers as $header) {
+                if (preg_match('/^X-(Marker|Path)-(\d+): (.*)$/', $header, $m)) {
+                    return Response::error(400, strtolower($m[1]) . " $m[2]: $m[3]", $headers);
+                }
+            }
+        }
 
         $viewport = new Viewport($this->webmercator);
         $center = $viewport->center($params->latitude, $params->longitude, $bounds);
@@ -168,9 +203,9 @@ final class Renderer
         $text = isset($basemap['attribution_text']) ? (string) $basemap['attribution_text'] : null;
         (new Attribution($remote))->draw($im, $attribution, $text, $position, $width, $height);
 
-        [$formatHeaders, $body] = $this->encode($im, $request, $params->quality);
+        [$typeHeaders, $body] = $this->encode($im, $format, $params->quality);
         $cacheHeaders = $this->cacheHeaders($headers, $basemap, $client !== null && !$client->signed, $body);
-        $headers = array_merge($headers, $formatHeaders, $cacheHeaders);
+        $headers = array_merge($headers, $typeHeaders, $cacheHeaders);
 
         return new Response($headers, $body);
     }
@@ -210,27 +245,38 @@ final class Renderer
     }
 
     /**
-     * Encode the image as the requested `format` (already checked to be one of FORMATS).
+     * Encode the image.
      *
      * @param GdImage $im      The finished map.
-     * @param Request $request The request (`format`).
-     * @param int     $quality JPEG quality, 1-100.
+     * @param string  $format  One of formats().
+     * @param int     $quality JPEG and WebP quality, 1-100.
      *
-     * @return array{list<string>, string} Content-type header and the encoded image.
+     * @return array{list<string>, string} Content-Type header and the encoded image.
      */
-    private function encode(GdImage $im, Request $request, int $quality): array
+    private function encode(GdImage $im, string $format, int $quality): array
     {
-        $headers = array();
         ob_start();
-        $fmt = $request->get('format', $this->config['defaults']['format']);
-        if ($fmt === 'jpg' || $fmt === 'jpeg') {
-            $headers[] = 'Content-type: image/jpg';
-            imagejpeg($im, null, $quality);
-        } else {
-            $headers[] = 'Content-type: image/png';
-            imagepng($im);
+        switch ($format) {
+            case 'jpg':
+            case 'jpeg':
+                $type = 'image/jpeg';
+                imagejpeg($im, null, $quality);
+                break;
+            case 'webp':
+                $type = 'image/webp';
+                imagewebp($im, null, $quality);
+                break;
+            case 'png8':
+                $type = 'image/png';
+                // Reduce to a 256-colour palette: much smaller files for maps with few colours.
+                imagetruecolortopalette($im, false, 256);
+                imagepng($im, null, 9);
+                break;
+            default:
+                $type = 'image/png';
+                imagepng($im);
         }
 
-        return [$headers, (string) ob_get_clean()];
+        return [['Content-Type: ' . $type], (string) ob_get_clean()];
     }
 }

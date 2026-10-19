@@ -391,7 +391,7 @@ class Config
     private static function validate(array $config): void
     {
         $sections = [
-            'defaults', 'access', 'clients', 'limits', 'cache', 'remote', 'zoom',
+            'defaults', 'access', 'clients', 'limits', 'errors', 'cache', 'remote', 'zoom',
             'providers', 'basemap_aliases', 'removed',
         ];
         foreach ($sections as $section) {
@@ -519,14 +519,17 @@ class Config
             throw new RuntimeException("Setting 'remote.max_redirects' must be a whole number of 0 or more");
         }
 
-        foreach (['max_width', 'max_height'] as $limit) {
+        if (!is_bool($config['errors']['strict'] ?? null)) {
+            throw new RuntimeException("Setting 'errors.strict' must be true or false");
+        }
+        foreach (['max_width', 'max_height', 'max_markers', 'max_points'] as $limit) {
             if (!is_int($config['limits'][$limit] ?? null) || $config['limits'][$limit] < 1) {
                 throw new RuntimeException("Setting 'limits.$limit' must be a whole number of 1 or more");
             }
         }
 
         if (!in_array($config['defaults']['format'] ?? null, Renderer::FORMATS, true)) {
-            throw new RuntimeException("Setting 'defaults.format' must be 'png' or 'jpg'");
+            throw new RuntimeException("Setting 'defaults.format' must be one of " . implode(', ', Renderer::FORMATS));
         }
 
         $limit = $config['zoom']['max_limit'] ?? null;

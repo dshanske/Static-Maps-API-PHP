@@ -976,7 +976,7 @@ final class RenderTest extends RenderTestCase
         $low = $this->render(self::PORTLAND + ['format' => 'jpg', 'quality' => 10]);
         $high = $this->render(self::PORTLAND + ['format' => 'jpeg', 'quality' => 95]);
 
-        $this->assertSame('image/jpg', $low->header('Content-Type'));
+        $this->assertSame('image/jpeg', $low->header('Content-Type'));
         $this->assertSame("\xFF\xD8\xFF", substr($low->body, 0, 3));
         $this->assertLessThan(strlen($high->body), strlen($low->body));
         $this->assertMatchesSnapshot('jpeg.jpg', $high->body);
@@ -992,7 +992,8 @@ final class RenderTest extends RenderTestCase
         $response = $this->render(self::PORTLAND + ['format' => 'gif']);
 
         $this->assertSame(400, $response->status);
-        $this->assertSame("format must be png or jpg\n", $response->body);
+        $this->assertStringStartsWith('format must be png, png8, jpg, jpeg', $response->body);
+        $this->assertSame(rtrim($response->body), $response->header('X-Map-Error'));
         $this->assertSame([], $this->tileRequests());
     }
 

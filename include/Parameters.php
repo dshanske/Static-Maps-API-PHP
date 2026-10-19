@@ -31,7 +31,7 @@ final class Parameters
      * @param float|null   $longitude    Centre longitude in degrees, or null if not given.
      * @param int|null     $zoom         Requested zoom, or null to fit the markers and paths.
      * @param int|null     $maxzoom      Highest zoom to use, or null for no extra limit.
-     * @param int          $quality      JPEG quality, 1-100.
+     * @param int          $quality      JPEG and WebP quality, 1-100.
      * @param float        $bezier       Curve angle for paths in degrees; 0 for straight lines.
      */
     private function __construct(

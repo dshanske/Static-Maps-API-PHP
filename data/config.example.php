@@ -37,7 +37,7 @@ return [
     //     'height'       => 300,       // pixels
     //     'path_color'   => '333333',  // hex RGB, no '#'
     //     'path_weight'  => 3,         // pixels
-    //     'format'       => 'png',     // 'png' or 'jpg'
+    //     'format'       => 'png',     // 'png', 'png8', 'jpg' or 'webp'
     //     'jpeg_quality' => 75,        // 0-100
     //     'provider'     => 'osm',     // id of an enabled provider
     //     'style'        => 'streets', // one of that provider's styles
@@ -48,7 +48,13 @@ return [
     // 'limits' => [
     //     'max_width'  => 1280,   // pixels
     //     'max_height' => 1280,   // pixels
+    //     'max_markers' => 100,   // markers drawn per map
+    //     'max_points'  => 10000, // points in all paths together
     // ],
+
+    // Answer 400 for a marker or path that can't be drawn, instead of leaving
+    // it out with an X-Marker-<n> / X-Path-<n> header.
+    // 'errors' => ['strict' => true],
 
     // How long browsers and caches may keep map images.
     // 'cache' => [

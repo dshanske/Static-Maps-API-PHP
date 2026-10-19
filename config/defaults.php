@@ -39,11 +39,13 @@ return [
         'path_color'   => '333333',
         'path_weight'  => 3,
 
-        // Output format when the request has no `format`: 'png' or 'jpg'.
+        // Output format when the request has no `format`: 'png', 'png8' (256
+        // colours, smaller), 'jpg' or 'webp' (if PHP's GD has WebP support;
+        // otherwise maps are sent as PNG).
         // Default: 'png'.
         'format'       => 'png',
 
-        // JPEG quality (0-100) when `format=jpg` and the request has no `quality`.
+        // JPEG and WebP quality (1-100) when the request has no `quality`.
         // Default: 75.
         'jpeg_quality' => 75,
 
@@ -71,11 +73,34 @@ return [
      * `X-Map-Size` header. Bigger images download more tiles from the tile
      * providers (a 1280x1280 map needs up to about 36 tiles per layer).
      * Default: 1280 x 1280.
-     * Example override: 'limits' => ['max_width' => 2048, 'max_height' => 2048],
+     * 'max_markers' Most markers drawn on one map; later ones are left out, with
+     *               an `X-Map-Limit` header. Each marker can mean an icon download.
+     *               Default: 100.
+     * 'max_points'  Most points in all of a map's paths together; a path that
+     *               would go over is left out, with an `X-Map-Limit` header.
+     *               Default: 10000.
+     *
+     * Example override: 'limits' => ['max_width' => 2048, 'max_height' => 2048, 'max_markers' => 20],
      */
     'limits' => [
-        'max_width'  => 1280,
-        'max_height' => 1280,
+        'max_width'   => 1280,
+        'max_height'  => 1280,
+        'max_markers' => 100,
+        'max_points'  => 10000,
+    ],
+
+    /*
+     * How the renderer treats markers and paths it can't draw (bad coordinates,
+     * an unknown icon, unreadable points).
+     *
+     * 'strict' false (default): leave them out and say why in an `X-Marker-<n>`
+     *          or `X-Path-<n>` header, so the rest of the map is still drawn.
+     *          true: answer 400 with the reason instead.
+     *
+     * Example override: 'errors' => ['strict' => true],
+     */
+    'errors' => [
+        'strict' => false,
     ],
 
     /*

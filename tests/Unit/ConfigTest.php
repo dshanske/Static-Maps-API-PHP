@@ -66,7 +66,13 @@ final class ConfigTest extends TestCase
                 'clients_file' => '/nonexistent/clients.json',
             ],
             'clients'         => [],
-            'limits'          => ['max_width' => 1280, 'max_height' => 1280],
+            'limits'          => [
+                'max_width'   => 1280,
+                'max_height'  => 1280,
+                'max_markers' => 100,
+                'max_points'  => 10000,
+            ],
+            'errors'          => ['strict' => false],
             'cache'           => [
                 'max_age'          => 604800,
                 'fallback_max_age' => 300,
@@ -439,6 +445,8 @@ final class ConfigTest extends TestCase
             'alias to nowhere'      => [['basemap_aliases' => ['old' => 'one/nope']], "alias 'old' must point"],
             'alias malformed'       => [['basemap_aliases' => ['old' => 'one']], "alias 'old' must point"],
             'limit not int'         => [['limits' => ['max_width' => '1280']], "'limits.max_width' must be"],
+            'strict not bool'       => [['errors' => ['strict' => 'yes']], "'errors.strict' must be"],
+            'max_markers zero'      => [['limits' => ['max_markers' => 0]], "'limits.max_markers' must be"],
             'limit zero'            => [['limits' => ['max_height' => 0]], "'limits.max_height' must be"],
             'cache max_age'         => [['cache' => ['max_age' => '7d']], "'cache.max_age' must be"],
             'cache policy'          => [['providers' => ['one' => ['cache' => 'sometimes']]], "isn't 'headers'"],
