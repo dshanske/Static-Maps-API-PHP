@@ -18,8 +18,8 @@ namespace StaticMaps;
  * - `/api/v1/attribution` The credit for one map, chosen by the same
  *                       `provider` / `style` / `basemap` parameters as the image.
  *
- * It never returns tile URLs or API keys. Token-only providers and styles are
- * only listed for requests with a valid `token`, as `X-Map-Fallback` doesn't
+ * It never returns tile URLs or API keys. Providers and styles that need a key
+ * are only listed for requests with a valid `key`, as `X-Map-Fallback` doesn't
  * reveal them either (#52).
  */
 final class Api
@@ -29,11 +29,11 @@ final class Api
 
     /**
      * @param array<string, mixed> $config        Configuration from Config::load().
-     * @param bool                 $authenticated Whether the request has a valid token.
+     * @param Client|null          $client        The request's client, or null without a valid key.
      * @param string               $base          URL path the service is installed under,
      *                                            without a trailing slash ('' at the site root).
      */
-    public function __construct(private array $config, private bool $authenticated, private string $base)
+    public function __construct(private array $config, private ?Client $client, private string $base)
     {
     }
 
@@ -119,7 +119,12 @@ final class Api
             'formats'      => ['png', 'jpg'],
             'attributions' => Attribution::NAMES,
             'attribution_positions' => Attribution::POSITIONS,
-            'custom_tiles' => $this->authenticated,
+            'access'       => [
+                'mode'         => $this->config['access']['mode'],
+                'key_required' => $this->config['access']['mode'] === 'restricted',
+                'key_valid'    => $this->client !== null,
+            ],
+            'custom_tiles' => $this->client !== null && $this->client->externalUrls,
             'links'        => $this->links(),
         ];
     }
@@ -135,7 +140,7 @@ final class Api
         foreach ($this->config['providers'] as $id => $provider) {
             $styles = [];
             foreach (array_keys($provider['styles']) as $styleId) {
-                $style = Config::resolve($this->config, (string) $id, (string) $styleId, $this->authenticated);
+                $style = Config::resolve($this->config, (string) $id, (string) $styleId, $this->client);
                 if ($style === null) {
                     continue;
                 }
@@ -149,6 +154,7 @@ final class Api
                     'attribution_html' => $style['attribution_html'] ?? null,
                     'labels_layer'  => count($style['layers']) > 1,
                     'requires_auth' => (bool) ($style['requires_auth'] ?? false),
+                    'needs_key'     => (bool) ($style['needs_client'] ?? false),
                 ];
             }
             if ($styles === []) {
@@ -169,7 +175,7 @@ final class Api
             if ($alias === null) {
                 continue;
             }
-            if (Config::resolve($this->config, $alias[0], $alias[1], $this->authenticated) !== null) {
+            if (Config::resolve($this->config, $alias[0], $alias[1], $this->client) !== null) {
                 $deprecated[(string) $old] = ['provider' => $alias[0], 'style' => $alias[1]];
             }
         }
@@ -204,10 +210,10 @@ final class Api
      */
     private function attribution(Request $request, array &$headers): array
     {
-        [$map, $headers] = (new MapChooser($this->config))->choose($request, $this->authenticated);
+        [$map, $headers] = (new MapChooser($this->config))->choose($request, $this->client);
 
         $logo = $request->get('attribution');
-        if (Attribution::isUrl($logo) && !$this->authenticated) {
+        if (Attribution::isUrl($logo) && ($this->client === null || !$this->client->externalUrls)) {
             $logo = false;
         }
         if (!Attribution::isKnown($logo)) {
@@ -291,7 +297,7 @@ final class Api
         return [
             'Access-Control-Allow-Origin: *',
             'Access-Control-Allow-Methods: GET, HEAD, OPTIONS',
-            'Cache-Control: ' . ($this->authenticated ? 'private, no-store' : 'public, max-age=' . self::MAX_AGE),
+            'Cache-Control: ' . ($this->client !== null ? 'private, no-store' : 'public, max-age=' . self::MAX_AGE),
         ];
     }
 

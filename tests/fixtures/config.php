@@ -7,7 +7,7 @@
  * Switches off every shipped provider, so a test can never reach a real tile
  * host, and adds providers that point at the fake tile server
  * (tests/fixtures/tile-server.php), whose base URL comes from TILE_SERVER_URL.
- * The only valid access token is `test-token` (tests/fixtures/tokens.txt).
+ * The only client key is `test-token` (the `test` client).
  *
  * The deprecated `basemap=` ids used by the older tests (`fixture`,
  * `fixture-overlay`, ...) are kept as aliases of the fixture styles.
@@ -32,7 +32,15 @@ return [
     ],
     // Small limits so the download-limit tests run quickly.
     'remote'     => ['timeout' => 2, 'connect_timeout' => 2, 'max_bytes' => 200000, 'max_redirects' => 2],
-    'token_file' => __DIR__ . '/tokens.txt',
+    // The only client: key `test-token`. (tokens.txt is for LegacyTokenTest.)
+    'token_file' => __DIR__ . '/no-such-tokens.txt',
+    'access'     => ['clients_file' => __DIR__ . '/no-such-clients.json'],
+    'clients'    => [
+        'test'    => ['key' => 'test-token'],
+        // Limited: only the `keyed` provider among those needing a key, no external URLs.
+        'limited' => ['key' => 'limited-key', 'providers' => ['keyed'], 'external_urls' => false],
+        'off'     => ['key' => 'disabled-key', 'enabled' => false],
+    ],
     'providers' => $providers + [
         'fixture' => [
             'name'          => 'Fixture tiles',

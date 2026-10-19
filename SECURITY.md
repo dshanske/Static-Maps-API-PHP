@@ -16,6 +16,6 @@ You can expect an answer within a week. Fixes are released as soon as they are r
 
 ## Running an install safely
 
-- Keep the token file (`token_file`, default `data/apikeys.txt`) private and use long random tokens. Only requests with a valid token may make the server download from addresses they choose (marker icon URLs, attribution image URLs, custom tile URLs).
+- Give each site or caller its own client key (`php bin/clients.php add <id>`), so one can be revoked without the others, and keep `data/clients.json` readable only by PHP. Only requests with a valid key may use maps that cost you provider credit, or make the server download from addresses they choose (marker icon URLs, attribution image URLs, custom tile URLs). With `access.mode = 'restricted'`, every map needs a key.
 - Downloads from other servers are limited by the `remote` setting (time, size, redirects; http and https only) and image sizes by `limits`.
 - Turn off `display_errors` in production (see the README).

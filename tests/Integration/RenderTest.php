@@ -478,7 +478,12 @@ final class RenderTest extends RenderTestCase
                 ['base', 'overlay'],
             ],
             // keyed's maxzoom of 12 moves the centre into tile 652/1465.
-            'provider only'             => [['provider' => 'keyed'], self::tileColor(652, 1465), ['base']],
+            'provider only'             => [
+                ['provider' => 'keyed', 'key' => 'test-token'],
+                self::tileColor(652, 1465),
+                ['base'],
+            ],
+            'server key, no client key' => [['provider' => 'keyed'], $base, ['base']],
             'style only'                => [['style' => 'overlay'], self::WHITE, ['base', 'overlay']],
             'unknown provider'          => [['provider' => 'nope', 'style' => 'overlay'], $base, ['base']],
             'unknown style'             => [['provider' => 'fixture', 'style' => 'nope'], $base, ['base']],
@@ -488,19 +493,19 @@ final class RenderTest extends RenderTestCase
             'shipped, switched off'     => [['provider' => 'osm', 'style' => 'streets'], $base, ['base']],
             'token style, no token'     => [['provider' => 'fixture', 'style' => 'auth'], $base, ['base']],
             'token style, token'        => [
-                ['provider' => 'fixture', 'style' => 'auth', 'token' => 'test-token'],
+                ['provider' => 'fixture', 'style' => 'auth', 'key' => 'test-token'],
                 self::WHITE,
                 ['overlay'],
             ],
             'token provider, no token'  => [['provider' => 'secret'], $base, ['base']],
-            'token provider, token' => [['provider' => 'secret', 'token' => 'test-token'], self::WHITE, ['overlay']],
+            'token provider, token' => [['provider' => 'secret', 'key' => 'test-token'], self::WHITE, ['overlay']],
             'custom without token'      => [
                 ['provider' => 'custom', 'tileurl' => '__TILES__/overlay/{z}/{x}/{y}.png'],
                 $base,
                 ['base'],
             ],
             'custom with token'         => [
-                ['provider' => 'custom', 'tileurl' => '__TILES__/overlay/{z}/{x}/{y}.png', 'token' => 'test-token'],
+                ['provider' => 'custom', 'tileurl' => '__TILES__/overlay/{z}/{x}/{y}.png', 'key' => 'test-token'],
                 self::WHITE,
                 ['overlay'],
             ],
@@ -597,7 +602,7 @@ final class RenderTest extends RenderTestCase
         $this->assertNull($this->render(self::TILE_CENTER + ['provider' => 'fixture'])->header('X-Map-Fallback'));
         $old = $this->render(self::TILE_CENTER + ['basemap' => 'fixture-overlay']);
         $this->assertNull($old->header('X-Map-Fallback'));
-        $withToken = $this->render(self::TILE_CENTER + ['provider' => 'secret', 'token' => 'test-token']);
+        $withToken = $this->render(self::TILE_CENTER + ['provider' => 'secret', 'key' => 'test-token']);
         $this->assertNull($withToken->header('X-Map-Fallback'));
     }
 
@@ -625,18 +630,19 @@ final class RenderTest extends RenderTestCase
      */
     public function testStyleInheritsProviderSettings(): void
     {
-        $inherited = $this->render(self::PORTLAND + ['provider' => 'keyed', 'zoom' => 16]);
+        $inherited = $this->render(self::PORTLAND + ['provider' => 'keyed', 'key' => 'test-token', 'zoom' => 16]);
         $this->assertSame(['key=a%20b%26c'], array_values(array_unique(array_column($this->tileRequests(), 'query'))));
         $this->assertStringStartsWith('/base/12/', $this->tilePaths()[0], 'provider maxzoom 12');
         $atTwelve = ['zoom' => 12] + self::TILE_CENTER;
         $this->assertSame(
             $this->render($atTwelve + ['provider' => 'fixture', 'style' => 'esri'])->body,
-            $this->render($atTwelve + ['provider' => 'keyed'])->body,
+            $this->render($atTwelve + ['provider' => 'keyed', 'key' => 'test-token'])->body,
             'keyed inherits the Esri attribution'
         );
 
         $this->setUp();
-        $this->render(self::PORTLAND + ['provider' => 'keyed', 'style' => 'overridden', 'zoom' => 16]);
+        $overridden = ['provider' => 'keyed', 'key' => 'test-token', 'style' => 'overridden', 'zoom' => 16];
+        $this->render(self::PORTLAND + $overridden);
         $this->assertSame(['key=own'], array_values(array_unique(array_column($this->tileRequests(), 'query'))));
         $this->assertStringStartsWith('/overlay/14/', $this->tilePaths()[0], 'style maxzoom 14');
         $this->assertSame(200, $inherited->status);
@@ -669,7 +675,7 @@ final class RenderTest extends RenderTestCase
      */
     public function testTokenUnlocksBasemap(): void
     {
-        $im = $this->render(self::TILE_CENTER + ['basemap' => 'fixture-auth', 'token' => 'test-token'])->image();
+        $im = $this->render(self::TILE_CENTER + ['basemap' => 'fixture-auth', 'key' => 'test-token'])->image();
 
         $this->assertPixel(self::WHITE, $im, 150, 150);
         $this->assertContains('/overlay/14/2608/5860.png', $this->tilePaths());
@@ -685,7 +691,7 @@ final class RenderTest extends RenderTestCase
         $im = $this->render(self::TILE_CENTER + [
             'basemap' => 'custom',
             'tileurl' => self::$tiles?->url . '/overlay/{z}/{x}/{y}.png',
-            'token'   => 'test-token',
+            'key'     => 'test-token',
         ])->image();
 
         $this->assertPixel(self::WHITE, $im, 150, 150);
@@ -709,7 +715,7 @@ final class RenderTest extends RenderTestCase
 
         foreach (['wrong-token' => false, 'test-token' => true] as $token => $drawn) {
             $this->setUp();
-            $im = $this->render(self::TILE_CENTER + $marker + ['token' => $token])->image();
+            $im = $this->render(self::TILE_CENTER + $marker + ['key' => $token])->image();
 
             $fetched = in_array('/overlay/1/1/1.png', $this->tilePaths(), true);
             $this->assertSame($drawn, $fetched, "icon fetched with $token");
@@ -724,7 +730,7 @@ final class RenderTest extends RenderTestCase
      */
     public function testBasemapKey(): void
     {
-        $this->render(self::PORTLAND + ['basemap' => 'fixture-keyed']);
+        $this->render(self::PORTLAND + ['basemap' => 'fixture-keyed', 'key' => 'test-token']);
 
         $queries = array_unique(array_column($this->tileRequests(), 'query'));
         $this->assertSame(['key=a%20b%26c'], array_values($queries));
@@ -934,11 +940,11 @@ final class RenderTest extends RenderTestCase
 
         $without = $this->render(self::TILE_CENTER + ['attribution' => $url]);
         $this->assertNotContains('/overlay/1/1/1.png', $this->tilePaths(), 'not fetched');
-        $this->assertSame('attribution image URLs need a valid token', $without->header('X-Map-Attribution'));
+        $this->assertSame('attribution image URLs need a valid key', $without->header('X-Map-Attribution'));
         $this->assertSame($this->render(self::TILE_CENTER)->body, $without->body);
 
         $this->setUp();
-        $with = $this->render(self::TILE_CENTER + ['attribution' => $url, 'token' => 'test-token']);
+        $with = $this->render(self::TILE_CENTER + ['attribution' => $url, 'key' => 'test-token']);
         $this->assertContains('/overlay/1/1/1.png', $this->tilePaths(), 'fetched with a token');
         $this->assertNull($with->header('X-Map-Attribution'));
     }
@@ -953,7 +959,7 @@ final class RenderTest extends RenderTestCase
         $plain = $this->render(self::TILE_CENTER + ['attribution' => 'none']);
         $broken = $this->render(self::TILE_CENTER + [
             'attribution' => self::$tiles?->url . '/broken/1/1/1.png',
-            'token'       => 'test-token',
+            'key'         => 'test-token',
         ]);
 
         $this->assertSame(200, $broken->status);
@@ -1019,7 +1025,7 @@ final class RenderTest extends RenderTestCase
         return [
             'unknown built-in icon' => ['no-such-icon', 'unknown icon'],
             'path in icon name'     => ['../images/dot-small-red', 'unknown icon'],
-            'URL without a token'   => ['https://icons.invalid/pin.png', 'icon URLs need a valid token'],
+            'URL without a token'   => ['https://icons.invalid/pin.png', 'icon URLs need a valid key'],
         ];
     }
 
@@ -1049,7 +1055,7 @@ final class RenderTest extends RenderTestCase
     {
         $icon = self::$tiles?->url . '/broken/1/1/1.png';
         $marker = ['marker' => ["lat:45.5;lng:-122.6;icon:$icon"]];
-        $response = $this->render(self::PORTLAND + ['token' => 'test-token'] + $marker);
+        $response = $this->render(self::PORTLAND + ['key' => 'test-token'] + $marker);
 
         $this->assertSame('icon could not be loaded', $response->header('X-Marker-1'));
     }

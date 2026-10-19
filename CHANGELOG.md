@@ -54,6 +54,17 @@ stable interface; pin a commit if you need a fixed point.
   days. Providers with `cache => 'off'` are never cached. New `cache.tiles`
   settings, and `bin/prune-cache.php` to run from cron or a systemd timer,
   which keeps the cache under `cache.tiles.max_size` (1 GB by default).
+- Client keys and access modes (#28). Callers send a client key as the new
+  `key` parameter. `access.mode = 'open'` (default) keeps free maps open to
+  everyone and requires a client key for maps whose tiles use a provider key
+  the install holds, `requires_auth` maps and the URL features;
+  `access.mode = 'restricted'` requires one for every map (403 without it;
+  the home page and query API stay open). Keys are issued with the new
+  `bin/clients.php` (`add`, `list`, `set`, `rotate`, `revoke`, `import`),
+  which stores only their SHA-256 hashes in `data/clients.json`; clients can
+  be limited to some providers and kept from external URLs. The query API
+  reports the access mode and lists keyed maps only to clients that may use
+  them.
 - Cache headers on map images (#11): `Cache-Control` (7 days by default, the
   new `cache.max_age` setting; `private` for requests with a token and for
   providers with `cache => 'off'`; 5 minutes for fallback maps; `no-store` on
@@ -80,6 +91,11 @@ stable interface; pin a commit if you need a fixed point.
   use their own page with the `home_page` setting. (#47)
 
 ### Changed
+
+- Maps whose tiles use a provider API key held by the install (for example
+  CARTO once a key is set) now need a client key in the default `open` mode,
+  so the install's provider allowance can't be spent by anyone who finds the
+  URL. (#28)
 
 - The shipped maps draw the credit their providers require: OpenStreetMap,
   OpenTopoMap and CARTO draw their credit text instead of the OpenStreetMap
@@ -119,6 +135,11 @@ stable interface; pin a commit if you need a fixed point.
   their own. (#54)
 
 ### Deprecated
+
+- The `token` parameter (use `key`) and the token file `data/apikeys.txt` /
+  `token_file` (run `php bin/clients.php import`). Both still work: requests
+  with `token` get `Deprecation` headers, and an install with a token file
+  logs a message per request. Removed no earlier than 2.0.0. (#28)
 
 - The `basemap` request parameter. Every existing id keeps working as an
   alias of a provider and style (listed in the README), with `Deprecation`

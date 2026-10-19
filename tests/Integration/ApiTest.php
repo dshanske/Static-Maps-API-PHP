@@ -80,7 +80,7 @@ final class ApiTest extends RenderTestCase
         $byId = array_column($data['providers'], null, 'id');
         // Shipped providers are switched off in the test config; token-only, keyless and
         // disabled providers are left out.
-        $this->assertSame(['fixture', 'keyed', 'no-proxy'], array_keys($byId));
+        $this->assertSame(['fixture', 'no-proxy'], array_keys($byId), 'providers with a server key need a client key');
 
         $styles = array_column($byId['fixture']['styles'], null, 'id');
         $this->assertSame(
@@ -92,17 +92,13 @@ final class ApiTest extends RenderTestCase
         $this->assertSame(
             ['id' => 'zoom', 'name' => 'Limited to zoom 5-10', 'minzoom' => 5, 'maxzoom' => 10,
                 'attribution' => 'osm', 'attribution_text' => null, 'attribution_html' => null,
-                'labels_layer' => false, 'requires_auth' => false],
+                'labels_layer' => false, 'requires_auth' => false, 'needs_key' => false],
             $styles['zoom']
         );
         $this->assertTrue($styles['overlay']['labels_layer']);
         $this->assertSame('esri', $styles['esri']['attribution']);
         $this->assertSame('base', $byId['fixture']['default_style']);
 
-        $keyed = array_column($byId['keyed']['styles'], null, 'id');
-        $main = $keyed['main'];
-        $this->assertSame([2, 12, 'esri'], [$main['minzoom'], $main['maxzoom'], $main['attribution']]);
-        $this->assertSame(14, $keyed['overridden']['maxzoom']);
 
         $overlay = $data['deprecated_basemaps']['fixture-overlay'];
         $this->assertSame(['provider' => 'fixture', 'style' => 'overlay'], $overlay);
@@ -118,15 +114,22 @@ final class ApiTest extends RenderTestCase
      */
     public function testProvidersWithToken(): void
     {
-        [$response, $data] = $this->api('/api/v1/providers?token=test-token');
+        [$response, $data] = $this->api('/api/v1/providers?key=test-token');
 
         $this->assertSame('private, no-store', $response->header('Cache-Control'));
         $byId = array_column($data['providers'], null, 'id');
         $this->assertSame(['fixture', 'keyed', 'secret', 'no-proxy'], array_keys($byId));
+        $keyed = array_column($byId['keyed']['styles'], null, 'id');
+        $main = $keyed['main'];
+        $this->assertSame(
+            [2, 12, 'esri', true],
+            [$main['minzoom'], $main['maxzoom'], $main['attribution'], $main['needs_key']]
+        );
+        $this->assertSame(14, $keyed['overridden']['maxzoom']);
         $styles = array_column($byId['fixture']['styles'], null, 'id');
         $this->assertTrue($styles['auth']['requires_auth']);
         $this->assertArrayHasKey('fixture-auth', $data['deprecated_basemaps']);
-        $this->assertTrue($this->api('/api/v1/?token=test-token')[1]['custom_tiles']);
+        $this->assertTrue($this->api('/api/v1/?key=test-token')[1]['custom_tiles']);
     }
 
     /**
@@ -136,8 +139,8 @@ final class ApiTest extends RenderTestCase
      */
     public function testNoTileUrlsOrKeys(): void
     {
-        $paths = ['/api/v1/', '/api/v1/providers', '/api/v1/providers?token=test-token', '/api/v1/icons',
-            '/api/v1/attribution?provider=keyed', '/api/v1/attribution?provider=custom&token=test-token&tileurl=x'];
+        $paths = ['/api/v1/', '/api/v1/providers', '/api/v1/providers?key=test-token', '/api/v1/icons',
+            '/api/v1/attribution?provider=keyed', '/api/v1/attribution?provider=custom&key=test-token&tileurl=x'];
         foreach ($paths as $path) {
             $body = self::$app->get($path)->body;
             $this->assertStringNotContainsString((string) self::$tiles?->url, $body, $path);

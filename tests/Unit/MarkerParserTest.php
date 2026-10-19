@@ -154,7 +154,7 @@ final class MarkerParserTest extends TestCase
 
         $this->assertSame([], $result['markers']);
         $this->assertSame([10.0, 10.0, 20.0, 20.0], self::edges($bounds));
-        $this->assertSame(['X-Marker-1: icon URLs need a valid token'], $result['headers']);
+        $this->assertSame(['X-Marker-1: icon URLs need a valid key'], $result['headers']);
     }
 
     /**

@@ -30,9 +30,9 @@ final class Renderer
 
     /**
      * @param array<string, mixed> $config Configuration from Config::load().
-     * @param Tokens               $tokens Valid access tokens.
+     * @param Access               $access Who may draw which maps.
      */
-    public function __construct(private array $config, private Tokens $tokens)
+    public function __construct(private array $config, private Access $access)
     {
         $this->webmercator = new WebMercator();
     }
@@ -49,6 +49,12 @@ final class Renderer
      */
     public function render(Request $request): Response
     {
+        // The key first: in restricted mode, a request without one learns nothing else.
+        [$client, $keyHeaders] = $this->access->client($request);
+        if ($this->access->restricted && $client === null) {
+            return Response::error(403, 'A valid key is required to draw maps on this server', $keyHeaders);
+        }
+
         try {
             $params = Parameters::parse($request, $this->config);
         } catch (InvalidRequest $e) {
@@ -69,11 +75,12 @@ final class Renderer
         $config = $this->config;
         $headers = array();
         $bounds = new Bounds();
-        $is_authenticated = $this->tokens->isValid($request->get('token'));
+        $headers = array_merge($headers, $keyHeaders);
+        $mayFetchUrls = $client !== null && $client->externalUrls;
 
         // Markers and paths; with no centre given, the map is centred on them
         $remote = RemoteFetcher::fromConfig($config);
-        $parsed = (new MarkerParser($remote))->parse($request->get('marker'), $is_authenticated, $bounds);
+        $parsed = (new MarkerParser($remote))->parse($request->get('marker'), $mayFetchUrls, $bounds);
         $markers = $parsed['markers'];
         $headers = array_merge($headers, $parsed['headers']);
 
@@ -107,7 +114,7 @@ final class Renderer
         $height = $params->height;
         $headers = array_merge($headers, $params->sizeHeaders);
 
-        [$basemap, $basemapHeaders] = (new MapChooser($config))->choose($request, $is_authenticated);
+        [$basemap, $basemapHeaders] = (new MapChooser($config))->choose($request, $client);
         $headers = array_merge($headers, $basemapHeaders);
         $tileURL = $basemap['layers'][0];
         $overlayURL = $basemap['layers'][1] ?? false;
@@ -148,8 +155,8 @@ final class Renderer
         // default. An unknown value counts as no value.
         $attribution = $request->get('attribution');
         // Like icon URLs and custom tiles, attribution image URLs need a valid token.
-        if (Attribution::isUrl($attribution) && !$is_authenticated) {
-            $headers[] = 'X-Map-Attribution: attribution image URLs need a valid token';
+        if (Attribution::isUrl($attribution) && !$mayFetchUrls) {
+            $headers[] = 'X-Map-Attribution: attribution image URLs need a valid key';
             $attribution = false;
         }
         if (!Attribution::isKnown($attribution)) {
@@ -159,7 +166,7 @@ final class Renderer
         (new Attribution($remote))->draw($im, $attribution, $text, $position, $width, $height);
 
         [$formatHeaders, $body] = $this->encode($im, $request, $params->quality);
-        $cacheHeaders = $this->cacheHeaders($headers, $basemap, $is_authenticated, $body);
+        $cacheHeaders = $this->cacheHeaders($headers, $basemap, $client !== null, $body);
         $headers = array_merge($headers, $formatHeaders, $cacheHeaders);
 
         return new Response($headers, $body);
@@ -175,7 +182,7 @@ final class Renderer
      *
      * @param list<string>         $headers          Headers collected so far (for X-Map-Fallback).
      * @param array<string, mixed> $basemap          The map drawn (for its `cache` policy).
-     * @param bool                 $is_authenticated Whether the request has a valid token.
+     * @param bool                 $is_authenticated Whether the request has a valid key.
      * @param string               $body             The encoded image.
      *
      * @return list<string> Cache-Control and ETag header lines.

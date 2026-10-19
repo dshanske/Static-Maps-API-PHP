@@ -26,7 +26,7 @@ final class CacheHeadersTest extends RenderTestCase
     {
         return [
             'plain map'               => ['', 'public, max-age=604800'],
-            'with a token'            => ['&token=test-token', 'private, max-age=604800'],
+            'with a token'            => ['&key=test-token', 'private, max-age=604800'],
             'provider with cache off' => ['&provider=no-proxy', 'private, max-age=604800'],
             'fallback map'            => ['&provider=nope', 'public, max-age=300'],
             'bad request'             => ['&zoom=abc', 'no-store'],

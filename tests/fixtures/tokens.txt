@@ -1,1 +1,1 @@
-test-token
+legacy-token
