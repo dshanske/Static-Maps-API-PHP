@@ -500,6 +500,122 @@ return [
                         'https://server.arcgisonline.com/ArcGIS/rest/services/NatGeo_World_Map/MapServer/tile/{z}/{y}/{x}',
                     ],
                 ],
+                // Same zoom range as Light Gray Canvas: real tiles to 16 (checked
+                // 2026-10-19 in Portland, Kansas, Paris, Nairobi, Tokyo).
+                'dark' => [
+                    'name'    => 'Dark Gray Canvas',
+                    'attribution_text' => 'Esri, HERE, Garmin, © OpenStreetMap contributors',
+                    'attribution_html' => 'Powered by <a href="https://www.esri.com">Esri</a> | Esri, HERE, Garmin, © <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors, and the GIS user community',
+                    'maxzoom' => 16,
+                    'layers'  => [
+                        'https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}',
+                        'https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Reference/MapServer/tile/{z}/{y}/{x}',
+                    ],
+                ],
+                'dark-nolabels' => [
+                    'name'    => 'Dark Gray Canvas without labels',
+                    'attribution_text' => 'Esri, HERE, Garmin, © OpenStreetMap contributors',
+                    'attribution_html' => 'Powered by <a href="https://www.esri.com">Esri</a> | Esri, HERE, Garmin, © <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors, and the GIS user community',
+                    'maxzoom' => 16,
+                    'layers'  => [
+                        'https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}',
+                    ],
+                ],
+                // Shaded relief (hillshade) without labels; real tiles to 13 everywhere checked.
+                'relief' => [
+                    'name'    => 'World Shaded Relief',
+                    'attribution_text' => 'Esri',
+                    'attribution_html' => 'Powered by <a href="https://www.esri.com">Esri</a> | Esri, USGS (GTOPO30, SRTM, NED)',
+                    'maxzoom' => 13,
+                    'layers'  => [
+                        'https://server.arcgisonline.com/ArcGIS/rest/services/World_Shaded_Relief/MapServer/tile/{z}/{y}/{x}',
+                    ],
+                ],
+                // Natural Earth physical map, without labels; real tiles only to 8.
+                'physical' => [
+                    'name'    => 'World Physical Map',
+                    'attribution_text' => 'US National Park Service',
+                    'attribution_html' => 'Powered by <a href="https://www.esri.com">Esri</a> | Source: US National Park Service',
+                    'maxzoom' => 8,
+                    'layers'  => [
+                        'https://server.arcgisonline.com/ArcGIS/rest/services/World_Physical_Map/MapServer/tile/{z}/{y}/{x}',
+                    ],
+                ],
+                // Terrain with Esri's reference labels. Like NatGeo, real tiles go
+                // further in the US (13) than elsewhere (9; checked 2026-10-19 in
+                // Portland, Kansas, Paris, Nairobi, Tokyo).
+                'terrain' => [
+                    'name'    => 'World Terrain with labels',
+                    'attribution_text' => 'Esri, USGS, NOAA',
+                    'attribution_html' => 'Powered by <a href="https://www.esri.com">Esri</a> | Sources: Esri, USGS, NOAA. Labels: Esri, Garmin, USGS, NPS',
+                    'maxzoom' => 13,
+                    'layers'  => [
+                        'https://server.arcgisonline.com/ArcGIS/rest/services/World_Terrain_Base/MapServer/tile/{z}/{y}/{x}',
+                        'https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Reference_Overlay/MapServer/tile/{z}/{y}/{x}',
+                    ],
+                ],
+            ],
+        ],
+
+        // OpenStreetMap France (https://www.openstreetmap.fr/fonds-de-carte/),
+        // a donation-funded server. Its terms (https://www.openstreetmap.fr/usage/)
+        // allow use on non-profit sites with moderate traffic (very low use on
+        // a business site is tolerated) and ask for the credit to be visible in
+        // a corner of the map; the service may be cut off without notice. They
+        // don't mention server-side use. Heavier or commercial use should run
+        // its own tile server. Its tiles send Cache-Control and ETags.
+        // Real tiles to zoom 20 (checked 2026-10-19; 21 is refused).
+        'osm-fr' => [
+            'name'             => 'OpenStreetMap France',
+            'cache'            => 'headers',
+            'attribution'      => 'text',
+            'attribution_text' => '© OpenStreetMap contributors',
+            'attribution_html' => '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors, tiles by <a href="https://www.openstreetmap.fr/">OpenStreetMap France</a>',
+            'maxzoom'          => 20,
+            'default_style'    => 'streets',
+            'styles' => [
+                // OSM France's own style, a fork of the standard OpenStreetMap style.
+                'streets' => [
+                    'name'   => 'OpenStreetMap France',
+                    'layers' => ['https://a.tile.openstreetmap.fr/osmfr/{z}/{x}/{y}.png'],
+                ],
+                // Humanitarian OpenStreetMap Team style.
+                'humanitarian' => [
+                    'name'             => 'Humanitarian',
+                    'attribution_html' => '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors, style by the <a href="https://www.hotosm.org/">Humanitarian OpenStreetMap Team</a>, tiles by <a href="https://www.openstreetmap.fr/">OpenStreetMap France</a>',
+                    'layers'           => ['https://a.tile.openstreetmap.fr/hot/{z}/{x}/{y}.png'],
+                ],
+                // CyclOSM, a cycling map (https://www.cyclosm.org/), hosted by OSM France.
+                'cycle' => [
+                    'name'             => 'CyclOSM',
+                    'attribution_text' => 'CyclOSM, © OpenStreetMap contributors',
+                    'attribution_html' => '<a href="https://www.cyclosm.org/">CyclOSM</a> | © <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors, tiles by <a href="https://www.openstreetmap.fr/">OpenStreetMap France</a>',
+                    'layers'           => ['https://a.tile-cyclosm.openstreetmap.fr/cyclosm/{z}/{x}/{y}.png'],
+                ],
+            ],
+        ],
+
+        // OpenStreetMap Germany's style (https://www.openstreetmap.de/germanstyle.html):
+        // the standard style with labels in German and the local language. A
+        // donation-funded server; its terms allow embedding for non-commercial
+        // use only (small sites such as a company's directions page are fine)
+        // and limit how many tiles one IP address gets at full speed, which
+        // matters here because every map comes from this server's address.
+        // Real tiles to 19 (checked 2026-10-19). Tiles not yet rendered can
+        // come back 404 the first time and are drawn gray.
+        'osm-de' => [
+            'name'             => 'OpenStreetMap Germany',
+            'cache'            => 'headers',
+            'attribution'      => 'text',
+            'attribution_text' => '© OpenStreetMap contributors',
+            'attribution_html' => '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors, tiles by <a href="https://www.openstreetmap.de/">OpenStreetMap Germany</a>',
+            'maxzoom'          => 19,
+            'default_style'    => 'streets',
+            'styles' => [
+                'streets' => [
+                    'name'   => 'OpenStreetMap Germany',
+                    'layers' => ['https://tile.openstreetmap.de/{z}/{x}/{y}.png'],
+                ],
             ],
         ],
 
