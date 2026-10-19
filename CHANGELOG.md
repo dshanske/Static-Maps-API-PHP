@@ -89,6 +89,11 @@ stable interface; pin a commit if you need a fixed point.
   `defaults.provider` / `defaults.style`. Install files that use them keep
   working: they are translated on load, and each request logs a deprecation
   message. Removed no earlier than 2.0.0. (#40)
+- The `location` parameter and `location:` in markers. They are ignored and
+  the response gets `Deprecation` and `Link` headers. A request that has
+  only a `location` gets HTTP 400 saying so, and a marker that has only a
+  `location` is skipped with an `X-Marker-<n>` header. Use
+  `latitude`/`longitude` and `lat`/`lng`. (#16)
 - `/img.php`. It still renders the same map, with `Deprecation` and `Link`
   headers; use `/` with the same parameters. Removed no earlier than 2.0.0.
   (#24)
@@ -113,12 +118,17 @@ stable interface; pin a commit if you need a fixed point.
   World Ocean Reference labels on top, up to zoom 13 (where Esri's detailed
   ocean data ends). (#17)
 - A request that doesn't say where the map is (no `latitude` and
-  `longitude`, no marker or path, no `location`) returns HTTP 400 with the
+  `longitude`, no marker or path) returns HTTP 400 with the
   reason, instead of a meaningless map centred on 0,0. So does a request with
   only one of `latitude` / `longitude`, which used to treat the missing one as
   0. (#47)
 
 ### Removed
+
+- Geocoding (`include/ArcGISGeocoder.php`). Turning addresses into
+  coordinates is the client's job, and it had been broken since ArcGIS
+  stopped accepting HTTP: every lookup failed. The `X-Geocode` and
+  `X-Geocode-Result` headers are gone too. (#16)
 
 - The Stamen basemaps (`stamen-toner`, `stamen-toner-background`,
   `stamen-toner-lite`, `stamen-terrain`, `stamen-terrain-background`,

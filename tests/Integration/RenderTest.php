@@ -151,6 +151,56 @@ final class RenderTest extends RenderTestCase
     }
 
     /**
+     * Geocoding was removed (#16): `location` alone is a 400 that says so, with
+     * deprecation headers, and nothing is looked up.
+     *
+     * @return void
+     */
+    public function testLocationAloneIsRejected(): void
+    {
+        $response = $this->render(['location' => 'Portland, OR', 'zoom' => 12]);
+
+        $this->assertSame(400, $response->status);
+        $this->assertSame(
+            "The location parameter (geocoding) is no longer supported: use latitude and longitude\n",
+            $response->body
+        );
+        $this->assertSame('@1792281600', $response->header('Deprecation'));
+        $this->assertSame([], $this->tileRequests());
+    }
+
+    /**
+     * With coordinates, `location` is ignored: the same map, plus deprecation headers.
+     *
+     * @return void
+     */
+    public function testLocationIsIgnoredWithCoordinates(): void
+    {
+        $plain = $this->render(self::PORTLAND);
+        $withLocation = $this->render(self::PORTLAND + ['location' => 'Somewhere else']);
+
+        $this->assertSame($plain->body, $withLocation->body);
+        $this->assertNull($plain->header('Deprecation'));
+        $this->assertSame('@1792281600', $withLocation->header('Deprecation'));
+        $this->assertStringContainsString('rel="deprecation"', (string) $withLocation->header('Link'));
+    }
+
+    /**
+     * A marker with only a `location` is skipped with a header saying why.
+     *
+     * @return void
+     */
+    public function testMarkerLocationIsSkipped(): void
+    {
+        $response = $this->render(['marker' => ['location:Portland;icon:dot-small-red', self::MARKERS[0]]]);
+
+        $this->assertSame(200, $response->status);
+        $this->assertSame('location is no longer supported, use lat and lng', $response->header('X-Marker-1'));
+        $this->assertNull($response->header('X-Marker-2'));
+        $this->assertSame('@1792281600', $response->header('Deprecation'));
+    }
+
+    /**
      * Skipped markers are still reported on a 400.
      *
      * @return void
@@ -160,7 +210,7 @@ final class RenderTest extends RenderTestCase
         $response = $this->render(['marker' => ['icon:dot-small-red']]);
 
         $this->assertSame(400, $response->status);
-        $this->assertSame('missing icon, or lat/lng/location parameters', $response->header('X-Marker-1'));
+        $this->assertSame('missing icon, or lat/lng parameters', $response->header('X-Marker-1'));
     }
 
     /**
@@ -272,7 +322,7 @@ final class RenderTest extends RenderTestCase
         $response = $this->render(self::PORTLAND + ['marker' => ['lat:45.5;lng:-122.6']]);
 
         $this->assertSame(200, $response->status);
-        $this->assertSame('missing icon, or lat/lng/location parameters', $response->header('X-Marker-1'));
+        $this->assertSame('missing icon, or lat/lng parameters', $response->header('X-Marker-1'));
     }
 
     /**

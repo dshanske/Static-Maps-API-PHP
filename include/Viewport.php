@@ -11,65 +11,40 @@ namespace StaticMaps;
  */
 final class Viewport
 {
-    /** @var callable(string): ArcGISGeocoderResult Looks up a `location`. */
-    private $geocode;
-
     /**
-     * @param WebMercator                                $webmercator Projection maths.
-     * @param callable(string): ArcGISGeocoderResult|null $geocode     Geocoder for `location`;
-     *                                                                null for ArcGISGeocoder::geocode().
+     * @param WebMercator $webmercator Projection maths.
      */
-    public function __construct(private WebMercator $webmercator, ?callable $geocode = null)
+    public function __construct(private WebMercator $webmercator)
     {
-        $this->geocode = $geocode ?? [ArcGISGeocoder::class, 'geocode'];
     }
 
     /**
-     * The map centre: `latitude`/`longitude`, else a geocoded `location`, else the
-     * centre of the markers and paths (0,0 if there are none).
+     * The map centre: `latitude`/`longitude`, else the centre of the markers and
+     * paths (0,0 if there are none).
      *
      * `longitude` is only read when `latitude` is given (Renderer rejects a request
-     * that has only one of them). Geocoding reports its outcome in `X-Geocode` and
-     * `X-Geocode-Result` headers.
+     * that has only one of them).
      *
      * @param Request $request The request.
      * @param Bounds  $bounds  Bounds of the markers and paths.
      *
-     * @return array{latitude: mixed, longitude: mixed, located: bool, headers: list<string>}
-     *         The centre in degrees (request values are passed through unchanged); whether
-     *         the request located the map at all (false means the 0,0 fallback); and
-     *         headers to send.
+     * @return array{latitude: mixed, longitude: mixed, located: bool} The centre in
+     *         degrees (request values are passed through unchanged), and whether the
+     *         request located the map at all (false means the 0,0 fallback).
      */
     public function center(Request $request, Bounds $bounds): array
     {
-        $default = $bounds->center();
-        $headers = array();
-        $located = !$bounds->isEmpty();
-
         if ($request->get('latitude') !== false) {
-            $latitude = $request->get('latitude');
-            $longitude = $request->get('longitude');
-            $located = true;
-        } elseif ($request->get('location') !== false) {
-            $result = ($this->geocode)($request->get('location'));
-            if (!$result->success) {
-                $latitude = $default['lat'];
-                $longitude = $default['lng'];
-                $headers[] = 'X-Geocode: error';
-                $headers[] = 'X-Geocode-Result: ' . $result->raw;
-            } else {
-                $latitude = $result->latitude;
-                $longitude = $result->longitude;
-                $located = true;
-                $headers[] = 'X-Geocode: success';
-                $headers[] = 'X-Geocode-Result: ' . $latitude . ', ' . $longitude;
-            }
-        } else {
-            $latitude = $default['lat'];
-            $longitude = $default['lng'];
+            return [
+                'latitude'  => $request->get('latitude'),
+                'longitude' => $request->get('longitude'),
+                'located'   => true,
+            ];
         }
 
-        return ['latitude' => $latitude, 'longitude' => $longitude, 'located' => $located, 'headers' => $headers];
+        $default = $bounds->center();
+
+        return ['latitude' => $default['lat'], 'longitude' => $default['lng'], 'located' => !$bounds->isEmpty()];
     }
 
     /**

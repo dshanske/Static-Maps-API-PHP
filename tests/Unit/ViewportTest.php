@@ -8,7 +8,6 @@ namespace StaticMaps\Tests\Unit;
 
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
-use StaticMaps\ArcGISGeocoderResult;
 use StaticMaps\Bounds;
 use StaticMaps\Request;
 use StaticMaps\Viewport;
@@ -20,22 +19,13 @@ use StaticMaps\WebMercator;
 final class ViewportTest extends TestCase
 {
     /**
-     * A viewport whose geocoder finds only "Portland".
+     * A viewport.
      *
      * @return Viewport The viewport.
      */
     private static function viewport(): Viewport
     {
-        return new Viewport(new WebMercator(), static function (string $location): ArcGISGeocoderResult {
-            if ($location !== 'Portland') {
-                return new ArcGISGeocoderResult(false, 'not found');
-            }
-            $found = (object) [
-                'name'    => 'Portland',
-                'feature' => (object) ['geometry' => (object) ['x' => -122.68, 'y' => 45.52]],
-            ];
-            return new ArcGISGeocoderResult($found, '{}');
-        });
+        return new Viewport(new WebMercator());
     }
 
     /**
@@ -53,7 +43,8 @@ final class ViewportTest extends TestCase
     }
 
     /**
-     * Centre sources, in order of precedence.
+     * The centre is latitude/longitude if given, else the centre of the bounds;
+     * `location` plays no part (#16).
      *
      * @return void
      */
@@ -65,24 +56,14 @@ final class ViewportTest extends TestCase
         $bounds->extend(20, 40);
 
         $given = $vp->center(new Request(['latitude' => '1', 'longitude' => '2', 'location' => 'Portland']), $bounds);
-        $this->assertSame(['latitude' => '1', 'longitude' => '2', 'located' => true, 'headers' => []], $given);
+        $this->assertSame(['latitude' => '1', 'longitude' => '2', 'located' => true], $given);
 
-        $geocoded = $vp->center(new Request(['location' => 'Portland']), $bounds);
-        $this->assertSame([45.52, -122.68], [$geocoded['latitude'], $geocoded['longitude']]);
-        $this->assertTrue($geocoded['located']);
-        $this->assertSame(['X-Geocode: success', 'X-Geocode-Result: 45.52, -122.68'], $geocoded['headers']);
-
-        $failed = $vp->center(new Request(['location' => 'Atlantis']), $bounds);
-        $this->assertEquals([15, 30], [$failed['latitude'], $failed['longitude']]);
-        $this->assertSame(['X-Geocode: error', 'X-Geocode-Result: not found'], $failed['headers']);
-        $this->assertTrue($failed['located'], 'the bounds still locate the map');
-
-        $fromBounds = $vp->center(new Request([]), $bounds);
-        $this->assertEquals(['latitude' => 15, 'longitude' => 30, 'located' => true, 'headers' => []], $fromBounds);
+        $fromBounds = $vp->center(new Request(['location' => 'Portland']), $bounds);
+        $this->assertEquals(['latitude' => 15, 'longitude' => 30, 'located' => true], $fromBounds);
     }
 
     /**
-     * Without coordinates, a geocoded location or any bounds, the map is not located.
+     * Without coordinates or any bounds, the map is not located, even with a `location`.
      *
      * @return void
      */
@@ -91,7 +72,7 @@ final class ViewportTest extends TestCase
         $vp = self::viewport();
 
         $this->assertFalse($vp->center(new Request(['zoom' => '5']), new Bounds())['located']);
-        $this->assertFalse($vp->center(new Request(['location' => 'Atlantis']), new Bounds())['located']);
+        $this->assertFalse($vp->center(new Request(['location' => 'Portland']), new Bounds())['located']);
     }
 
     /**
