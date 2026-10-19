@@ -85,6 +85,8 @@ final class Attribution
      * @param string      $position    Corner: one of POSITIONS.
      * @param int         $width       Image width in pixels.
      * @param int         $height      Image height in pixels.
+     * @param int         $scale       Pixel density (#10): text, logos and margins are drawn this
+     *                                 many times larger; size rules use the width before scaling.
      *
      * @return void
      */
@@ -94,13 +96,17 @@ final class Attribution
         ?string $text,
         string $position,
         int $width,
-        int $height
+        int $height,
+        int $scale = 1
     ): void {
         if ('none' === $attribution) {
             return;
         }
 
-        $offset = ($text !== null && $text !== '') ? $this->drawText($im, $text, $position, $width, $height) : 0;
+        $offset = ($text !== null && $text !== '')
+            ? $this->drawText($im, $text, $position, $width, $height, $scale)
+            : 0;
+        $cssWidth = intdiv($width, $scale);
         if ('text' === $attribution) {
             return;
         }
@@ -115,11 +121,11 @@ final class Attribution
         $margin = 0;
         if ('esri' === $attribution) {
             // Shrink the esri logo if the image is small, and leave it out if tiny
-            if ($width <= 120) {
+            if ($cssWidth <= 120) {
                 return;
             }
-            $margin = 4;
-            $shrink = $width < 220 ? 2 : 1;
+            $margin = 4 * $scale;
+            $shrink = $cssWidth < 220 ? 2 : 1;
         } else {
             $isUrl = is_string($attribution) && preg_match('/https?:\/\/(.+)/', $attribution) === 1;
             $shrink = match (true) {
@@ -128,13 +134,13 @@ final class Attribution
                 default                          => 4,
             };
         }
-        $w = (int) round($logoWidth / $shrink);
-        $h = (int) round($logoHeight / $shrink);
+        $w = (int) round($logoWidth / $shrink * $scale);
+        $h = (int) round($logoHeight / $shrink * $scale);
 
         $x = str_ends_with($position, 'left') ? $margin : $width - $w - $margin;
         $y = str_starts_with($position, 'top') ? $margin + $offset : $height - $h - $margin - $offset;
 
-        if ($shrink === 1) {
+        if ($w === $logoWidth && $h === $logoHeight) {
             imagecopy($im, $logo, $x, $y, 0, 0, $logoWidth, $logoHeight);
         } else {
             imagecopyresampled($im, $logo, $x, $y, 0, 0, $w, $h, $logoWidth, $logoHeight);
@@ -179,13 +185,22 @@ final class Attribution
      * @param string  $position Corner: one of POSITIONS.
      * @param int     $width    Image width in pixels.
      * @param int     $height   Image height in pixels.
+     * @param int     $scale    Pixel density (#10): text and padding are this many times larger,
+     *                          and the size rule uses the width before scaling.
      *
      * @return int Height of the strip in pixels (0 if nothing was drawn).
      */
-    private function drawText(GdImage $im, string $text, string $position, int $width, int $height): int
-    {
-        $size = $width < 250 ? 6.0 : 7.0;
-        $lines = $this->wrap($text, $size, $width - 2 * self::PADDING);
+    private function drawText(
+        GdImage $im,
+        string $text,
+        string $position,
+        int $width,
+        int $height,
+        int $scale = 1
+    ): int {
+        $size = (intdiv($width, $scale) < 250 ? 6.0 : 7.0) * $scale;
+        $padding = self::PADDING * $scale;
+        $lines = $this->wrap($text, $size, $width - 2 * $padding);
         if ($lines === []) {
             return 0;
         }
@@ -195,8 +210,8 @@ final class Attribution
         $lineHeight = (int) ceil(($box[1] - $box[7]) * 1.15);
         $textWidth = max(array_map(fn (string $line): int => $this->textWidth($line, $size), $lines));
 
-        $stripWidth = min($width, $textWidth + 2 * self::PADDING);
-        $stripHeight = min($height, count($lines) * $lineHeight + self::PADDING);
+        $stripWidth = min($width, $textWidth + 2 * $padding);
+        $stripHeight = min($height, count($lines) * $lineHeight + $padding);
         $x = str_ends_with($position, 'left') ? 0 : $width - $stripWidth;
         $y = str_starts_with($position, 'top') ? 0 : $height - $stripHeight;
 
@@ -209,8 +224,8 @@ final class Attribution
                 $im,
                 $size,
                 0,
-                $x + self::PADDING,
-                $y + 1 + $ascent + $i * $lineHeight,
+                $x + $padding,
+                $y + $scale + $ascent + $i * $lineHeight,
                 $color,
                 self::FONT,
                 $line

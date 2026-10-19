@@ -49,6 +49,8 @@ final class ApiTest extends RenderTestCase
         $this->assertSame(['fixture', 'base'], [$data['defaults']['provider'], $data['defaults']['style']]);
         $this->assertSame(['min' => 2, 'max' => 18, 'max_limit' => null], $data['zoom']);
         $this->assertFalse($data['custom_tiles']);
+        $this->assertSame([1, 2], $data['scales']);
+        $this->assertContains('png8', $data['formats']);
         $this->assertSame('/api/v1/providers', $data['links']['providers']);
         $this->assertSame('/api/v1/attribution', $data['links']['attribution']);
         $this->assertSame([], $this->tileRequests());
@@ -89,7 +91,7 @@ final class ApiTest extends RenderTestCase
 
         $styles = array_column($byId['fixture']['styles'], null, 'id');
         $this->assertSame(
-            ['base', 'overlay', 'broken', 'esri', 'credited', 'credited-logo', 'zoom'],
+            ['base', 'overlay', 'broken', 'esri', 'credited', 'credited-logo', 'retina', 'zoom'],
             array_keys($styles),
             'no auth or off'
         );

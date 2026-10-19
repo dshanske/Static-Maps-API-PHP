@@ -304,7 +304,10 @@ return [
      *                   of one or two tile URL templates: the base map, then an
      *                   optional overlay drawn on top, usually labels).
      *                   Placeholders: {z} zoom, {x} column, {y} row, and {key}
-     *                   for the API key. {Z}, {X}, {Y} also work.
+     *                   for the API key. {Z}, {X}, {Y} also work. {r} is for
+     *                   providers with high-density tiles: it is '@2x' (512 px
+     *                   tiles) for scale=2 maps and empty otherwise; without
+     *                   it, scale=2 maps use the tiles one zoom level up.
      *   'attribution'   (string) Default attribution, used when the request has
      *                   no `attribution`: 'text' (only the attribution_text),
      *                   a logo ('osm', 'esri', 'mapbox', 'mapbox-small', drawn

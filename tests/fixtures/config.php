@@ -79,6 +79,11 @@ return [
                         . 'Some Agency, A Community, and many other contributors around the world',
                     'attribution_html' => 'Powered by <a href="https://fixture.example/">Fixture</a> &amp; friends',
                 ],
+                // Offers 512 px @2x tiles for scale=2 (#10).
+                'retina' => [
+                    'name'   => 'With @2x tiles',
+                    'layers' => [$tiles . '/base/{z}/{x}/{y}{r}.png'],
+                ],
                 'zoom' => [
                     'name'    => 'Limited to zoom 5-10',
                     'layers'  => [$tiles . '/base/{Z}/{X}/{Y}.png'],

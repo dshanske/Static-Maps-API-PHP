@@ -182,33 +182,75 @@ final class Renderer
         $latitude = $center['latitude'];
         $longitude = $center['longitude'];
 
-        $im = imagecreatetruecolor($width, $height);
+        // scale=2 (#10): the same area at twice the pixels. Everything is drawn at
+        // twice the size and one pixel zoom level up; tiles come from the level
+        // above, or as @2x tiles, or are enlarged at the map's highest zoom.
+        $scale = $params->scale;
+        $imageWidth = $width * $scale;
+        $imageHeight = $height * $scale;
+        $pixelZoom = $zoom + ($scale === 2 ? 1 : 0);
+        [$tileZoom, $tileSize, $retina] = self::tileGrid($basemap, (int) $zoom, $scale);
+        if ($scale > 1 && $tileZoom === (int) $zoom && $retina === '') {
+            $headers[] = "X-Map-Scale: enlarged; the map has no tiles above zoom $zoom";
+        }
+        $tileURL = str_replace('{r}', $retina, $tileURL);
+        $overlayURL = $overlayURL === false ? false : str_replace('{r}', $retina, $overlayURL);
+
+        $im = imagecreatetruecolor($imageWidth, $imageHeight);
 
         // Find the pixel coordinate of the center of the map
-        $center = $this->webmercator->latLngToPixels($latitude, $longitude, $zoom);
+        $center = $this->webmercator->latLngToPixels($latitude, $longitude, $pixelZoom);
 
-        $leftEdge = $center['x'] - $width / 2;
-        $topEdge = $center['y'] - $height / 2;
+        $leftEdge = $center['x'] - $imageWidth / 2;
+        $topEdge = $center['y'] - $imageHeight / 2;
 
-        $tilePos = $this->webmercator->pixelsToTile($center['x'], $center['y']);
-        $pos = $this->webmercator->positionInTile($center['x'], $center['y']);
+        // The tile under the centre, and where in it the centre is.
+        $tilePos = ['x' => floor($center['x'] / $tileSize), 'y' => floor($center['y'] / $tileSize)];
+        $pos = [
+            'x' => round($tileSize * (($center['x'] / $tileSize) - $tilePos['x'])),
+            'y' => round($tileSize * (($center['y'] / $tileSize) - $tilePos['y'])),
+        ];
 
         // For the given number of pixels, determine how many tiles are needed in each direction
-        $neTile = $this->webmercator->pixelsToTile($center['x'] + $width / 2, $center['y'] + $height / 2);
-        $swTile = $this->webmercator->pixelsToTile($center['x'] - $width / 2, $center['y'] - $height / 2);
+        $neTile = [
+            'x' => floor(($center['x'] + $imageWidth / 2) / $tileSize),
+            'y' => floor(($center['y'] + $imageHeight / 2) / $tileSize),
+        ];
+        $swTile = [
+            'x' => floor(($center['x'] - $imageWidth / 2) / $tileSize),
+            'y' => floor(($center['y'] - $imageHeight / 2) / $tileSize),
+        ];
 
         // Providers whose terms forbid caching proxies (cache => 'off') never use the tile cache.
         $tileCache = ($basemap['cache'] ?? 'headers') === 'off' ? null : TileCache::fromConfig($config);
-        $fetched = (new TileFetcher($remote, $tileCache))
-            ->fetch($tileURL, $overlayURL, $tileKey, $swTile, $neTile, $zoom, $im, Config::headerLines($basemap));
+        $fetched = (new TileFetcher($remote, $tileCache))->fetch(
+            $tileURL,
+            $overlayURL,
+            $tileKey,
+            $swTile,
+            $neTile,
+            $tileZoom,
+            $im,
+            Config::headerLines($basemap)
+        );
 
         $compositor = new Compositor($this->webmercator);
-        $compositor->drawTiles($im, $fetched['tiles'], $tilePos, $pos, $width, $height);
+        $compositor->drawTiles($im, $fetched['tiles'], $tilePos, $pos, $imageWidth, $imageHeight, $tileSize);
         if ($overlayURL) {
-            $compositor->drawTiles($im, $fetched['overlays'], $tilePos, $pos, $width, $height);
+            $compositor->drawTiles($im, $fetched['overlays'], $tilePos, $pos, $imageWidth, $imageHeight, $tileSize);
         }
-        $compositor->drawPaths($im, $paths, $zoom, $leftEdge, $topEdge, $width, $height, $params->bezier);
-        $compositor->drawMarkers($im, $markers, $zoom, $leftEdge, $topEdge, $width, $height);
+        $compositor->drawPaths(
+            $im,
+            $paths,
+            $pixelZoom,
+            $leftEdge,
+            $topEdge,
+            $imageWidth,
+            $imageHeight,
+            $params->bezier,
+            $scale
+        );
+        $compositor->drawMarkers($im, $markers, $pixelZoom, $leftEdge, $topEdge, $imageWidth, $imageHeight, $scale);
 
         // The request's attribution, else the basemap's default, else the global
         // default. An unknown value counts as no value.
@@ -222,13 +264,43 @@ final class Renderer
             $attribution = $basemap['attribution'] ?? $config['defaults']['attribution'];
         }
         $text = isset($basemap['attribution_text']) ? (string) $basemap['attribution_text'] : null;
-        (new Attribution($remote))->draw($im, $attribution, $text, $position, $width, $height);
+        (new Attribution($remote))->draw($im, $attribution, $text, $position, $imageWidth, $imageHeight, $scale);
 
         [$typeHeaders, $body] = $this->encode($im, $format, $params->quality);
         $cacheHeaders = $this->cacheHeaders($headers, $basemap, $client !== null && !$client->signed, $body);
         $headers = array_merge($headers, $typeHeaders, $cacheHeaders);
 
         return new Response($headers, $body);
+    }
+
+    /**
+     * Which tiles to draw a map with, for its pixel density.
+     *
+     * At scale 1, the tiles of the map's zoom. At scale 2 the image is drawn one
+     * pixel zoom level up, so: 512 px `@2x` tiles of the same zoom if the map's
+     * URLs have the `{r}` placeholder; else the 256 px tiles one level up; else
+     * (at the map's highest zoom) the same tiles enlarged to 512 px.
+     *
+     * @param array<string, mixed> $basemap The map drawn (`layers`, `maxzoom`).
+     * @param int                  $zoom    The map's zoom (after clampZoom()).
+     * @param int                  $scale   Pixel density, 1 or 2.
+     *
+     * @return array{int, int, string} Zoom of the tiles fetched, the size each tile is drawn at
+     *         in pixels, and what replaces `{r}` in tile URLs ('' or '@2x').
+     */
+    private static function tileGrid(array $basemap, int $zoom, int $scale): array
+    {
+        if ($scale === 1) {
+            return [$zoom, WebMercator::TILE_SIZE, ''];
+        }
+        if (str_contains(implode(' ', (array) $basemap['layers']), '{r}')) {
+            return [$zoom, 2 * WebMercator::TILE_SIZE, '@2x'];
+        }
+        if ($zoom + 1 <= (int) $basemap['maxzoom']) {
+            return [$zoom + 1, WebMercator::TILE_SIZE, ''];
+        }
+
+        return [$zoom, 2 * WebMercator::TILE_SIZE, ''];
     }
 
     /**

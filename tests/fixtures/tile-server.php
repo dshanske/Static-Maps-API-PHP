@@ -20,6 +20,8 @@
  *             otherwise 403.
  * - `bounce`  Redirects to the same tile of `base` (for "headers don't follow redirects").
  *
+ * Any layer's tile can be asked for as `<y>@2x.png` (512 px instead of 256).
+ *
  * A few fixed paths (`/big.png`, `/slow.png`, `/redirect-…`, `/not-found.png`)
  * test the download limits.
  *
@@ -72,11 +74,13 @@ switch ($path) {
 }
 
 $layers = 'base|overlay|broken|cached|nostore|flaky|header|bounce';
-if (!preg_match('#^/(' . $layers . ')/(\d+)/(\d+)/(\d+)\.png$#', (string) $path, $m)) {
+if (!preg_match('#^/(' . $layers . ')/(\d+)/(\d+)/(\d+)(@2x)?\.png$#', (string) $path, $m)) {
     http_response_code(404);
     exit;
 }
 [, $layer, $z, $x, $y] = $m;
+// `@2x` tiles (the {r} placeholder, scale=2) are 512 px, drawn the same way.
+$size = ($m[5] ?? '') === '@2x' ? 512 : 256;
 
 if ($layer === 'broken') {
     http_response_code(404);
@@ -117,7 +121,7 @@ if (in_array($layer, ['cached', 'nostore', 'flaky'], true)) {
     $layer = 'base';
 }
 
-$im = imagecreatetruecolor(256, 256);
+$im = imagecreatetruecolor($size, $size);
 if ($layer === 'base') {
     // Same formula as RenderTestCase::tileColor(), which tests use to check placement.
     $x = (int) $x;

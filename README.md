@@ -38,6 +38,7 @@ Numbers are checked: a value that isn't a number, or is out of the range given b
 * `polyline` - Alternative to path: one path as a Google encoded polyline (latitude, longitude order), for shorter URLs. See [Polylines](#polylines).
 * `format` - default "png" - `png`, `png8` (a 256-colour PNG: much smaller, good for most maps), `jpg` (`jpeg` also works) or `webp` (smaller still; when the server's PHP has no WebP support, the map is sent as PNG with an `X-Map-Format` header, and `/api/v1/` lists the formats available). Anything else gets HTTP 400.
 * `quality` - default 75 - JPEG and WebP quality, a whole number from 1 to 100.
+* `scale` - default 1 - `2` for a high-density ("retina") image: the same map area at twice the `width` and `height` in pixels, with markers, paths and the attribution drawn twice as large, for example for `<img srcset="… 2x">`. Tiles come from the next zoom level up, so the map shows more detail and its labels look smaller; maps with `@2x` tiles (`{r}` in their URLs) use those instead. At a map's highest zoom the tiles are enlarged, with an `X-Map-Scale: enlarged` header. The size limits apply to the image as sent, so a `scale=2` map can be at most 640 × 640 by default. `/api/v1/` lists the `scales` accepted.
 * `bezier` - Specify a bezier curve to your path, an angle in degrees between -89 and 89. 25 will give you a nicely curved line. [More Info](https://aaronparecki.com/2017/01/02/6/day-13-curved-map-lines)
 
 Maps can cross the antimeridian (±180° longitude). Markers and paths either side of it are fitted together as one small area (Fiji, the Bering Strait), and each path segment takes the short way round, so a path from Japan to Alaska crosses the Pacific.
@@ -63,6 +64,7 @@ Headers on a map that was drawn, but not quite as requested:
 | `X-Map-Fallback` | The default map was drawn instead of the requested provider or style: `removed` or `unavailable`, with `requested=` and `drawn=` (see [Providers and styles](#providers-and-styles)). |
 | `X-Map-Size` | `width` / `height` were over the install's limits and the map was drawn smaller. |
 | `X-Map-Limit` | Markers or paths over the install's limits were left out. |
+| `X-Map-Scale` | A `scale=2` map at the map's highest zoom: its tiles were enlarged instead of taken from the next zoom up. |
 | `X-Map-Format` | The requested `format` isn't available on this server; the map was sent as PNG. |
 | `X-Map-Attribution` | The `attribution` image URL wasn't used (it needs a valid key). |
 | `X-Marker-<n>`, `X-Path-<n>` | Marker or path number n (counting from 1) was left out, and why. |

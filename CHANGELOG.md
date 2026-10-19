@@ -18,6 +18,12 @@ stable interface; pin a commit if you need a fixed point.
 
 ### Added
 
+- `scale=2` for high-density images (#10): the same area at twice the pixels,
+  with markers, paths and attribution twice as large. Tiles come from the next
+  zoom level up, or as `@2x` tiles where a style's URLs have the new `{r}`
+  placeholder; at a map's highest zoom they are enlarged (`X-Map-Scale`). The
+  size limits apply to the scaled image. `/api/v1/` lists `scales`.
+
 - Viewport parameters (#35): `center=lat,lng` (shorthand for `latitude` and
   `longitude`), `bbox=minLng,minLat,maxLng,maxLat` (an area to fit),
   `visible=lat,lng|lat,lng` (points to keep in view without drawing them)
