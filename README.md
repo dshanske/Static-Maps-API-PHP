@@ -74,6 +74,9 @@ Pick a map with `provider` and `style`, for example `provider=carto&style=dark`.
 | `hybrid` | Imagery with labels |
 | `topo` | Topographic map |
 | `oceans` | Ocean floor (bathymetry) |
+| `terrain` / `relief` / `physical` | Terrain with labels / shaded relief (hillshade) / physical (land cover and relief), small scales |
+| `humanitarian` | Humanitarian OpenStreetMap Team style |
+| `cycle` | Cycling map |
 | `…-nolabels` | The same style without labels |
 
 Shipped providers (the first style is the provider's default). Max zoom is the highest level with real tiles, checked by sampling; requests above it are drawn at that level. An install can lower every maximum with `zoom.max_limit`:
@@ -81,7 +84,9 @@ Shipped providers (the first style is the provider's default). Max zoom is the h
 | `provider` | Styles | Max zoom |
 |---|---|---|
 | `osm` | `streets`: [OpenStreetMap](https://www.openstreetmap.org/) | 19 |
-| `esri` | `streets`: [World Street Map](https://www.arcgis.com/home/webmap/viewer.html?webmap=7990d7ea55204450b8110d57e20c99ab) · `satellite`: [World Imagery](https://www.arcgis.com/home/webmap/viewer.html?webmap=d802f08316e84c6592ef681c50178f17&center=-71.055499,42.364247&level=15) · `hybrid` · `topo`: [World Topographic Map](https://www.arcgis.com/home/webmap/viewer.html?webmap=a72b0766aea04b48bf7a0e8c27ccc007) · `light`: Light Gray Canvas · `light-nolabels`: [Light Gray Canvas](https://www.arcgis.com/home/webmap/viewer.html?webmap=8b3d38c0819547faa83f7b7aca80bd76) without labels · `oceans`: [World Ocean Base](https://server.arcgisonline.com/ArcGIS/rest/services/Ocean/World_Ocean_Base/MapServer) with labels, up to zoom 13 · `natgeo`: [National Geographic](https://www.arcgis.com/home/webmap/viewer.html?webmap=d94dcdbe78e141c2b2d3a91d5ca8b9c9) | 19; `light`, `light-nolabels`, `natgeo`: 16 (NatGeo only 12 outside the US); `oceans`: 13 |
+| `esri` | `streets`: [World Street Map](https://www.arcgis.com/home/webmap/viewer.html?webmap=7990d7ea55204450b8110d57e20c99ab) · `satellite`: [World Imagery](https://www.arcgis.com/home/webmap/viewer.html?webmap=d802f08316e84c6592ef681c50178f17&center=-71.055499,42.364247&level=15) · `hybrid` · `topo`: [World Topographic Map](https://www.arcgis.com/home/webmap/viewer.html?webmap=a72b0766aea04b48bf7a0e8c27ccc007) · `light`: Light Gray Canvas · `light-nolabels`: [Light Gray Canvas](https://www.arcgis.com/home/webmap/viewer.html?webmap=8b3d38c0819547faa83f7b7aca80bd76) without labels · `oceans`: [World Ocean Base](https://server.arcgisonline.com/ArcGIS/rest/services/Ocean/World_Ocean_Base/MapServer) with labels, up to zoom 13 · `natgeo`: [National Geographic](https://www.arcgis.com/home/webmap/viewer.html?webmap=d94dcdbe78e141c2b2d3a91d5ca8b9c9) · `dark`: [Dark Gray Canvas](https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer) · `dark-nolabels` · `relief`: [World Shaded Relief](https://server.arcgisonline.com/ArcGIS/rest/services/World_Shaded_Relief/MapServer) · `physical`: [World Physical Map](https://server.arcgisonline.com/ArcGIS/rest/services/World_Physical_Map/MapServer) · `terrain`: [World Terrain](https://server.arcgisonline.com/ArcGIS/rest/services/World_Terrain_Base/MapServer) with labels | 19; `light`, `light-nolabels`, `dark`, `dark-nolabels`, `natgeo`: 16 (NatGeo only 12 outside the US); `oceans`, `relief`: 13; `terrain`: 13 (only 9 outside the US); `physical`: 8 |
+| `osm-fr` | `streets`: [OpenStreetMap France](https://www.openstreetmap.fr/fonds-de-carte/) style · `humanitarian`: [Humanitarian](https://www.hotosm.org/) (HOT) · `cycle`: [CyclOSM](https://www.cyclosm.org/). Free, donation-funded server: [its terms](https://www.openstreetmap.fr/usage/) allow non-profit sites with moderate traffic. | 20 |
+| `osm-de` | `streets`: [OpenStreetMap Germany](https://www.openstreetmap.de/germanstyle.html) style, labels in German and the local language. Free, donation-funded server for non-commercial use; it limits how many tiles one IP address gets at full speed. | 19 |
 | `opentopomap` | `topo`: [OpenTopoMap](https://www.opentopomap.org/) | 17 |
 | `carto` | `light`: Positron · `dark`: Dark Matter · `streets`: Voyager. [CARTO](https://carto.com/basemaps/) **needs an API key**: these styles are unavailable until the install sets `'providers' => ['carto' => ['key' => '...']]`. Keys are [free](https://carto.com/basemaps/apikey) (5 million requests a month non-commercial, 1 million commercial). | 20 |
 | `custom` | Draws `tileurl`; requires a valid `key`. | `zoom.max` (18) |
@@ -441,6 +446,8 @@ What an install does beyond that is its own responsibility: which providers it a
 | Esri / ArcGIS | "Powered by Esri" and the data sources must be credited. | [Attribution requirements](https://developers.arcgis.com/documentation/esri-and-data-attribution/), [terms of use](https://www.esri.com/en-us/legal/terms/full-master-agreement) |
 | CARTO | Needs a free key. Non-commercial use up to 5 million requests a month; commercial use up to 1 million, then a paid plan. | [Basemaps](https://carto.com/basemaps), [legal](https://carto.com/legal) |
 | OpenTopoMap | CC-BY-SA, so commercial use is allowed with credit. No mass downloads. | [About](https://opentopomap.org/about) |
+| OpenStreetMap France (`osm-fr`) | Free for non-profit sites with moderate traffic; very low use on a business site is tolerated. The credit must be visible on the map. Service may be cut off without notice. | [Usage](https://www.openstreetmap.fr/usage/) |
+| OpenStreetMap Germany (`osm-de`) | Non-commercial use only (small sites such as a company's directions page are fine). Full-speed tiles are limited per IP address. | [German style](https://www.openstreetmap.de/germanstyle.html) |
 
 Some providers have been looked at and left out because their terms don't allow this kind of use. For example, Stadia Maps' [terms](https://stadiamaps.com/terms-of-service) forbid proxying its tiles, and its free tier is for non-commercial use only.
 

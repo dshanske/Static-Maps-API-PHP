@@ -126,7 +126,10 @@ final class ConfigTest extends TestCase
 
         $this->assertSame(['osm', 'streets'], [$config['defaults']['provider'], $config['defaults']['style']]);
         $this->assertSame(['min' => 2, 'max' => 18, 'max_limit' => null], $config['zoom']);
-        $this->assertSame(['osm', 'esri', 'opentopomap', 'carto'], array_keys($config['providers']));
+        $this->assertSame(
+            ['osm', 'esri', 'osm-fr', 'osm-de', 'opentopomap', 'carto'],
+            array_keys($config['providers'])
+        );
         $this->assertSame([], $config['deprecations']);
     }
 
@@ -145,7 +148,14 @@ final class ConfigTest extends TestCase
             'providers' => ['carto' => ['key' => 'k']],
         ]));
 
-        $expected = ['osm' => 'text', 'esri' => 'esri', 'opentopomap' => 'text', 'carto' => 'text'];
+        $expected = [
+            'osm'         => 'text',
+            'esri'        => 'esri',
+            'osm-fr'      => 'text',
+            'osm-de'      => 'text',
+            'opentopomap' => 'text',
+            'carto'       => 'text',
+        ];
         $this->assertSame(array_keys($expected), array_keys($config['providers']));
         foreach ($expected as $provider => $attribution) {
             foreach (array_keys($config['providers'][$provider]['styles']) as $style) {
@@ -184,6 +194,15 @@ final class ConfigTest extends TestCase
             'esri/light-nolabels' => 16,
             'esri/oceans'         => 13,
             'esri/natgeo'         => 16,
+            'esri/dark'           => 16,
+            'esri/dark-nolabels'  => 16,
+            'esri/relief'         => 13,
+            'esri/physical'       => 8,
+            'esri/terrain'        => 13,
+            'osm-fr/streets'      => 20,
+            'osm-fr/humanitarian' => 20,
+            'osm-fr/cycle'        => 20,
+            'osm-de/streets'      => 19,
             'opentopomap/topo'    => 17,
             'carto/light'         => 20,
             'carto/dark'          => 20,

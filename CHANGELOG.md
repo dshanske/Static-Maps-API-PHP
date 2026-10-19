@@ -28,6 +28,12 @@ stable interface; pin a commit if you need a fixed point.
   out, with an `X-Map-Limit` header.
 - Error responses carry their reason in an `X-Map-Error` header too (#39).
 - README: tables of response codes and headers (#39).
+- Keyless maps (#31): Esri `dark`, `dark-nolabels`, `relief` (shaded
+  relief), `physical` and `terrain` (with labels); the `osm-fr` provider
+  (OpenStreetMap France: `streets`, `humanitarian`, `cycle` for CyclOSM) and
+  the `osm-de` provider (OpenStreetMap Germany: `streets`). Their terms (free,
+  non-profit or non-commercial, moderate traffic) are noted in the config and
+  in the README "Provider terms" table.
 
 - Settings files: `config/defaults.php` holds every default, documented, and
   `data/config.php` overrides it per install (template:
