@@ -30,6 +30,10 @@ stable interface; pin a commit if you need a fixed point.
   HTTP 500 and logs the reason. (#23, #27)
 - `token_file` setting: where the access tokens are read from. The default is
   `data/apikeys.txt`, as before. (#14, #44)
+- Query API: `GET /api/v1/`, `/api/v1/providers` and `/api/v1/icons` return
+  JSON describing the service, the maps it can draw (with zoom ranges and
+  attribution) and its marker icons, without tile URLs or keys. Token-only
+  maps are listed only for requests with a valid token. (#25)
 - `provider` and `style` request parameters to pick a map, for example
   `provider=carto&style=dark`. Style names are shared between providers where
   they mean the same thing (`streets`, `light`, `dark`, `satellite`, `hybrid`,

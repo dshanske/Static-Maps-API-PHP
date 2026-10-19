@@ -110,9 +110,24 @@ final class PhpServer
      */
     public function get(string $path): Response
     {
+        return $this->request('GET', $path);
+    }
+
+    /**
+     * Send a request with any method to the server.
+     *
+     * @param string $method HTTP method, e.g. `POST` or `HEAD`.
+     * @param string $path   Path and query string, starting with `/`.
+     *
+     * @return Response The status, headers and body.
+     */
+    public function request(string $method, string $path): Response
+    {
         $ch = curl_init($this->url . $path);
         $headers = [];
         curl_setopt_array($ch, [
+            CURLOPT_CUSTOMREQUEST  => $method,
+            CURLOPT_NOBODY         => $method === 'HEAD',
             CURLOPT_RETURNTRANSFER => true,
             CURLOPT_TIMEOUT        => 30,
             CURLOPT_HEADERFUNCTION => static function ($ch, string $line) use (&$headers): int {

@@ -89,6 +89,43 @@ Maps whose tiles no longer exist are removed rather than deprecated, since they 
 | `carto-voyager` | `provider=carto&style=streets` |
 | `custom` | `provider=custom` |
 
+## Query API
+
+A read-only JSON API tells clients what this install supports, so they don't have to hard-code the list of maps and icons. It needs no authentication, allows any origin (`Access-Control-Allow-Origin: *`) and can be cached for 5 minutes. It never returns tile URLs or API keys.
+
+| Endpoint | Returns |
+|---|---|
+| `GET /api/v1/` | Version, defaults (provider, style, size, format, attribution), zoom settings, formats, attribution values, whether custom tile URLs are available to this request, and links to the other endpoints |
+| `GET /api/v1/providers` | Every provider and style that can be drawn: id, name, `minzoom` / `maxzoom` (after `zoom.max_limit`), default attribution, whether it has a labels layer; the default map; deprecated `basemap` ids with what they map to; removed ids with the reason |
+| `GET /api/v1/icons` | Every built-in marker icon: name, width and height in pixels, anchor (`bottom-center`, or `center` for `dot-*` icons) and the URL of its image |
+
+Providers or styles that are switched off, need an API key the install hasn't set, or need a token are left out. Token-only maps are listed when the request includes a valid `token`, and such responses aren't cached (`Cache-Control: private, no-store`). Unknown endpoints get `404`, methods other than `GET`, `HEAD` and `OPTIONS` get `405`; both with a JSON `error`. The `v1` in the path changes only if the response format changes incompatibly.
+
+Example, `GET /api/v1/providers` (shortened):
+
+```json
+{
+    "default": { "provider": "osm", "style": "streets" },
+    "providers": [
+        {
+            "id": "esri",
+            "name": "Esri",
+            "default_style": "streets",
+            "styles": [
+                { "id": "streets", "name": "World Street Map", "minzoom": 2, "maxzoom": 19,
+                  "attribution": "esri", "labels_layer": false, "requires_auth": false },
+                { "id": "hybrid", "name": "World Imagery with labels", "minzoom": 2, "maxzoom": 19,
+                  "attribution": "esri", "labels_layer": true, "requires_auth": false }
+            ]
+        }
+    ],
+    "deprecated_basemaps": { "satellite": { "provider": "esri", "style": "satellite" } },
+    "removed": [ { "id": "stamen", "reason": "Stamen tile hosting shut down in 2023 (removed in 1.0.0)" } ]
+}
+```
+
+The API runs from the same `index.php` as the maps; the nginx configuration under [How to install](#how-to-install) already sends `/api/` requests there.
+
 ## Markers
 
 * `location` - Free-form text that will be geocoded to place the pin
