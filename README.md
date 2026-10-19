@@ -455,7 +455,9 @@ composer test      # PHPUnit test suite
 
 The code lives in `include/` as classes in the `StaticMaps` namespace (loaded by `include/autoload.php`). `public/index.php` only loads the configuration and hands the request to `StaticMaps\Renderer`, which runs the stages in order: `MarkerParser` and `PathParser` (overlays and their `Bounds`) → `Viewport` (centre and zoom) → `TileFetcher` → `Compositor` (tiles, paths, markers) → `Attribution` → image encoding.
 
-Known PHPStan errors are recorded in `phpstan-baseline.neon` until they are fixed. When you fix one, regenerate the baseline with `vendor/bin/phpstan analyse --generate-baseline`.
+Both must pass cleanly: PHPStan runs at level 6 with no baseline of ignored errors, and PHP_CodeSniffer reports no warnings.
+
+**Documentation comments are required** on every PHP file, class, function, method and property, and `composer cs` (and CI) fails without them. Describe what each parameter means, including units (pixels, degrees) and the coordinate order (`lat, lng` or `lng, lat`), and give `@return` and `@throws`. Write types the way PHPStan reads them, for example `int`, `list<string>` or `array{x: float, y: float}`.
 
 ### Changelog
 

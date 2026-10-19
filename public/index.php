@@ -10,8 +10,6 @@
  * (public/img.php is the deprecated old name for this file.)
  */
 
-require_once __DIR__ . '/../include/autoload.php';
-
 use StaticMaps\Api;
 use StaticMaps\Config;
 use StaticMaps\Deprecation;
@@ -20,6 +18,8 @@ use StaticMaps\Renderer;
 use StaticMaps\Request;
 use StaticMaps\Response;
 use StaticMaps\Tokens;
+
+require_once __DIR__ . '/../include/autoload.php';
 
 // Requests that came in through the deprecated img.php say so on every response.
 $entryHeaders = basename((string) ($_SERVER['SCRIPT_FILENAME'] ?? '')) === 'img.php' ? Deprecation::headers() : [];

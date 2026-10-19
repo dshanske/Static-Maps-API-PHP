@@ -18,6 +18,44 @@
 
     <rule ref="PSR12"/>
 
+    <!--
+        Documentation comments are required on every file, class, function and
+        property (#26). These are the Squiz commenting sniffs without the parts
+        that only fit the Squiz house style.
+    -->
+    <rule ref="Squiz.Commenting.FileComment">
+        <!-- PSR-12 puts a blank line between the opening tag and the file docblock. -->
+        <exclude name="Squiz.Commenting.FileComment.SpacingAfterOpen"/>
+        <exclude name="Squiz.Commenting.FileComment.MissingPackageTag"/>
+        <exclude name="Squiz.Commenting.FileComment.MissingSubpackageTag"/>
+        <exclude name="Squiz.Commenting.FileComment.MissingAuthorTag"/>
+        <exclude name="Squiz.Commenting.FileComment.MissingCopyrightTag"/>
+        <exclude name="Squiz.Commenting.FileComment.PackageTagOrder"/>
+        <exclude name="Squiz.Commenting.FileComment.SubpackageTagOrder"/>
+        <exclude name="Squiz.Commenting.FileComment.AuthorTagOrder"/>
+        <exclude name="Squiz.Commenting.FileComment.CopyrightTagOrder"/>
+        <exclude name="Squiz.Commenting.FileComment.IncorrectAuthor"/>
+        <exclude name="Squiz.Commenting.FileComment.IncorrectCopyright"/>
+    </rule>
+    <rule ref="Squiz.Commenting.ClassComment">
+        <exclude name="Squiz.Commenting.ClassComment.TagNotAllowed"/>
+    </rule>
+    <rule ref="Squiz.Commenting.FunctionComment">
+        <!--
+            Types are written the PHPStan way (int, bool, list<string>,
+            array{x: float}), not Squiz's long names (integer, boolean), and
+            columns are aligned by hand.
+        -->
+        <exclude name="Squiz.Commenting.FunctionComment.IncorrectParamVarName"/>
+        <exclude name="Squiz.Commenting.FunctionComment.InvalidReturn"/>
+        <exclude name="Squiz.Commenting.FunctionComment.IncorrectTypeHint"/>
+        <exclude name="Squiz.Commenting.FunctionComment.SpacingAfterParamType"/>
+        <exclude name="Squiz.Commenting.FunctionComment.SpacingAfterParamName"/>
+    </rule>
+    <rule ref="Squiz.Commenting.VariableComment">
+        <exclude name="Squiz.Commenting.VariableComment.IncorrectVarType"/>
+    </rule>
+
     <!-- Tile URL templates in the config can't be wrapped. -->
     <rule ref="Generic.Files.LineLength">
         <exclude-pattern>config/defaults\.php</exclude-pattern>

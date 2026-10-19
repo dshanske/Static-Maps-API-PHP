@@ -48,7 +48,7 @@
     },
     "scripts-descriptions": {
         "lint": "Check every PHP file for syntax errors",
-        "cs": "Check coding standard (PSR-12) and PHP 8.1+ compatibility",
+        "cs": "Check coding standard (PSR-12), documentation comments and PHP 8.1+ compatibility",
         "cs-fix": "Automatically fix coding standard violations where possible",
         "stan": "Run PHPStan static analysis",
         "test": "Run the PHPUnit test suite",
