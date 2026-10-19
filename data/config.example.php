@@ -54,6 +54,14 @@ return [
     // 'cache' => [
     //     'max_age'          => 604800,   // seconds (7 days)
     //     'fallback_max_age' => 300,      // seconds, when the default map is drawn instead
+    //     // Downloaded tiles kept on disk (on by default); see bin/prune-cache.php.
+    //     'tiles' => [
+    //         'enabled'        => true,
+    //         'dir'            => '/var/cache/static-maps/tiles',
+    //         'max_size'       => 1000000000,   // bytes, enforced by bin/prune-cache.php
+    //         'default_ttl'    => 604800,       // seconds, when a provider sends no lifetime
+    //         'stale_if_error' => 604800,       // seconds a stale tile may stand in for a failed one
+    //     ],
     // ],
 
     // Limits on downloads from other servers (tiles, icon and attribution URLs).

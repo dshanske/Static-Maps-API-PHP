@@ -93,11 +93,41 @@ return [
      * `cache => 'off'`, are marked private: browsers may keep them, shared
      * caches should not. Errors are not cached.
      *
-     * Example override: 'cache' => ['max_age' => 86400],
+     * 'tiles'            The cache of downloaded tiles on disk, shared by all
+     *                    maps of the same area:
+     *   'enabled'        On by default. If the directory can't be created or
+     *                    written, maps are drawn without the cache and the
+     *                    problem is logged.
+     *   'dir'            Where tiles are kept. Default: data/cache/tiles.
+     *   'max_size'       Most bytes the cache should use. Default: 1000000000
+     *                    (1 GB, roughly 40,000-60,000 tiles). Enforced only by
+     *                    bin/prune-cache.php, which you run from cron or a
+     *                    systemd timer (see the README); without it the cache
+     *                    keeps growing. 0 = no size limit.
+     *   'default_ttl'    Seconds to keep a tile when its provider sends no
+     *                    Cache-Control or Expires header. Default: 604800 (7 days,
+     *                    as OpenStreetMap's tile policy asks). Otherwise the
+     *                    provider's headers decide.
+     *   'stale_if_error' Seconds after expiry that a cached tile may still be
+     *                    drawn when the provider fails, unless the provider
+     *                    sends its own stale-if-error. Default: 604800 (7 days).
+     *
+     * Providers with `cache => 'off'` never use the tile cache.
+     *
+     * Example overrides: 'cache' => ['max_age' => 86400],
+     *                    'cache' => ['tiles' => ['max_size' => 5000000000]],
+     *                    'cache' => ['tiles' => ['enabled' => false]],
      */
     'cache' => [
         'max_age'          => 604800,
         'fallback_max_age' => 300,
+        'tiles'            => [
+            'enabled'        => true,
+            'dir'            => __DIR__ . '/../data/cache/tiles',
+            'max_size'       => 1000000000,
+            'default_ttl'    => 604800,
+            'stale_if_error' => 604800,
+        ],
     ],
 
     /*

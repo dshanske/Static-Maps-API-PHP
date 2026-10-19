@@ -2,6 +2,7 @@
 <ruleset name="Static Maps API">
     <description>PSR-12 coding standard and PHP 8.1+ compatibility.</description>
 
+    <file>bin</file>
     <file>include</file>
     <file>public</file>
     <file>config</file>

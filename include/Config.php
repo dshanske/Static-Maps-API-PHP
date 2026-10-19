@@ -422,6 +422,15 @@ class Config
                 throw new RuntimeException("Setting 'cache.$setting' must be a whole number of 0 or more");
             }
         }
+        $tiles = $config['cache']['tiles'] ?? null;
+        if (!is_array($tiles) || !is_bool($tiles['enabled'] ?? null) || !is_string($tiles['dir'] ?? null)) {
+            throw new RuntimeException("Setting 'cache.tiles' needs 'enabled' (true or false) and 'dir' (a path)");
+        }
+        foreach (['max_size', 'default_ttl', 'stale_if_error'] as $setting) {
+            if (!is_int($tiles[$setting] ?? null) || $tiles[$setting] < 0) {
+                throw new RuntimeException("Setting 'cache.tiles.$setting' must be a whole number of 0 or more");
+            }
+        }
 
         foreach (['timeout', 'connect_timeout', 'max_bytes'] as $limit) {
             if (!is_int($config['remote'][$limit] ?? null) || $config['remote'][$limit] < 1) {

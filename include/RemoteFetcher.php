@@ -58,11 +58,14 @@ final class RemoteFetcher
      * The body is returned by curl_exec() or curl_multi_getcontent(). A download
      * that grows past the size limit is aborted (curl then reports an error).
      *
-     * @param string $url The URL to download.
+     * @param string        $url            The URL to download.
+     * @param list<string>  $requestHeaders Extra request header lines, e.g. `If-None-Match: "x"`.
+     * @param callable|null $onHeader       Called with each response header line (curl's
+     *                                      CURLOPT_HEADERFUNCTION, without the handle).
      *
      * @return CurlHandle The handle.
      */
-    public function handle(string $url): CurlHandle
+    public function handle(string $url, array $requestHeaders = [], ?callable $onHeader = null): CurlHandle
     {
         $ch = curl_init();
         $maxBytes = $this->maxBytes;
@@ -76,7 +79,14 @@ final class RemoteFetcher
             CURLOPT_USERAGENT      => $this->userAgent,
             CURLOPT_MAXFILESIZE    => $maxBytes,
             CURLOPT_NOPROGRESS     => false,
+            CURLOPT_HTTPHEADER     => $requestHeaders,
         ]);
+        if ($onHeader !== null) {
+            curl_setopt($ch, CURLOPT_HEADERFUNCTION, static function ($ch, string $line) use ($onHeader): int {
+                $onHeader($line);
+                return strlen($line);
+            });
+        }
         // Abort as soon as more than the limit has arrived (also when the server
         // doesn't announce the size). The newer XFERINFO option needs PHP 8.2,
         // so it's looked up by name; PROGRESSFUNCTION takes the same arguments.

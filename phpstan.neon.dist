@@ -1,6 +1,7 @@
 parameters:
     level: 6
     paths:
+        - bin
         - include
         - public
         - config
