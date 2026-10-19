@@ -48,7 +48,7 @@ Shipped providers (the first style is the provider's default). Max zoom is the h
 | `osm` | `streets`: [OpenStreetMap](https://www.openstreetmap.org/) | 19 |
 | `esri` | `streets`: [World Street Map](https://www.arcgis.com/home/webmap/viewer.html?webmap=7990d7ea55204450b8110d57e20c99ab) · `satellite`: [World Imagery](https://www.arcgis.com/home/webmap/viewer.html?webmap=d802f08316e84c6592ef681c50178f17&center=-71.055499,42.364247&level=15) · `hybrid` · `topo`: [World Topographic Map](https://www.arcgis.com/home/webmap/viewer.html?webmap=a72b0766aea04b48bf7a0e8c27ccc007) · `light`: Light Gray Canvas · `light-nolabels`: [Light Gray Canvas](https://www.arcgis.com/home/webmap/viewer.html?webmap=8b3d38c0819547faa83f7b7aca80bd76) without labels · `oceans`: [World Ocean Base](https://server.arcgisonline.com/ArcGIS/rest/services/Ocean/World_Ocean_Base/MapServer) with labels, up to zoom 13 · `natgeo`: [National Geographic](https://www.arcgis.com/home/webmap/viewer.html?webmap=d94dcdbe78e141c2b2d3a91d5ca8b9c9) | 19; `light`, `light-nolabels`, `natgeo`: 16 (NatGeo only 12 outside the US); `oceans`: 13 |
 | `opentopomap` | `topo`: [OpenTopoMap](https://www.opentopomap.org/) | 17 |
-| `carto` | `light`: Positron · `dark`: Dark Matter · `streets`: Voyager. [CARTO](https://carto.com/basemaps/): free for non-commercial use; CARTO now requires an API key (#17). | 20 |
+| `carto` | `light`: Positron · `dark`: Dark Matter · `streets`: Voyager. [CARTO](https://carto.com/basemaps/) **needs an API key**: these styles are unavailable until the install sets `'providers' => ['carto' => ['key' => '...']]`. Keys are [free](https://carto.com/basemaps/apikey) (5 million requests a month non-commercial, 1 million commercial). | 20 |
 | `custom` | Draws `tileurl`; requires a valid `token`. | `zoom.max` (18) |
 
 Esri styles draw the "Powered by Esri" logo by default; the OpenStreetMap, OpenTopoMap and CARTO styles draw the OpenStreetMap logo. Each shipped provider sets this itself, so changing `defaults.attribution` only affects providers you add. The `attribution` parameter overrides either.
@@ -62,7 +62,7 @@ X-Map-Fallback: removed; requested=stamen-toner; drawn=osm/streets
 X-Map-Fallback: unavailable; requested=esri/nope; drawn=osm/streets
 ```
 
-`removed` means the provider, style or basemap id was taken out because it stopped working (see [Removed providers and styles](#removed-providers-and-styles)); the response then also has `Link: <...#removed-providers-and-styles>; rel="help"`. `unavailable` covers everything else: unknown, switched off on this install, needs a token, or `provider=custom` without a token and `tileurl`. `requested` echoes the provider/style or basemap id (or `?` if it isn't a plain id), and `drawn` names the map drawn instead.
+`removed` means the provider, style or basemap id was taken out because it stopped working (see [Removed providers and styles](#removed-providers-and-styles)); the response then also has `Link: <...#removed-providers-and-styles>; rel="help"`. `unavailable` covers everything else: unknown, switched off on this install, needs an API key the install hasn't set, needs a token, or `provider=custom` without a token and `tileurl`. `requested` echoes the provider/style or basemap id (or `?` if it isn't a plain id), and `drawn` names the map drawn instead.
 
 ### Removed providers and styles
 
@@ -210,7 +210,7 @@ return [
 
 The `removed` setting lists removed provider, style and basemap ids for the `X-Map-Fallback` notice; an install can add its own when it takes a map out of service.
 
-Each provider has a `name`, an optional `default_style`, and `styles`. Each style has a `name` and a list of one or two tile URL `layers` (a base map and an optional overlay drawn on top). A provider can set a default `attribution`, `minzoom` / `maxzoom`, `requires_auth` (only usable with a valid token), `enabled` and an API `key`; its styles inherit these and can override any of them. See `config/defaults.php` for details.
+Each provider has a `name`, an optional `default_style`, and `styles`. Each style has a `name` and a list of one or two tile URL `layers` (a base map and an optional overlay drawn on top). A provider can set a default `attribution`, `minzoom` / `maxzoom`, `requires_auth` (only usable with a valid token), `enabled` and an API `key`; its styles inherit these and can override any of them. A style whose tile URLs contain `{key}` is unavailable until a key is set, so a provider that needs a key (such as CARTO) can ship switched on and starts working once the install adds one. See `config/defaults.php` for details.
 
 Install files written for the older format (`basemaps` and `defaults.basemap`) keep working: they are translated to providers and styles, and each request logs a deprecation message until you update the file.
 

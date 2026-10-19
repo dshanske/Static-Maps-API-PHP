@@ -153,7 +153,9 @@ return [
      *   'enabled'       (bool) Set to false to switch it off on your install.
      *                   Default: true.
      *   'key'           (string) API key inserted into {key}. Put keys in
-     *                   data/config.php only, never in this file.
+     *                   data/config.php only, never in this file. A style
+     *                   whose layers use {key} is unavailable (requests get the
+     *                   default map) until a key is set.
      *
      * Every key except `name`, `default_style` and `styles` can also be set on a
      * single style, which then overrides the provider's value for that style.
@@ -299,8 +301,12 @@ return [
             ],
         ],
 
-        // CARTO: free for up to 75,000 map views a month, non-commercial use only
-        // (https://carto.com/basemaps). CARTO now requires an API key (#17).
+        // CARTO (https://carto.com/basemaps). Since 2026-09-25 CARTO serves raster
+        // tiles only with an API key, so these styles are unavailable until you
+        // set one in data/config.php:
+        //     'providers' => ['carto' => ['key' => 'your-carto-key']],
+        // Keys are free (https://carto.com/basemaps/apikey): up to 5 million
+        // requests a month for non-commercial use, 1 million for commercial use.
         'carto' => [
             'name'          => 'CARTO',
             // OpenStreetMap data; credit text for CARTO itself comes with #29.
@@ -312,15 +318,15 @@ return [
             'styles' => [
                 'light' => [
                     'name'   => 'Positron',
-                    'layers' => ['https://cartodb-basemaps-a.global.ssl.fastly.net/light_all/{z}/{x}/{y}.png'],
+                    'layers' => ['https://basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png?key={key}'],
                 ],
                 'dark' => [
                     'name'   => 'Dark Matter',
-                    'layers' => ['https://cartodb-basemaps-a.global.ssl.fastly.net/dark_all/{z}/{x}/{y}.png'],
+                    'layers' => ['https://basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png?key={key}'],
                 ],
                 'streets' => [
                     'name'   => 'Voyager',
-                    'layers' => ['https://cartodb-basemaps-a.global.ssl.fastly.net/rastertiles/voyager/{z}/{x}/{y}.png'],
+                    'layers' => ['https://basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png?key={key}'],
                 ],
             ],
         ],

@@ -91,6 +91,14 @@ stable interface; pin a commit if you need a fixed point.
 
 ### Fixed
 
+- CARTO maps (`provider=carto`, old `basemap=carto-*`) drew CARTO's "API KEY
+  REQUIRED" image across the whole map, because CARTO stopped serving raster
+  tiles without a key on 2026-09-25. The CARTO styles now use CARTO's keyed
+  tile URLs and need `'providers' => ['carto' => ['key' => '...']]`; until a
+  key is set, requests get the default map with `X-Map-Fallback:
+  unavailable`. More generally, any style whose tile URLs use `{key}` is
+  unavailable until a key is set. (#17)
+
 - Esri maps draw the "Powered by Esri" logo by default instead of the
   OpenStreetMap logo. The OpenStreetMap, OpenTopoMap and CARTO providers set
   the OpenStreetMap logo themselves, so changing `defaults.attribution` no
