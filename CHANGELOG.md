@@ -46,8 +46,7 @@ stable interface; pin a commit if you need a fixed point.
 - The renderer is now `public/index.php`, so maps are served from the site
   root: `/?latitude=...&longitude=...`. In nginx, change
   `try_files $uri /img.php?$args;` to `try_files $uri /index.php?$args;`.
-  A request for `/` without parameters now returns a map instead of a
-  placeholder page. (#24)
+  (#24)
 
 ### Deprecated
 

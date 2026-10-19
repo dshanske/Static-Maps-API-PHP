@@ -93,7 +93,9 @@ final class RenderTest extends RenderTestCase
     }
 
     /**
-     * A request without parameters renders the default map.
+     * A request without parameters renders the default map (centred on 0,0).
+     *
+     * Current behaviour only: #47 will make a request without a location a 400.
      *
      * @return void
      */
