@@ -8,7 +8,6 @@ namespace StaticMaps\Tests\Unit;
 
 use GdImage;
 use PHPUnit\Framework\TestCase;
-use StaticMaps\ArcGISGeocoderResult;
 use StaticMaps\Bounds;
 use StaticMaps\MarkerParser;
 
@@ -18,22 +17,13 @@ use StaticMaps\MarkerParser;
 final class MarkerParserTest extends TestCase
 {
     /**
-     * A parser whose geocoder knows one place, "Portland", and never goes online.
+     * A parser.
      *
      * @return MarkerParser The parser.
      */
     private static function parser(): MarkerParser
     {
-        return new MarkerParser(static function (string $location): ArcGISGeocoderResult {
-            if ($location !== 'Portland') {
-                return new ArcGISGeocoderResult(false, '{"locations":[]}');
-            }
-            $found = (object) [
-                'name'    => 'Portland',
-                'feature' => (object) ['geometry' => (object) ['x' => -122.68, 'y' => 45.52]],
-            ];
-            return new ArcGISGeocoderResult($found, '{}');
-        });
+        return new MarkerParser();
     }
 
     /**
@@ -57,7 +47,10 @@ final class MarkerParserTest extends TestCase
     {
         $bounds = new Bounds();
 
-        $this->assertSame(['markers' => [], 'headers' => []], self::parser()->parse(false, false, $bounds));
+        $this->assertSame(
+            ['markers' => [], 'headers' => [], 'deprecated' => false],
+            self::parser()->parse(false, false, $bounds)
+        );
         $this->assertSame(90, $bounds->minLat);
     }
 
@@ -111,8 +104,8 @@ final class MarkerParserTest extends TestCase
 
         $this->assertCount(1, $result['markers']);
         $this->assertSame([
-            'X-Marker-2: missing icon, or lat/lng/location parameters',
-            'X-Marker-3: missing icon, or lat/lng/location parameters',
+            'X-Marker-2: missing icon, or lat/lng parameters',
+            'X-Marker-3: missing icon, or lat/lng parameters',
         ], $result['headers']);
     }
 
@@ -125,25 +118,27 @@ final class MarkerParserTest extends TestCase
     {
         $result = self::parser()->parse(['nothing here'], false, new Bounds());
 
-        $this->assertSame(['markers' => [], 'headers' => []], $result);
+        $this->assertSame(['markers' => [], 'headers' => [], 'deprecated' => false], $result);
     }
 
     /**
-     * A location is geocoded; a failed lookup skips the marker with a header.
+     * `location` is no longer geocoded (#16): a marker with only a location is
+     * skipped with a header, one that also has lat/lng uses them, and both are
+     * reported as deprecated.
      *
      * @return void
      */
-    public function testLocation(): void
+    public function testLocationIsIgnored(): void
     {
         $bounds = new Bounds();
-        $markers = ['location:Portland;icon:dot-small-red', 'location:Atlantis;icon:dot-small-red'];
+        $markers = ['location:Portland;icon:dot-small-red', 'location:Portland;lat:10;lng:20;icon:dot-small-red'];
         $result = self::parser()->parse($markers, false, $bounds);
 
+        $this->assertTrue($result['deprecated']);
+        $this->assertSame(['X-Marker-1: location is no longer supported, use lat and lng'], $result['headers']);
         $this->assertCount(1, $result['markers']);
-        $this->assertSame(45.52, $result['markers'][0]['lat']);
-        $this->assertSame(-122.68, $result['markers'][0]['lng']);
-        $this->assertSame(['X-Marker-2: error geocoding location "Atlantis"'], $result['headers']);
-        $this->assertSame(45.52, $bounds->minLat);
+        $this->assertSame(['10', '20'], [$result['markers'][0]['lat'], $result['markers'][0]['lng']]);
+        $this->assertSame(['10', '10', '20', '20'], self::edges($bounds));
     }
 
     /**

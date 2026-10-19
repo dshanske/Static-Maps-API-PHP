@@ -8,7 +8,7 @@ Static Maps API
 
 Parameters can be sent in either the query string or in the POST body.
 
-Every map needs a location: `latitude` **and** `longitude`, or at least one valid marker or path (the map is then fitted to them), or a `location` to geocode. A request without one gets HTTP 400 with the reason as plain text, as does a request with only one of `latitude` / `longitude`. A request with no parameters at all, such as opening the service's address in a browser, gets an HTML page describing the service (see `home_page` under Configuration).
+Every map needs a location: `latitude` **and** `longitude`, or at least one valid marker or path (the map is then fitted to them). A request without one gets HTTP 400 with the reason as plain text, as does a request with only one of `latitude` / `longitude`. A request with no parameters at all, such as opening the service's address in a browser, gets an HTML page describing the service (see `home_page` under Configuration).
 
 * `zoom` - optional - Set the zoom level for the map. If not specified, a zoom level will be chosen that contains all markers on the map.
 * `maxzoom` - optional - When a zoom level is chosen automatically, this sets an upper limit on the zoom level that will be chosen. Useful if you know your maps don't have imagery past a certain zoom level.
@@ -19,9 +19,9 @@ Every map needs a location: `latitude` **and** `longitude`, or at least one vali
 * `tileurl` - With `provider=custom` and a valid `token`: a tile URL template (`{z}`, `{x}`, `{y}`) to draw instead of a provider.
 * `basemap` - **deprecated** - The old single-id way to pick a map; see [Deprecated basemap ids](#deprecated-basemap-ids). Ignored when `provider` or `style` is given.
 * `attribution` - default: the provider's, else "osm" - "esri", "osm", "mapbox" or "none" or specify a full URL to a png image - If you add attribution on the image in some other way, you can set this to "none" to hide all logos.
-* `latitude` - Latitude to center the map at. Not needed if using the location parameter, or if specifying one or more markers or paths. Must be given together with `longitude`.
+* `latitude` - Latitude to center the map at. Not needed if specifying one or more markers or paths. Must be given together with `longitude`.
 * `longitude` - Longitude to center the map at. Must be given together with `latitude`.
-* `location` - optional - Free-form text that will be geocoded to center the map. Not needed if specifying a location with the latitude and longitude parameters, or if a marker is specified.
+* `location` - **deprecated, ignored** - Geocoding addresses was removed (#16): convert addresses to coordinates in your client and pass `latitude` / `longitude`. A request with `location` gets `Deprecation` and `Link` headers; with nothing else to place the map, it gets HTTP 400.
 * `marker[]` - Specify one or more markers to overlay on the map. Parameters are specified as: `key:value;`. See below for the full list of parameters. 
 * `path[]` - Specify one or more paths to draw on the map. See below for the full list of parameters to draw a path.
 * `polyline` - Alternative to path, this allows for a path to be specified as an encoded polyline, allowing for shorter URLs.
@@ -128,9 +128,9 @@ The API runs from the same `index.php` as the maps; the nginx configuration unde
 
 ## Markers
 
-* `location` - Free-form text that will be geocoded to place the pin
-* `lat` - If a `location` is not provided, you can specify the location with the `lat` and `lng` parameters.
-* `lng` - See above
+* `lat` - Latitude of the pin.
+* `lng` - Longitude of the pin.
+* (`location`, an address to geocode, is no longer supported. A marker with only a `location` is skipped, with an `X-Marker-<n>` header saying so.)
 * `icon` - Icon to use for the marker. Must choose one of the icons provided in this library, or specify a full URL to a png image. If an invalid icon is specified, the marker will not be rendered. Using a URL required authentication.
 
 
@@ -307,13 +307,13 @@ http://static-maps.pdx.esri.com/?provider=esri&style=light&width=400&height=240&
 
 <img src="http://static-maps.pdx.esri.com/?provider=esri&style=light&width=400&height=240&zoom=14&latitude=45.5165&longitude=-122.6764">
 
-### Map with a marker centered at an address
+### Map centered on a marker
 
 ```
-http://static-maps.pdx.esri.com/?marker[]=location:920%20SW%203rd%20Ave,%20Portland,%20OR;icon:small-blue-cutout&provider=esri&style=light&width=400&height=240&zoom=14
+http://static-maps.pdx.esri.com/?marker[]=lat:45.5165;lng:-122.6764;icon:small-blue-cutout&provider=esri&style=light&width=400&height=240&zoom=14
 ```
 
-<img src="http://static-maps.pdx.esri.com/?marker[]=location:920%20SW%203rd%20Ave,%20Portland,%20OR;icon:small-blue-cutout&provider=esri&style=light&width=400&height=240&zoom=14">
+<img src="http://static-maps.pdx.esri.com/?marker[]=lat:45.5165;lng:-122.6764;icon:small-blue-cutout&provider=esri&style=light&width=400&height=240&zoom=14">
 
 ### Map with an external marker image
 
@@ -406,6 +406,7 @@ The first release will be **1.0.0**, once the first phase of the rewrite is comp
 | Requesting `/img.php?...` | `/?...` (or `/index.php?...`) with the same parameters (#24) | 1.0.0 | 2.0.0 |
 | The `basemap` parameter | `provider` and `style` ([mapping](#deprecated-basemap-ids), #40) | 1.0.0 | 2.0.0 |
 | Settings `basemaps` and `defaults.basemap` in `data/config.php` | `providers` and `defaults.provider` / `defaults.style` (#40) | 1.0.0 | 2.0.0 |
+| The `location` parameter and `location:` in markers (geocoding, now ignored) | `latitude` / `longitude`, and `lat` / `lng` in markers (#16) | 1.0.0 | 2.0.0 |
 
 ## Development
 

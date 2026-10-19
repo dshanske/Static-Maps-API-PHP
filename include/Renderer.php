@@ -15,28 +15,23 @@ use GdImage;
  * pick the centre → pick the basemap → pick the zoom → download tiles →
  * draw tiles, paths and markers → draw the attribution → encode the image.
  *
- * A request must locate the map: `latitude` and `longitude`, a `location`
- * that geocodes, or at least one valid marker or path. Otherwise it gets a
- * 400 and no tiles are downloaded (#47).
+ * A request must locate the map: `latitude` and `longitude`, or at least one
+ * valid marker or path. Otherwise it gets a 400 and no tiles are downloaded
+ * (#47). The `location` parameter (geocoding) was removed (#16): it is
+ * ignored, and a request that uses it gets `Deprecation` and `Link` headers.
  */
 final class Renderer
 {
     /** @var WebMercator Projection maths. */
     private WebMercator $webmercator;
 
-    /** @var callable(string): ArcGISGeocoderResult|null Geocoder for `location`; null for the default. */
-    private $geocode;
-
     /**
-     * @param array<string, mixed>                       $config  Configuration from Config::load().
-     * @param Tokens                                     $tokens  Valid access tokens.
-     * @param callable(string): ArcGISGeocoderResult|null $geocode Geocoder for `location`;
-     *                                                           null for ArcGISGeocoder::geocode().
+     * @param array<string, mixed> $config Configuration from Config::load().
+     * @param Tokens               $tokens Valid access tokens.
      */
-    public function __construct(private array $config, private Tokens $tokens, ?callable $geocode = null)
+    public function __construct(private array $config, private Tokens $tokens)
     {
         $this->webmercator = new WebMercator();
-        $this->geocode = $geocode;
     }
 
     /**
@@ -60,22 +55,29 @@ final class Renderer
         $is_authenticated = $this->tokens->isValid($request->get('token'));
 
         // Markers and paths; with no centre given, the map is centred on them
-        $parsed = (new MarkerParser($this->geocode))->parse($request->get('marker'), $is_authenticated, $bounds);
+        $parsed = (new MarkerParser())->parse($request->get('marker'), $is_authenticated, $bounds);
         $markers = $parsed['markers'];
         $headers = array_merge($headers, $parsed['headers']);
+
+        // Geocoding was removed (#16): `location` is ignored, with a deprecation notice.
+        $usesLocation = $request->get('location') !== false;
+        if ($usesLocation || $parsed['deprecated']) {
+            $headers = array_merge($headers, Deprecation::headers());
+        }
 
         $paths = (new PathParser($config['defaults']['path_color'], $config['defaults']['path_weight']))
             ->parse($request->get('path'), $request->get('polyline'), $bounds);
 
-        $viewport = new Viewport($this->webmercator, $this->geocode);
+        $viewport = new Viewport($this->webmercator);
         $center = $viewport->center($request, $bounds);
         $latitude = $center['latitude'];
         $longitude = $center['longitude'];
-        $headers = array_merge($headers, $center['headers']);
         if (!$center['located']) {
             return Response::error(
                 400,
-                'A map needs a location: latitude and longitude, or at least one marker or path',
+                $usesLocation
+                    ? 'The location parameter (geocoding) is no longer supported: use latitude and longitude'
+                    : 'A map needs a location: latitude and longitude, or at least one marker or path',
                 $headers
             );
         }
