@@ -4,3 +4,4 @@ composer.lock
 # Per-install data: settings, API keys. Only the example is part of the repo.
 /data/*
 !/data/config.example.php
+/.phpunit.cache/
