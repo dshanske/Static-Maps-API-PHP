@@ -37,6 +37,7 @@ return [
     //     'height'       => 300,       // pixels
     //     'path_color'   => '333333',  // hex RGB, no '#'
     //     'path_weight'  => 3,         // pixels
+    //     'padding'      => 20,        // px around fitted markers and paths; or '40,20' (CSS order)
     //     'format'       => 'png',     // 'png', 'png8', 'jpg' or 'webp'
     //     'jpeg_quality' => 75,        // 0-100
     //     'provider'     => 'osm',     // id of an enabled provider

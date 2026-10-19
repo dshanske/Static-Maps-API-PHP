@@ -39,6 +39,13 @@ return [
         'path_color'   => '333333',
         'path_weight'  => 3,
 
+        // Space in pixels kept around markers and paths when the map is fitted
+        // to them (no `zoom` given), when the request has no `padding`: one
+        // number, or 2-4 comma-separated in CSS order (top, right, bottom, left).
+        // Marker icon sizes and path widths are always added on top.
+        // Default: 20. Example override: 'padding' => '40,20'.
+        'padding'      => 20,
+
         // Output format when the request has no `format`: 'png', 'png8' (256
         // colours, smaller), 'jpg' or 'webp' (if PHP's GD has WebP support;
         // otherwise maps are sent as PNG).

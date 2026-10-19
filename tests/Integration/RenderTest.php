@@ -118,7 +118,8 @@ final class RenderTest extends RenderTestCase
      */
     public static function unlocatedCases(): array
     {
-        $none = 'A map needs a location: latitude and longitude, or at least one marker or path';
+        $none = 'A map needs a location: latitude and longitude (or center), bbox, visible, '
+            . 'or at least one marker or path';
         $pair = 'latitude and longitude must be given together';
 
         return [
@@ -270,7 +271,8 @@ final class RenderTest extends RenderTestCase
     }
 
     /**
-     * Markers set the centre and zoom when none are given, and are drawn on top.
+     * Markers set the centre and zoom when none are given, with room for their icons
+     * and the default padding, and are drawn on top.
      *
      * @return void
      */
@@ -278,9 +280,11 @@ final class RenderTest extends RenderTestCase
     {
         $response = $this->render(['marker' => self::MARKERS]);
 
+        // Pins reach up from their anchor, so the fit leaves room above them: the view
+        // shifts north onto two rows of tiles (#35).
         $tiles = [];
         foreach ([5216, 5217, 5218] as $x) {
-            foreach ([11719, 11720, 11721] as $y) {
+            foreach ([11719, 11720] as $y) {
                 $tiles[] = "/base/15/$x/$y.png";
             }
         }

@@ -12,7 +12,7 @@ Every map needs a location: `latitude` **and** `longitude`, or at least one vali
 
 Numbers are checked: a value that isn't a number, or is out of the range given below, gets HTTP 400 with the reason (for example `zoom must be between 0 and 30`). An empty value (`width=`) counts as not given.
 
-* `zoom` - optional - Whole number, 0-30. Set the zoom level for the map; it is kept within the map's own zoom range. If not specified, a zoom level will be chosen that contains all markers on the map.
+* `zoom` - optional - Whole number, 0-30. Set the zoom level for the map; it is kept within the map's own zoom range. If not specified, the map uses the highest zoom at which everything fits: the markers (including their icons), paths (including their width and any `bezier` curve), `bbox` and `visible` points, with `padding` around them. Without a centre, the map is centred on them.
 * `maxzoom` - optional - Whole number, 0-30. An upper limit on the zoom level, mostly useful when the zoom is chosen automatically.
 * `width` - default 300 - Width in pixels of the final image, a whole number of 1 or more. At most 1280 by default (the install's `limits.max_width`): a larger width is drawn at the limit and the response has an `X-Map-Size: clamped; requested=5000x300; drawn=1280x300` header.
 * `height` - default 300 - Height in pixels of the final image, a whole number of 1 or more. At most 1280 by default (`limits.max_height`), like `width`.
@@ -26,8 +26,12 @@ Numbers are checked: a value that isn't a number, or is out of the range given b
   * `none` - nothing. Only use this if you show the attribution elsewhere, for example under the image: the providers' terms require it. [`/api/v1/attribution`](#query-api) gives the credit to show.
   * Any other value counts as not given.
 * `attribution_position` - default "bottomright" - The corner for the attribution: `bottomright`, `bottomleft`, `topright` or `topleft`. Anything else gets HTTP 400.
-* `latitude` - Latitude to center the map at, -85.0511 to 85.0511 (the limits of Web Mercator maps). Not needed if specifying one or more markers or paths. Must be given together with `longitude`.
+* `latitude` - Latitude to center the map at, -85.0511 to 85.0511 (the limits of Web Mercator maps). Not needed if specifying one or more markers or paths, a `bbox` or `visible` points. Must be given together with `longitude`.
 * `longitude` - Longitude to center the map at, -180 to 180. Must be given together with `latitude`.
+* `center` - optional - Shorthand for `latitude` and `longitude`: `center=45.5165,-122.6764` (**latitude first**). Use one or the other, not both.
+* `bbox` - optional - An area to show: `bbox=minLng,minLat,maxLng,maxLat` (**longitude first**, as in GeoJSON and Mapbox), e.g. `bbox=-122.70,45.50,-122.65,45.53`. Without a `zoom`, the map zooms to fit it, together with any markers and paths.
+* `visible` - optional - Points to keep in view without drawing anything there: `visible=45.50,-122.70|45.53,-122.65` (`lat,lng` pairs separated by `|`, **latitude first**, as in Google's Static Maps API).
+* `padding` - default 20 - Space in pixels kept between the fitted content and the edge of the image when no `zoom` is given: one number for all sides, or 2-4 comma-separated values in CSS order (`20,40` for top/bottom 20 and left/right 40; `top,right,bottom,left`), each 0-1000. Room for marker icons and path widths is added automatically. The install's default is `defaults.padding`.
 * `location` - **deprecated, ignored** - Geocoding addresses was removed (#16): convert addresses to coordinates in your client and pass `latitude` / `longitude`. A request with `location` gets `Deprecation` and `Link` headers; with nothing else to place the map, it gets HTTP 400.
 * `marker[]` - Specify one or more markers to overlay on the map. Parameters are specified as: `key:value;`. See below for the full list of parameters. 
 * `path[]` - Specify one or more paths to draw on the map. See below for the full list of parameters to draw a path.

@@ -128,30 +128,22 @@ final class Compositor
     }
 
     /**
-     * Add one quadratic Bézier segment between two points.
+     * The quadratic Bezier curve drawn between two points: its ends and control point.
      *
-     * Segments are drawn left to right (or top to bottom when taller than wide),
-     * so the curve bends the same way whatever the point order.
+     * The ends are ordered left to right (or top to bottom when the segment is
+     * steeper than 45 degrees), and the control point is off the midpoint at
+     * `$bezier` degrees, so the curve bulges to the same side whichever way the
+     * path runs.
      *
-     * @see http://math.stackexchange.com/a/383648
+     * @param array{x: int|float, y: int|float} $from   One end in pixels.
+     * @param array{x: int|float, y: int|float} $to     The other end in pixels.
+     * @param mixed                             $bezier Curve angle in degrees (-89 to 89).
      *
-     * @param ImagickDraw              $draw     The drawing to add to.
-     * @param array{x: float, y: float} $from     Global pixel of the segment start.
-     * @param array{x: float, y: float} $to       Global pixel of the segment end.
-     * @param mixed                    $bezier   Curve angle in degrees.
-     * @param int|float                $leftEdge Global pixel x of the image's left edge.
-     * @param int|float                $topEdge  Global pixel y of the image's top edge.
-     *
-     * @return void
+     * @return array{array{x: int|float, y: int|float}, array{x: int|float, y: int|float},
+     *               array{x: int|float, y: int|float}} Start, control point and end, in pixels.
      */
-    private function drawCurve(
-        ImagickDraw $draw,
-        array $from,
-        array $to,
-        mixed $bezier,
-        int|float $leftEdge,
-        int|float $topEdge
-    ): void {
+    public static function curve(array $from, array $to, mixed $bezier): array
+    {
         $x_dist = abs($from['x'] - $to['x']);
         $y_dist = abs($from['y'] - $to['y']);
 
@@ -186,6 +178,64 @@ final class Compositor
             'y' => ($M['y']) + (($A['x'] - $M['x']) * tan(deg2rad($angle)))
         );
 
+        return [$A, $P, $B];
+    }
+
+    /**
+     * The points of a curve that reach furthest on each axis (for fitting the map to it).
+     *
+     * @param array{x: int|float, y: int|float} $from   One end in pixels.
+     * @param array{x: int|float, y: int|float} $to     The other end in pixels.
+     * @param mixed                             $bezier Curve angle in degrees.
+     *
+     * @return list<array{x: float, y: float}> Up to two points on the curve, in pixels: where it
+     *         turns in x and in y, if that happens between its ends.
+     */
+    public static function curveExtremes(array $from, array $to, mixed $bezier): array
+    {
+        [$A, $P, $B] = self::curve($from, $to, $bezier);
+        $points = [];
+        foreach (['x', 'y'] as $axis) {
+            $d = $A[$axis] - 2 * $P[$axis] + $B[$axis];
+            $t = $d == 0 ? -1 : ($A[$axis] - $P[$axis]) / $d;
+            if ($t > 0 && $t < 1) {
+                $points[] = [
+                    'x' => (1 - $t) ** 2 * $A['x'] + 2 * $t * (1 - $t) * $P['x'] + $t ** 2 * $B['x'],
+                    'y' => (1 - $t) ** 2 * $A['y'] + 2 * $t * (1 - $t) * $P['y'] + $t ** 2 * $B['y'],
+                ];
+            }
+        }
+
+        return $points;
+    }
+
+    /**
+     * Add one quadratic Bézier segment between two points.
+     *
+     * Segments are drawn left to right (or top to bottom when taller than wide),
+     * so the curve bends the same way whatever the point order.
+     *
+     * @see http://math.stackexchange.com/a/383648
+     *
+     * @param ImagickDraw              $draw     The drawing to add to.
+     * @param array{x: float, y: float} $from     Global pixel of the segment start.
+     * @param array{x: float, y: float} $to       Global pixel of the segment end.
+     * @param mixed                    $bezier   Curve angle in degrees.
+     * @param int|float                $leftEdge Global pixel x of the image's left edge.
+     * @param int|float                $topEdge  Global pixel y of the image's top edge.
+     *
+     * @return void
+     */
+    private function drawCurve(
+        ImagickDraw $draw,
+        array $from,
+        array $to,
+        mixed $bezier,
+        int|float $leftEdge,
+        int|float $topEdge
+    ): void {
+        [$A, $P, $B] = self::curve($from, $to, $bezier);
+
         $draw->pathStart();
         $draw->pathMoveToAbsolute($A['x'] - $leftEdge, $A['y'] - $topEdge);
         $draw->pathCurveToQuadraticBezierAbsolute(
@@ -196,6 +246,31 @@ final class Compositor
         );
 
         $draw->pathFinish();
+    }
+
+    /**
+     * Where a marker icon sits around its anchor point, as drawn by drawMarkers().
+     *
+     * Icons are shrunk by 1.5 on maps under 120 px wide or high. Icons with a
+     * shadow are anchored at their bottom centre; `dot-*` icons at their centre.
+     *
+     * @param GdImage $icon   The icon image.
+     * @param string  $name   The icon name (or URL); a `dot-` prefix means centre-anchored.
+     * @param int     $width  Map width in pixels.
+     * @param int     $height Map height in pixels.
+     *
+     * @return array{top: int, right: int, bottom: int, left: int} Pixels the icon reaches from
+     *         its anchor in each direction.
+     */
+    public static function markerBox(GdImage $icon, string $name, int $width, int $height): array
+    {
+        $shrink = ($width < 120 || $height < 120) ? 1.5 : 1;
+        $w = $shrink > 1 ? max(1, (int) round(imagesx($icon) / $shrink)) : imagesx($icon);
+        $h = $shrink > 1 ? max(1, (int) round(imagesy($icon) / $shrink)) : imagesy($icon);
+        $left = (int) round($w / 2);
+        $top = preg_match('/^dot-/', $name) ? (int) round($h / 2) : $h;
+
+        return ['top' => $top, 'right' => $w - $left, 'bottom' => $h - $top, 'left' => $left];
     }
 
     /**
