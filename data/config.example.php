@@ -50,6 +50,14 @@ return [
     //     'max_height' => 1280,   // pixels
     // ],
 
+    // Limits on downloads from other servers (tiles, icon and attribution URLs).
+    // 'remote' => [
+    //     'timeout'         => 10,        // seconds
+    //     'connect_timeout' => 5,         // seconds
+    //     'max_bytes'       => 5000000,   // bytes
+    //     'max_redirects'   => 3,
+    // ],
+
     // Zoom range for providers and styles that don't set their own minzoom/maxzoom,
     // and an optional cap that no map goes above (not set by default).
     // 'zoom' => [

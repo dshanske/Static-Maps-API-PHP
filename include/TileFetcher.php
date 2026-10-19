@@ -17,9 +17,9 @@ use GdImage;
 final class TileFetcher
 {
     /**
-     * @param string $userAgent User-Agent sent with every tile request.
+     * @param RemoteFetcher $remote Makes the downloads (limits, User-Agent).
      */
-    public function __construct(private string $userAgent)
+    public function __construct(private RemoteFetcher $remote)
     {
     }
 
@@ -66,18 +66,12 @@ final class TileFetcher
                 $y = (int)$y;
                 $url = Config::tileUrl($tileURL, $x, $y, $zoom, $key);
                 $tiles[$x][$y] = false;
-                $chs[$x][$y] = curl_init($url);
-                curl_setopt($chs[$x][$y], CURLOPT_RETURNTRANSFER, true);
-                curl_setopt($chs[$x][$y], CURLOPT_FOLLOWLOCATION, true);
+                $chs[$x][$y] = $this->remote->handle($url);
                 curl_multi_add_handle($mh, $chs[$x][$y]);
-                curl_setopt($chs[$x][$y], CURLOPT_USERAGENT, $this->userAgent);
                 if ($overlayURL) {
                     $url = Config::tileUrl($overlayURL, $x, $y, $zoom, $key);
                     $overlays[$x][$y] = false;
-                    $ochs[$x][$y] = curl_init($url);
-                    curl_setopt($ochs[$x][$y], CURLOPT_RETURNTRANSFER, true);
-                    curl_setopt($ochs[$x][$y], CURLOPT_FOLLOWLOCATION, true);
-                    curl_setopt($ochs[$x][$y], CURLOPT_USERAGENT, $this->userAgent);
+                    $ochs[$x][$y] = $this->remote->handle($url);
                     curl_multi_add_handle($mh, $ochs[$x][$y]);
                 }
             }
@@ -87,6 +81,9 @@ final class TileFetcher
         // Execute the handles. Blocks until all are finished.
         do {
             curl_multi_exec($mh, $running);
+            if ($running > 0) {
+                curl_multi_select($mh, 1.0);
+            }
         } while ($running > 0);
 
         // In case any of the tiles fail, they will be grey instead of throwing an error

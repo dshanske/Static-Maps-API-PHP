@@ -11,6 +11,9 @@
  * - `overlay` Transparent tile with an opaque 16x16 white square in its centre.
  * - `broken`  Always answers 404, so the renderer has to fall back to a gray tile.
  *
+ * A few fixed paths (`/big.png`, `/slow.png`, `/redirect-…`, `/not-found.png`)
+ * test the download limits.
+ *
  * Every request is appended to the file named by the TILE_LOG environment
  * variable as one JSON object per line: path, query string and User-Agent.
  */
@@ -23,6 +26,37 @@ if (is_string($log) && $log !== '') {
         'query' => $_SERVER['QUERY_STRING'] ?? '',
         'ua'    => $_SERVER['HTTP_USER_AGENT'] ?? null,
     ]) . "\n", FILE_APPEND | LOCK_EX);
+}
+
+// Routes for the download-limit tests (RemoteFetcherTest, #security hardening).
+switch ($path) {
+    case '/big.png':
+        // A body larger than the test config's remote.max_bytes (200000).
+        header('Content-Type: image/png');
+        echo str_repeat('x', 300000);
+        exit;
+    case '/slow.png':
+        // Answers after the test config's remote.timeout (2 seconds).
+        sleep(4);
+        header('Content-Type: image/png');
+        echo 'late';
+        exit;
+    case '/redirect-loop':
+        header('Location: /redirect-loop', true, 302);
+        exit;
+    case '/redirect-once':
+        header('Location: /overlay/1/1/1.png', true, 302);
+        exit;
+    case '/redirect-file':
+        header('Location: file:///etc/hostname', true, 302);
+        exit;
+    case '/not-found.png':
+        // A real image with an error status.
+        http_response_code(404);
+        header('Content-Type: image/png');
+        $im = imagecreatetruecolor(4, 4);
+        imagepng($im);
+        exit;
 }
 
 if (!preg_match('#^/(base|overlay|broken)/(\d+)/(\d+)/(\d+)\.png$#', (string) $path, $m)) {

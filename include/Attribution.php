@@ -33,6 +33,15 @@ final class Attribution
     private const PADDING = 3;
 
     /**
+     * @param RemoteFetcher|null $remote Downloads attribution image URLs; null for one with
+     *                                   the shipped limits.
+     */
+    public function __construct(private ?RemoteFetcher $remote = null)
+    {
+        $this->remote ??= new RemoteFetcher(10, 5, 5000000, 3, 'Static Maps API');
+    }
+
+    /**
      * Whether an attribution value is one draw() understands.
      *
      * @param mixed $attribution The value, e.g. from the `attribution` parameter.
@@ -41,8 +50,19 @@ final class Attribution
      */
     public static function isKnown(mixed $attribution): bool
     {
-        return is_string($attribution)
-            && (in_array($attribution, self::NAMES, true) || preg_match('/https?:\/\/(.+)/', $attribution) === 1);
+        return is_string($attribution) && (in_array($attribution, self::NAMES, true) || self::isUrl($attribution));
+    }
+
+    /**
+     * Whether an attribution value is an image URL (only allowed with a valid token).
+     *
+     * @param mixed $attribution The value.
+     *
+     * @return bool True for an http(s) URL.
+     */
+    public static function isUrl(mixed $attribution): bool
+    {
+        return is_string($attribution) && preg_match('/https?:\/\/(.+)/', $attribution) === 1;
     }
 
     /**
@@ -132,11 +152,8 @@ final class Attribution
     {
         if (is_string($attribution) && preg_match('/https?:\/\/(.+)/', $attribution)) {
             // Looks like an external image, attempt to download it
-            $ch = curl_init($attribution);
-            curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-            curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
-            $img = curl_exec($ch);
-            $logo = is_string($img) && $img !== '' ? @imagecreatefromstring($img) : false;
+            $img = $this->remote?->fetch($attribution);
+            $logo = $img !== null && $img !== '' ? @imagecreatefromstring($img) : false;
 
             return $logo === false ? null : $logo;
         }

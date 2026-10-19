@@ -192,6 +192,19 @@ stable interface; pin a commit if you need a fixed point.
 - `include/helpers.php` (`request()` and `is_authenticated()`), replaced by the
   `StaticMaps\Request` and `StaticMaps\Tokens` classes. (#14, #44)
 
+### Security
+
+- Attribution image URLs (`attribution=https://…`) now need a valid `token`,
+  like marker icon URLs and custom tile URLs. Without one the map's own
+  attribution is drawn and an `X-Map-Attribution` header says why.
+- Every download from another server (tiles, icon and attribution images) is
+  limited by the new `remote` setting: http and https only, at most 3
+  redirects, 10 seconds and 5 MB by default. Icon and attribution images also
+  send the configured User-Agent now.
+- Tokens are compared exactly and in constant time.
+- Built-in icon names are limited to letters, digits, `-` and `_`.
+- `SECURITY.md` explains how to report vulnerabilities privately.
+
 ## History before versioning
 
 From 2013 to 2014 this was Aaron Parecki's Esri Static Maps API: tile

@@ -72,7 +72,8 @@ final class Renderer
         $is_authenticated = $this->tokens->isValid($request->get('token'));
 
         // Markers and paths; with no centre given, the map is centred on them
-        $parsed = (new MarkerParser())->parse($request->get('marker'), $is_authenticated, $bounds);
+        $remote = RemoteFetcher::fromConfig($config);
+        $parsed = (new MarkerParser($remote))->parse($request->get('marker'), $is_authenticated, $bounds);
         $markers = $parsed['markers'];
         $headers = array_merge($headers, $parsed['headers']);
 
@@ -130,7 +131,7 @@ final class Renderer
         $neTile = $this->webmercator->pixelsToTile($center['x'] + $width / 2, $center['y'] + $height / 2);
         $swTile = $this->webmercator->pixelsToTile($center['x'] - $width / 2, $center['y'] - $height / 2);
 
-        $fetched = (new TileFetcher($config['user_agent']))
+        $fetched = (new TileFetcher($remote))
             ->fetch($tileURL, $overlayURL, $tileKey, $swTile, $neTile, $zoom, $im);
 
         $compositor = new Compositor($this->webmercator);
@@ -144,11 +145,16 @@ final class Renderer
         // The request's attribution, else the basemap's default, else the global
         // default. An unknown value counts as no value.
         $attribution = $request->get('attribution');
+        // Like icon URLs and custom tiles, attribution image URLs need a valid token.
+        if (Attribution::isUrl($attribution) && !$is_authenticated) {
+            $headers[] = 'X-Map-Attribution: attribution image URLs need a valid token';
+            $attribution = false;
+        }
         if (!Attribution::isKnown($attribution)) {
             $attribution = $basemap['attribution'] ?? $config['defaults']['attribution'];
         }
         $text = isset($basemap['attribution_text']) ? (string) $basemap['attribution_text'] : null;
-        (new Attribution())->draw($im, $attribution, $text, $position, $width, $height);
+        (new Attribution($remote))->draw($im, $attribution, $text, $position, $width, $height);
 
         [$formatHeaders, $body] = $this->encode($im, $request, $params->quality);
 

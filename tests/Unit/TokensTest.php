@@ -69,6 +69,26 @@ final class TokensTest extends TestCase
     }
 
     /**
+     * Tokens match exactly: numeric-looking strings are not compared as numbers,
+     * and non-strings never match.
+     *
+     * @return void
+     */
+    public function testComparisonIsExact(): void
+    {
+        file_put_contents($this->file, "1000\n0x1A\nabc\n");
+        $tokens = new Tokens($this->file);
+
+        $this->assertTrue($tokens->isValid('1000'));
+        $this->assertFalse($tokens->isValid('1e3'));
+        $this->assertFalse($tokens->isValid('1000.0'));
+        $this->assertFalse($tokens->isValid('26'));
+        $this->assertFalse($tokens->isValid(1000));
+        $this->assertFalse($tokens->isValid(true));
+        $this->assertFalse($tokens->isValid('ABC'));
+    }
+
+    /**
      * Without a token file no token is valid.
      *
      * @return void

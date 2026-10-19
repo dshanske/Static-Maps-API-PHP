@@ -21,6 +21,17 @@ final class MarkerParser
     /** @var string Directory with the built-in marker icons. */
     public const ICON_DIR = __DIR__ . '/../public/images';
 
+    /** @var RemoteFetcher Downloads icon URLs. */
+    private RemoteFetcher $remote;
+
+    /**
+     * @param RemoteFetcher|null $remote Downloads icon URLs; null for one with the shipped limits.
+     */
+    public function __construct(?RemoteFetcher $remote = null)
+    {
+        $this->remote = $remote ?? new RemoteFetcher(10, 5, 5000000, 3, 'Static Maps API');
+    }
+
     /**
      * Parse the markers of a request.
      *
@@ -102,7 +113,7 @@ final class MarkerParser
     /**
      * Load a marker icon.
      *
-     * @param string $icon          Built-in icon name, or an http(s) URL.
+     * @param string $icon          Built-in icon name (letters, digits, `-`, `_`), or an http(s) URL.
      * @param bool   $authenticated Whether URLs may be fetched.
      *
      * @return array{\GdImage|null, string|null} The icon, or null and the reason it
@@ -115,14 +126,16 @@ final class MarkerParser
                 return [null, 'icon URLs need a valid token'];
             }
             // Looks like an external image, attempt to download it
-            $ch = curl_init($icon);
-            curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-            $img = curl_exec($ch);
-            $image = is_string($img) && $img !== '' ? @imagecreatefromstring($img) : false;
+            $img = $this->remote->fetch($icon);
+            $image = $img !== null && $img !== '' ? @imagecreatefromstring($img) : false;
 
             return $image === false ? [null, 'icon could not be loaded'] : [$image, null];
         }
 
+        // Only plain names: no paths, so no other files can be reached.
+        if (!preg_match('/^[A-Za-z0-9_-]+$/', $icon)) {
+            return [null, 'unknown icon'];
+        }
         $file = self::ICON_DIR . '/' . $icon . '.png';
         if (!is_file($file)) {
             return [null, 'unknown icon'];

@@ -26,29 +26,34 @@ final class Tokens
     /**
      * Whether a token is listed in the token file.
      *
+     * Tokens are compared exactly (as strings, in constant time); surrounding
+     * whitespace on a line of the file is ignored.
+     *
      * @param mixed $token The request's `token` parameter (false when missing).
      *
-     * @return bool True if the token is non-empty and listed.
+     * @return bool True if the token is a non-empty string listed in the file.
      */
     public function isValid(mixed $token): bool
     {
-        if (! $token) {
+        if (!is_string($token) || $token === '') {
             return false;
         }
 
-        if (!file_exists($this->file)) {
+        if (!is_file($this->file)) {
             return false;
         }
 
-        $valid_tokens = array_filter(file($this->file));
-        array_walk($valid_tokens, function (&$val) {
-            $val = trim($val);
-        });
-
-        if (in_array($token, $valid_tokens)) {
-            return true;
+        $lines = file($this->file, FILE_IGNORE_NEW_LINES);
+        $valid = false;
+        foreach ($lines === false ? [] : $lines as $line) {
+            $line = trim($line);
+            // Exact, constant-time comparison; check every line so timing doesn't
+            // reveal which one matched.
+            if ($line !== '' && hash_equals($line, $token)) {
+                $valid = true;
+            }
         }
 
-        return false;
+        return $valid;
     }
 }
