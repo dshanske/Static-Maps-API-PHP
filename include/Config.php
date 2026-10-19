@@ -519,6 +519,15 @@ class Config
             throw new RuntimeException("Setting 'remote.max_redirects' must be a whole number of 0 or more");
         }
 
+        try {
+            if (Parameters::padding($config['defaults']['padding'] ?? null) === null) {
+                throw new InvalidRequest('');
+            }
+        } catch (InvalidRequest $e) {
+            throw new RuntimeException(
+                "Setting 'defaults.padding' must be 1 to 4 comma-separated whole numbers 0-1000"
+            );
+        }
         if (!is_bool($config['errors']['strict'] ?? null)) {
             throw new RuntimeException("Setting 'errors.strict' must be true or false");
         }

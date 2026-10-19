@@ -18,6 +18,12 @@ stable interface; pin a commit if you need a fixed point.
 
 ### Added
 
+- Viewport parameters (#35): `center=lat,lng` (shorthand for `latitude` and
+  `longitude`), `bbox=minLng,minLat,maxLng,maxLat` (an area to fit),
+  `visible=lat,lng|lat,lng` (points to keep in view without drawing them)
+  and `padding` (pixels around fitted content, CSS-style 1-4 values; default
+  from the new `defaults.padding` setting, 20).
+
 - Output formats (#39): `format=webp` (when PHP's GD supports it; otherwise
   PNG with an `X-Map-Format` header) and `format=png8` (256-colour PNG).
   `/api/v1/` lists the formats available. `quality` applies to WebP too.
@@ -118,6 +124,15 @@ stable interface; pin a commit if you need a fixed point.
   use their own page with the `home_page` setting. (#47)
 
 ### Changed
+
+- Automatic fitting (no `zoom`) uses the tightest zoom at which the content
+  fits, instead of one level below it, and counts marker icon sizes, path
+  widths, `bezier` curves and `padding`, so nothing is cut off at the edge.
+  Fitted maps are usually one zoom level closer than before. The centre of a
+  fitted map is the middle of the content in map pixels (it was the middle in
+  degrees, slightly off in latitude), shifted by uneven icons or padding (#35).
+- The 400 for a request that doesn't place the map now also mentions
+  `center`, `bbox` and `visible` (#35).
 
 - JPEG maps are sent as `Content-Type: image/jpeg` (was the non-standard
   `image/jpg`) (#39).

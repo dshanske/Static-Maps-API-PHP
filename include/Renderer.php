@@ -133,16 +133,24 @@ final class Renderer
             }
         }
 
+        // Curved paths bulge past their points; areas and points to keep in view without drawing them (#35).
         $viewport = new Viewport($this->webmercator);
-        $center = $viewport->center($params->latitude, $params->longitude, $bounds);
-        $latitude = $center['latitude'];
-        $longitude = $center['longitude'];
-        if (!$center['located']) {
+        $viewport->extendForCurves($paths, $params->bezier, $bounds);
+        if ($params->bbox !== null) {
+            $bounds->extend($params->bbox[1], $params->bbox[0]);
+            $bounds->extend($params->bbox[3], $params->bbox[2]);
+        }
+        foreach ($params->visible as [$lat, $lng]) {
+            $bounds->extend($lat, $lng);
+        }
+
+        if (($params->latitude === null || $params->longitude === null) && $bounds->isEmpty()) {
             return Response::error(
                 400,
                 $usesLocation
                     ? 'The location parameter (geocoding) is no longer supported: use latitude and longitude'
-                    : 'A map needs a location: latitude and longitude, or at least one marker or path',
+                    : 'A map needs a location: latitude and longitude (or center), bbox, visible, or at least '
+                        . 'one marker or path',
                 $headers
             );
         }
@@ -158,8 +166,21 @@ final class Renderer
         $overlayURL = $basemap['layers'][1] ?? false;
         $tileKey = $basemap['key'] ?? null;
 
-        $zoom = $viewport->zoom($params->zoom, $latitude, $longitude, $width, $height, $bounds);
+        // Fit to the content, its icons, path widths and padding; centre on it unless a centre is given.
+        $margins = Viewport::margins($params->padding, $markers, $paths, $width, $height);
+        $zoom = $viewport->zoom(
+            $params->zoom,
+            $params->latitude,
+            $params->longitude,
+            $width,
+            $height,
+            $bounds,
+            $margins
+        );
         $zoom = $viewport->clampZoom($zoom, $params->maxzoom, $basemap['minzoom'], $basemap['maxzoom']);
+        $center = $viewport->center($params->latitude, $params->longitude, $zoom, $bounds, $margins);
+        $latitude = $center['latitude'];
+        $longitude = $center['longitude'];
 
         $im = imagecreatetruecolor($width, $height);
 

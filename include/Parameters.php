@@ -33,6 +33,12 @@ final class Parameters
      * @param int|null     $maxzoom      Highest zoom to use, or null for no extra limit.
      * @param int          $quality      JPEG and WebP quality, 1-100.
      * @param float        $bezier       Curve angle for paths in degrees; 0 for straight lines.
+     * @param list<float>|null $bbox     Area to show: [minLng, minLat, maxLng, maxLat] in degrees
+     *                                   (note: longitude first), or null.
+     * @param list<array{float, float}> $visible Points to keep in view without drawing them,
+     *                                   each [lat, lng] in degrees (note: latitude first).
+     * @param array{int, int, int, int} $padding Space to keep around fitted content: top, right,
+     *                                   bottom, left, in pixels.
      */
     private function __construct(
         public readonly int $width,
@@ -43,7 +49,10 @@ final class Parameters
         public readonly ?int $zoom,
         public readonly ?int $maxzoom,
         public readonly int $quality,
-        public readonly float $bezier
+        public readonly float $bezier,
+        public readonly ?array $bbox = null,
+        public readonly array $visible = [],
+        public readonly array $padding = [0, 0, 0, 0]
     ) {
     }
 
@@ -64,6 +73,14 @@ final class Parameters
         if (($latitude === null) !== ($longitude === null)) {
             throw new InvalidRequest('latitude and longitude must be given together');
         }
+        // center=lat,lng is shorthand for latitude and longitude (#35).
+        $center = self::points($request, 'center', 1);
+        if ($center !== null) {
+            if ($latitude !== null) {
+                throw new InvalidRequest('give center or latitude and longitude, not both');
+            }
+            [$latitude, $longitude] = $center[0];
+        }
 
         $requestedWidth = self::integer($request, 'width', 1, PHP_INT_MAX) ?? (int) $config['defaults']['width'];
         $requestedHeight = self::integer($request, 'height', 1, PHP_INT_MAX) ?? (int) $config['defaults']['height'];
@@ -76,6 +93,7 @@ final class Parameters
         }
 
         $bezier = self::number($request, 'bezier', -89, 89) ?? 0.0;
+        $padding = self::padding($request->get('padding', false)) ?? self::padding($config['defaults']['padding']);
 
         return new self(
             $width,
@@ -86,8 +104,118 @@ final class Parameters
             self::integer($request, 'zoom', 0, self::MAX_ZOOM),
             self::integer($request, 'maxzoom', 0, self::MAX_ZOOM),
             self::integer($request, 'quality', 1, 100) ?? (int) $config['defaults']['jpeg_quality'],
-            $bezier
+            $bezier,
+            self::bbox($request),
+            self::points($request, 'visible', PHP_INT_MAX) ?? [],
+            $padding ?? [0, 0, 0, 0]
         );
+    }
+
+    /**
+     * Parse `padding`: 1 to 4 whole numbers of pixels, comma-separated, in CSS order
+     * (one value for all sides; two: top/bottom, left/right; three: top, left/right,
+     * bottom; four: top, right, bottom, left).
+     *
+     * @param mixed $value The parameter or setting: a string, an int, or false/'' for none.
+     *
+     * @return array{int, int, int, int}|null Top, right, bottom and left in pixels, or null
+     *                                        if not given.
+     *
+     * @throws InvalidRequest If it isn't 1-4 whole numbers from 0 to 1000.
+     */
+    public static function padding(mixed $value): ?array
+    {
+        if ($value === false || $value === null || $value === '') {
+            return null;
+        }
+        $parts = is_int($value) ? [(string) $value] : (is_string($value) ? explode(',', $value) : []);
+        $values = [];
+        foreach ($parts as $part) {
+            $part = trim($part);
+            if (!ctype_digit($part) || (int) $part > 1000) {
+                $values = [];
+                break;
+            }
+            $values[] = (int) $part;
+        }
+        if ($values === [] || count($values) > 4) {
+            throw new InvalidRequest('padding must be 1 to 4 comma-separated whole numbers of pixels from 0 to 1000');
+        }
+
+        [$top, $right, $bottom, $left] = match (count($values)) {
+            1 => [$values[0], $values[0], $values[0], $values[0]],
+            2 => [$values[0], $values[1], $values[0], $values[1]],
+            3 => [$values[0], $values[1], $values[2], $values[1]],
+            default => $values,
+        };
+
+        return [$top, $right, $bottom, $left];
+    }
+
+    /**
+     * Parse `bbox=minLng,minLat,maxLng,maxLat` (#35).
+     *
+     * @param Request $request The request.
+     *
+     * @return list<float>|null [minLng, minLat, maxLng, maxLat] in degrees, or null if not given.
+     *
+     * @throws InvalidRequest If it isn't four numbers in range with minLat <= maxLat.
+     */
+    private static function bbox(Request $request): ?array
+    {
+        $value = $request->get('bbox', false);
+        if ($value === false || $value === '') {
+            return null;
+        }
+        $parts = is_string($value) ? array_map('trim', explode(',', $value)) : [];
+        $valid = count($parts) === 4
+            && Parameters::isValidPoint($parts[1], $parts[0])
+            && Parameters::isValidPoint($parts[3], $parts[2])
+            && (float) $parts[1] <= (float) $parts[3];
+        if (!$valid) {
+            throw new InvalidRequest(
+                'bbox must be minLng,minLat,maxLng,maxLat: longitudes -180 to 180, latitudes -85.0511 to 85.0511'
+                . ', minLat no more than maxLat'
+            );
+        }
+
+        return array_map('floatval', $parts);
+    }
+
+    /**
+     * Parse a list of `lat,lng` points separated by `|` (`center`, `visible`).
+     *
+     * @param Request $request The request.
+     * @param string  $name    Parameter name.
+     * @param int     $max     Most points allowed.
+     *
+     * @return list<array{float, float}>|null The points as [lat, lng] in degrees, or null if
+     *                                        not given.
+     *
+     * @throws InvalidRequest If a point isn't `lat,lng` in range, or there are too many.
+     */
+    private static function points(Request $request, string $name, int $max): ?array
+    {
+        $value = $request->get($name, false);
+        if ($value === false || $value === '') {
+            return null;
+        }
+        $points = [];
+        foreach (is_string($value) ? explode('|', $value) : [null] as $point) {
+            $pair = $point === null ? [] : array_map('trim', explode(',', $point));
+            if (count($pair) !== 2 || !Parameters::isValidPoint($pair[0], $pair[1])) {
+                $what = $max === 1 ? 'lat,lng' : 'lat,lng points separated by |';
+                throw new InvalidRequest(
+                    "$name must be $what (latitude -85.0511 to 85.0511, longitude -180 to 180)"
+                );
+            }
+            $points[] = [(float) $pair[0], (float) $pair[1]];
+        }
+        if (count($points) > $max) {
+            throw new InvalidRequest("$name must be one lat,lng point");
+        }
+
+        return $points;
     }
 
     /**

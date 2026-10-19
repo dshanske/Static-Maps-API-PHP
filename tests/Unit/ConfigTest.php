@@ -58,7 +58,7 @@ final class ConfigTest extends TestCase
     private static function minimal(): array
     {
         return [
-            'defaults'        => ['provider' => 'one', 'style' => 'base', 'format' => 'png'],
+            'defaults'        => ['provider' => 'one', 'style' => 'base', 'format' => 'png', 'padding' => 20],
             'zoom'            => ['min' => 2, 'max' => 18],
             'access'          => [
                 'mode'         => 'open',
@@ -445,6 +445,8 @@ final class ConfigTest extends TestCase
             'alias to nowhere'      => [['basemap_aliases' => ['old' => 'one/nope']], "alias 'old' must point"],
             'alias malformed'       => [['basemap_aliases' => ['old' => 'one']], "alias 'old' must point"],
             'limit not int'         => [['limits' => ['max_width' => '1280']], "'limits.max_width' must be"],
+            'padding invalid'       => [['defaults' => ['padding' => '1,2,3,4,5']], "'defaults.padding' must be"],
+            'padding negative'      => [['defaults' => ['padding' => -1]], "'defaults.padding' must be"],
             'strict not bool'       => [['errors' => ['strict' => 'yes']], "'errors.strict' must be"],
             'max_markers zero'      => [['limits' => ['max_markers' => 0]], "'limits.max_markers' must be"],
             'limit zero'            => [['limits' => ['max_height' => 0]], "'limits.max_height' must be"],
