@@ -62,12 +62,12 @@ class Polyline
     /**
      * Apply Google Polyline algorithm to list of points.
      *
-     * @param array $points List of points to encode. Can be a list of tuples,
-     *                      or a flat on dimensional array.
+     * @param array<mixed> $points List of points to encode. Can be a list of tuples,
+     *                             or a flat on dimensional array.
      *
      * @return string encoded string
      */
-    final public static function encode($points)
+    final public static function encode(array $points): string
     {
         $points = self::flatten($points);
         $encodedString = '';
@@ -97,9 +97,9 @@ class Polyline
      *
      * @param string $string Encoded string to extract points from.
      *
-     * @return array points
+     * @return list<float|int> points, as a flat list of numbers
      */
-    final public static function decode($string)
+    final public static function decode(string $string): array
     {
         $points = array();
         $index = $i = 0;
@@ -126,11 +126,11 @@ class Polyline
     /**
      * Reduce multi-dimensional to single list
      *
-     * @param array $array Subject array to flatten.
+     * @param array<mixed> $array Subject array to flatten.
      *
-     * @return array flattened
+     * @return list<mixed> flattened
      */
-    final public static function flatten($array)
+    final public static function flatten(array $array): array
     {
         $flatten = array();
         array_walk_recursive(
@@ -145,12 +145,12 @@ class Polyline
     /**
      * Concat list into pairs of points
      *
-     * @param array $list One-dimensional array to segment into list of tuples.
+     * @param list<mixed> $list One-dimensional array to segment into list of tuples.
      *
-     * @return array pairs
+     * @return list<list<mixed>> pairs
      */
-    final public static function pair($list)
+    final public static function pair(array $list): array
     {
-        return is_array($list) ? array_chunk($list, 2) : array();
+        return array_chunk($list, 2);
     }
 }

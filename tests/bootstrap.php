@@ -6,4 +6,5 @@
  * to tests/.
  */
 
+// No application classes are loaded by hand: autoloading covers them all.
 require __DIR__ . '/../vendor/autoload.php';
