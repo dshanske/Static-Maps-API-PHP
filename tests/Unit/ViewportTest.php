@@ -184,6 +184,43 @@ final class ViewportTest extends TestCase
     }
 
     /**
+     * nearest() picks the copy of a position within half a world of the target.
+     *
+     * @return void
+     */
+    public function testNearest(): void
+    {
+        // The world is 1024 px wide at zoom 2.
+        $this->assertSame(1000.0, Viewport::nearest(1000, 900, 2));
+        $this->assertSame(-24.0, Viewport::nearest(1000, 0, 2));
+        $this->assertSame(1034.0, Viewport::nearest(10, 1000, 2));
+    }
+
+    /**
+     * Points on both sides of the antimeridian fit as a small area, not the whole world.
+     *
+     * @return void
+     */
+    public function testFitAcrossTheAntimeridian(): void
+    {
+        $vp = self::viewport();
+        $bounds = new Bounds();
+        $bounds->extend(-17.0, 178.0);
+        $bounds->extend(-18.0, -179.0);
+
+        $zoom = $vp->zoom(null, null, null, 300, 300, $bounds, self::NONE);
+        $this->assertGreaterThanOrEqual(7, $zoom);
+        $center = $vp->center(null, null, $zoom, $bounds, self::NONE);
+        $this->assertEqualsWithDelta(179.5, $center['longitude'], 0.01);
+
+        // A centre given as 180 or -180 (the same meridian) fits the content around it the same way,
+        // close to the fitted zoom (it is half a degree off the content's centre).
+        $east = $vp->zoom(null, -17.5, 180.0, 300, 300, $bounds, self::NONE);
+        $this->assertSame($east, $vp->zoom(null, -17.5, -180.0, 300, 300, $bounds, self::NONE));
+        $this->assertGreaterThanOrEqual($zoom - 1, $east);
+    }
+
+    /**
      * Margins add the padding to the largest icon reach on each side and half the widest path.
      *
      * @return void

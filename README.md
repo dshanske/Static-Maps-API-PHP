@@ -29,7 +29,7 @@ Numbers are checked: a value that isn't a number, or is out of the range given b
 * `latitude` - Latitude to center the map at, -85.0511 to 85.0511 (the limits of Web Mercator maps). Not needed if specifying one or more markers or paths, a `bbox` or `visible` points. Must be given together with `longitude`.
 * `longitude` - Longitude to center the map at, -180 to 180. Must be given together with `latitude`.
 * `center` - optional - Shorthand for `latitude` and `longitude`: `center=45.5165,-122.6764` (**latitude first**). Use one or the other, not both.
-* `bbox` - optional - An area to show: `bbox=minLng,minLat,maxLng,maxLat` (**longitude first**, as in GeoJSON and Mapbox), e.g. `bbox=-122.70,45.50,-122.65,45.53`. Without a `zoom`, the map zooms to fit it, together with any markers and paths.
+* `bbox` - optional - An area to show: `bbox=minLng,minLat,maxLng,maxLat` (**longitude first**, as in GeoJSON and Mapbox), e.g. `bbox=-122.70,45.50,-122.65,45.53`. Without a `zoom`, the map zooms to fit it, together with any markers and paths. A `minLng` greater than `maxLng` means the box crosses the antimeridian (±180°), e.g. `bbox=170,-20,-170,0` around Fiji.
 * `visible` - optional - Points to keep in view without drawing anything there: `visible=45.50,-122.70|45.53,-122.65` (`lat,lng` pairs separated by `|`, **latitude first**, as in Google's Static Maps API).
 * `padding` - default 20 - Space in pixels kept between the fitted content and the edge of the image when no `zoom` is given: one number for all sides, or 2-4 comma-separated values in CSS order (`20,40` for top/bottom 20 and left/right 40; `top,right,bottom,left`), each 0-1000. Room for marker icons and path widths is added automatically. The install's default is `defaults.padding`.
 * `location` - **deprecated, ignored** - Geocoding addresses was removed (#16): convert addresses to coordinates in your client and pass `latitude` / `longitude`. A request with `location` gets `Deprecation` and `Link` headers; with nothing else to place the map, it gets HTTP 400.
@@ -39,6 +39,8 @@ Numbers are checked: a value that isn't a number, or is out of the range given b
 * `format` - default "png" - `png`, `png8` (a 256-colour PNG: much smaller, good for most maps), `jpg` (`jpeg` also works) or `webp` (smaller still; when the server's PHP has no WebP support, the map is sent as PNG with an `X-Map-Format` header, and `/api/v1/` lists the formats available). Anything else gets HTTP 400.
 * `quality` - default 75 - JPEG and WebP quality, a whole number from 1 to 100.
 * `bezier` - Specify a bezier curve to your path, an angle in degrees between -89 and 89. 25 will give you a nicely curved line. [More Info](https://aaronparecki.com/2017/01/02/6/day-13-curved-map-lines)
+
+Maps can cross the antimeridian (±180° longitude). Markers and paths either side of it are fitted together as one small area (Fiji, the Bering Strait), and each path segment takes the short way round, so a path from Japan to Alaska crosses the Pacific.
 
 Markers and paths that can't be drawn (coordinates that aren't numbers in range, an unknown icon, no points) are left out, with an `X-Marker-<n>` or `X-Path-<n>` header saying why; an install with `errors.strict` answers HTTP 400 instead. A map draws at most 100 markers and 10,000 path points by default (`limits.max_markers`, `limits.max_points`); more are left out, with an `X-Map-Limit` header.
 
