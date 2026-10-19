@@ -79,6 +79,24 @@ return [
     ],
 
     /*
+     * Limits on every download from another server: tiles, icon URLs and
+     * attribution image URLs. Only http and https are allowed.
+     *
+     * 'timeout'         Seconds a download may take in total. Default: 10.
+     * 'connect_timeout' Seconds to wait for the server to answer. Default: 5.
+     * 'max_bytes'       Largest download accepted, in bytes. Default: 5000000.
+     * 'max_redirects'   Most redirects followed. Default: 3.
+     *
+     * Example override: 'remote' => ['timeout' => 5],
+     */
+    'remote' => [
+        'timeout'         => 10,
+        'connect_timeout' => 5,
+        'max_bytes'       => 5000000,
+        'max_redirects'   => 3,
+    ],
+
+    /*
      * Zoom range. Requested or automatically chosen zoom levels outside a map's
      * range are clamped to it.
      *
@@ -110,7 +128,8 @@ return [
 
     /*
      * File with the access tokens, one per line. A request whose `token`
-     * parameter matches a line may use external marker icon URLs,
+     * parameter matches a line may use external marker icon URLs, attribution
+     * image URLs,
      * `provider=custom` with `tileurl`, and providers or styles with `requires_auth`.
      * If the file doesn't exist, no token is valid.
      * Default: data/apikeys.txt.

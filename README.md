@@ -230,7 +230,9 @@ The API runs from the same `index.php` as the maps; the nginx configuration unde
 
 ## Authentication
 
-To be able to use externally-referenced icons or tile URLs, you will need to configure API keys and provide a token in the request. This locks down the ability to fetch external resources to only trusted users of the system.
+Features that make the server download from an address given in the request need a valid `token`: marker icon URLs, attribution image URLs, and `provider=custom` with `tileurl`. So do providers and styles with `requires_auth`. This keeps the ability to fetch external resources to trusted users of the system. Without a valid token, those parts of the request are skipped and a header says why (`X-Marker-<n>`, `X-Map-Attribution`, `X-Map-Fallback`).
+
+Every download from another server, for tiles too, is limited by the `remote` setting: http and https only, at most 3 redirects, 10 seconds and 5 MB by default. Tokens are compared exactly.
 
 Create a file data/apikeys.txt and generate a random string with a tool of your choosing, and with one API key per line. Any value passed in the parameter token that matches the text in a line in this file will enable the request to use the restricted features that reference external URLs. To keep the file somewhere else, set `token_file` in `data/config.php` (see Configuration).
 
@@ -434,6 +436,10 @@ sudo chown -R ubuntu: /var/www
 cd /var/www/static-maps-api
 git clone git@github.com:dshanske/Static-Maps-API-PHP.git .
 ```
+
+## Security
+
+See [SECURITY.md](SECURITY.md) for how to report a vulnerability privately.
 
 ## Versioning and deprecation
 

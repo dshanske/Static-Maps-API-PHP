@@ -26,6 +26,8 @@ return [
         'style'    => 'base',
     ],
     'user_agent' => 'Static Maps API tests',
+    // Small limits so the download-limit tests run quickly.
+    'remote'     => ['timeout' => 2, 'connect_timeout' => 2, 'max_bytes' => 200000, 'max_redirects' => 2],
     'token_file' => __DIR__ . '/tokens.txt',
     'providers' => $providers + [
         'fixture' => [

@@ -207,6 +207,9 @@ final class Api
         [$map, $headers] = (new MapChooser($this->config))->choose($request, $this->authenticated);
 
         $logo = $request->get('attribution');
+        if (Attribution::isUrl($logo) && !$this->authenticated) {
+            $logo = false;
+        }
         if (!Attribution::isKnown($logo)) {
             $logo = $map['attribution'] ?? $this->config['defaults']['attribution'];
         }

@@ -923,6 +923,27 @@ final class RenderTest extends RenderTestCase
     }
 
     /**
+     * An attribution image URL needs a valid token, like icon URLs: without one it
+     * isn't fetched, the map's own attribution is drawn, and a header says why.
+     *
+     * @return void
+     */
+    public function testAttributionUrlNeedsToken(): void
+    {
+        $url = self::$tiles?->url . '/overlay/1/1/1.png';
+
+        $without = $this->render(self::TILE_CENTER + ['attribution' => $url]);
+        $this->assertNotContains('/overlay/1/1/1.png', $this->tilePaths(), 'not fetched');
+        $this->assertSame('attribution image URLs need a valid token', $without->header('X-Map-Attribution'));
+        $this->assertSame($this->render(self::TILE_CENTER)->body, $without->body);
+
+        $this->setUp();
+        $with = $this->render(self::TILE_CENTER + ['attribution' => $url, 'token' => 'test-token']);
+        $this->assertContains('/overlay/1/1/1.png', $this->tilePaths(), 'fetched with a token');
+        $this->assertNull($with->header('X-Map-Attribution'));
+    }
+
+    /**
      * An attribution URL that isn't an image is skipped instead of failing (#18).
      *
      * @return void
@@ -930,7 +951,10 @@ final class RenderTest extends RenderTestCase
     public function testBrokenAttributionUrlIsSkipped(): void
     {
         $plain = $this->render(self::TILE_CENTER + ['attribution' => 'none']);
-        $broken = $this->render(self::TILE_CENTER + ['attribution' => self::$tiles?->url . '/broken/1/1/1.png']);
+        $broken = $this->render(self::TILE_CENTER + [
+            'attribution' => self::$tiles?->url . '/broken/1/1/1.png',
+            'token'       => 'test-token',
+        ]);
 
         $this->assertSame(200, $broken->status);
         $this->assertSame($plain->body, $broken->body);
@@ -994,6 +1018,7 @@ final class RenderTest extends RenderTestCase
     {
         return [
             'unknown built-in icon' => ['no-such-icon', 'unknown icon'],
+            'path in icon name'     => ['../images/dot-small-red', 'unknown icon'],
             'URL without a token'   => ['https://icons.invalid/pin.png', 'icon URLs need a valid token'],
         ];
     }
