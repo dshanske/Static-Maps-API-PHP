@@ -81,14 +81,14 @@ final class PathParserTest extends TestCase
     }
 
     /**
-     * A polyline is decoded into [lng,lat] pairs in the order they were encoded (#43).
+     * A polyline is read in Google's lat,lng order and turned into [lng,lat] path points (#43).
      *
      * @return void
      */
     public function testPolyline(): void
     {
         $bounds = new Bounds();
-        $encoded = Polyline::encode([[-122.68, 45.51], [-122.67, 45.52]]);
+        $encoded = Polyline::encode([[45.51, -122.68], [45.52, -122.67]]);
         $paths = (new PathParser('333333', 3))->parse(false, "enc:$encoded;weight:5", $bounds)['paths'];
 
         $this->assertCount(1, $paths);
@@ -96,6 +96,23 @@ final class PathParserTest extends TestCase
         $this->assertSame('333333', $paths[0]['color']);
         $this->assertEqualsWithDelta([[-122.68, 45.51], [-122.67, 45.52]], $paths[0]['path'], 1e-9);
         $this->assertEqualsWithDelta(45.51, $bounds->minLat, 1e-9);
+    }
+
+    /**
+     * Google's documented example polyline lands in California and Oregon.
+     *
+     * @see https://developers.google.com/maps/documentation/utilities/polylinealgorithm
+     *
+     * @return void
+     */
+    public function testGoogleExamplePolyline(): void
+    {
+        $bounds = new Bounds();
+        $paths = (new PathParser('333333', 3))->parse(false, 'enc:_p~iF~ps|U_ulLnnqC_mqNvxq`@', $bounds)['paths'];
+
+        $this->assertEqualsWithDelta([[-120.2, 38.5], [-120.95, 40.7], [-126.453, 43.252]], $paths[0]['path'], 1e-9);
+        $this->assertEqualsWithDelta([38.5, 43.252], [$bounds->minLat, $bounds->maxLat], 1e-9);
+        $this->assertEqualsWithDelta([-126.453, -120.2], [$bounds->minLng, $bounds->maxLng], 1e-9);
     }
 
     /**
