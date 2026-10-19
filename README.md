@@ -291,9 +291,22 @@ composer lint      # syntax check of every PHP file
 composer cs        # PSR-12 coding standard and PHP 8.1+ compatibility (PHP_CodeSniffer)
 composer cs-fix    # fix coding standard violations automatically
 composer stan      # static analysis (PHPStan)
+composer test      # PHPUnit test suite
 ```
 
 Known PHPStan errors are recorded in `phpstan-baseline.neon` until they are fixed. When you fix one, regenerate the baseline with `vendor/bin/phpstan analyse --generate-baseline`.
+
+### Tests
+
+`tests/Unit` tests the classes in `include/`. `tests/Integration` renders maps through `public/img.php` with PHP's built-in web server, using a fake tile server (`tests/fixtures/tile-server.php`) and a test configuration (`tests/fixtures/config.php`) that switches off every real basemap, so the tests never contact a real tile host and need no network access.
+
+- Any PHP warning, notice or deprecation fails the tests. Problems that are known and tracked in an issue are listed in `RenderTestCase::knownErrors()` until they are fixed.
+- Rendered maps are compared with reference images in `tests/fixtures/expected/`, with a small tolerance for anti-aliasing differences between ImageMagick versions. After a change that is meant to alter the output, run `UPDATE_SNAPSHOTS=1 composer test`, look at the changed images, and commit them with the change. When a comparison fails, the rendered image is saved to the directory in `SNAPSHOT_FAILURES_DIR` (default: `static-maps-snapshots` in the system temp directory); in CI it is attached to the run as an artifact.
+
+```
+vendor/bin/phpunit --testsuite unit           # one suite
+vendor/bin/phpunit --filter testBasemapChoice # one test
+```
 
 To run the service locally:
 

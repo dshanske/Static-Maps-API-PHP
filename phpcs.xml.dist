@@ -6,6 +6,7 @@
     <file>public</file>
     <file>config</file>
     <file>data/config.example.php</file>
+    <file>tests</file>
 
     <arg name="extensions" value="php"/>
     <arg name="colors"/>

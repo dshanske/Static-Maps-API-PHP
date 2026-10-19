@@ -14,7 +14,13 @@
         "php-parallel-lint/php-parallel-lint": "^1.4",
         "phpcompatibility/php-compatibility": "^10.0@alpha",
         "phpstan/phpstan": "^2.3",
+        "phpunit/phpunit": "^10.5 || ^11.5 || ^12.5 || ^13.0",
         "squizlabs/php_codesniffer": "^4.0"
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "StaticMaps\\Tests\\": "tests/"
+        }
     },
     "config": {
         "allow-plugins": {
@@ -27,10 +33,12 @@
         "cs": "phpcs",
         "cs-fix": "phpcbf",
         "stan": "phpstan analyse --memory-limit=1G",
+        "test": "phpunit",
         "check": [
             "@lint",
             "@cs",
-            "@stan"
+            "@stan",
+            "@test"
         ]
     },
     "scripts-descriptions": {
@@ -38,6 +46,7 @@
         "cs": "Check coding standard (PSR-12) and PHP 8.1+ compatibility",
         "cs-fix": "Automatically fix coding standard violations where possible",
         "stan": "Run PHPStan static analysis",
-        "check": "Run lint, cs and stan"
+        "test": "Run the PHPUnit test suite",
+        "check": "Run lint, cs, stan and test"
     }
 }
