@@ -99,12 +99,13 @@ final class Compositor
             $draw->setStrokeLineCap(Imagick::LINECAP_ROUND);
             $draw->setStrokeLineJoin(Imagick::LINEJOIN_ROUND);
 
-            $previous = false;
+            // The first point on the copy of the world nearest the map centre, each
+            // following one the short way round from the one before (#35).
+            $from = null;
             foreach ($path['path'] as $point) {
-                if ($previous) {
-                    $from = $this->webmercator->latLngToPixels($previous[1], $previous[0], $zoom);
-                    $to = $this->webmercator->latLngToPixels($point[1], $point[0], $zoom);
-
+                $to = $this->webmercator->latLngToPixels($point[1], $point[0], $zoom);
+                $to['x'] = Viewport::nearest($to['x'], $from['x'] ?? $leftEdge + $width / 2, $zoom);
+                if ($from !== null) {
                     if ($bezier) {
                         $this->drawCurve($draw, $from, $to, $bezier, $leftEdge, $topEdge);
                     } else {
@@ -116,7 +117,7 @@ final class Compositor
                         );
                     }
                 }
-                $previous = $point;
+                $from = $to;
             }
         }
 
@@ -313,6 +314,8 @@ final class Compositor
             // Icons with no shadow are centered in the center pixel.
 
             $px = $this->webmercator->latLngToPixels($marker['lat'], $marker['lng'], $zoom);
+            // The copy of the marker nearest the map centre (maps across the antimeridian, #35).
+            $px['x'] = Viewport::nearest($px['x'], $leftEdge + $width / 2, $zoom);
             $pos = array(
                 'x' => $px['x'] - $leftEdge,
                 'y' => $px['y'] - $topEdge

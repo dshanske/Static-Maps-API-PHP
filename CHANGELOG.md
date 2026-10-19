@@ -214,6 +214,13 @@ stable interface; pin a commit if you need a fixed point.
 
 ### Fixed
 
+- Maps across the antimeridian (±180°) (#35): markers and paths on both sides
+  are fitted as one small area instead of the whole world in between, path
+  segments take the short way round (Japan to Alaska crosses the Pacific),
+  tiles past the edge of the world are wrapped round instead of drawn gray,
+  and markers are drawn on the side of the map they belong to. A `bbox` with
+  `minLng` greater than `maxLng` crosses the antimeridian.
+
 - A nested `marker[]` value (e.g. `marker[0][]=x`) caused a PHP TypeError and
   an empty response; it is now reported as `X-Marker-<n>: not a marker` (#39).
 

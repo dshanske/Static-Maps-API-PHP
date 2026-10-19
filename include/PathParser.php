@@ -77,10 +77,8 @@ final class PathParser
                         continue;
                     }
                     $properties['path'] = $points;
-                    // Adjust the bounds to fit the path
-                    foreach ($properties['path'] as $point) {
-                        $bounds->extend($point[1], $point[0]);
-                    }
+                    // Adjust the bounds to fit the path (each segment the short way round, #35)
+                    $bounds->extendPath($properties['path']);
                 }
                 if (array_key_exists('path', $properties)) {
                     $result[] = $properties;
@@ -106,9 +104,7 @@ final class PathParser
                     return ['paths' => [], 'headers' => [$this->limitHeader(1)]];
                 }
                 $properties['path'] = $points;
-                foreach ($properties['path'] as $point) {
-                    $bounds->extend($point[1], $point[0]);
-                }
+                $bounds->extendPath($properties['path']);
 
                 $result[] = $properties;
             } else {

@@ -64,8 +64,9 @@ final class TileFetcher
         $layers = ['tiles' => $tileURL] + ($overlayURL ? ['overlays' => $overlayURL] : []);
         $z = (int) $zoom;
 
-        /** @var list<array{layer: string, template: string, x: int, y: int, cached: array<string, mixed>|null,
-         *       handle: \CurlHandle|null, headers: array<string, string>, body: string|null}> $jobs */
+        /** @var list<array{layer: string, template: string, x: int, tx: int, y: int,
+         *       cached: array<string, mixed>|null, handle: \CurlHandle|null, headers: array<string, string>,
+         *       body: string|null}> $jobs */
         $jobs = [];
         $mh = curl_multi_init();
         for ($x = $sw['x']; $x <= $ne['x']; $x++) {
@@ -75,8 +76,10 @@ final class TileFetcher
             for ($y = $sw['y']; $y <= $ne['y']; $y++) {
                 $y = (int) $y;
                 foreach ($layers as $layer => $template) {
-                    $cached = $this->cache?->get($template, $key, $x, $y, $z);
-                    $job = ['layer' => $layer, 'template' => $template, 'x' => $x, 'y' => $y,
+                    // Columns past the world's edge (maps across the antimeridian) wrap round (#35).
+                    $tx = (($x % 2 ** $z) + 2 ** $z) % 2 ** $z;
+                    $cached = $this->cache?->get($template, $key, $tx, $y, $z);
+                    $job = ['layer' => $layer, 'template' => $template, 'x' => $x, 'tx' => $tx, 'y' => $y,
                         'cached' => $cached, 'handle' => null, 'headers' => [], 'body' => null];
                     if ($cached !== null && $cached['fresh']) {
                         $job['body'] = $cached['body'];
@@ -84,7 +87,7 @@ final class TileFetcher
                         $jobs[] = $job;
                         $i = count($jobs) - 1;
                         $jobs[$i]['handle'] = $this->remote->handle(
-                            Config::tileUrl($template, $x, $y, $z, $key),
+                            Config::tileUrl($template, $tx, $y, $z, $key),
                             array_merge($headers, self::conditionalHeaders($cached)),
                             static function (string $line) use (&$jobs, $i): void {
                                 // A new status line (e.g. after a redirect) starts a new set of headers.
@@ -133,7 +136,8 @@ final class TileFetcher
     /**
      * The image for one tile job, updating the cache on the way.
      *
-     * @param array<string, mixed> $job One tile job from fetch(): layer, template, x, y, the cached
+     * @param array<string, mixed> $job One tile job from fetch(): layer, template, x (where drawn), tx
+     *                                  (x wrapped round the world, as fetched), y, the cached
      *                                  copy (or null), the curl handle (null if fresh from the
      *                                  cache), response headers and the cached body.
      * @param string|null          $key The layer's API key, or null.
@@ -152,7 +156,7 @@ final class TileFetcher
         $content = (string) curl_multi_getcontent($ch);
         $status = (int) curl_getinfo($ch, CURLINFO_RESPONSE_CODE);
         $cached = $job['cached'];
-        [$template, $x, $y] = [$job['template'], $job['x'], $job['y']];
+        [$template, $x, $y] = [$job['template'], $job['tx'], $job['y']];
 
         if ($status === 304 && $cached !== null) {
             $this->cache?->refresh($template, $key, $x, $y, $z, $job['headers']);

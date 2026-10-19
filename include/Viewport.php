@@ -65,6 +65,8 @@ final class Viewport
             $box = $this->box($bounds, $z, $margins);
             if ($latitude !== null && $longitude !== null) {
                 $c = $this->webmercator->latLngToPixels($latitude, $longitude, $z);
+                // The copy of the centre nearest the content (it may be across the antimeridian).
+                $c['x'] = self::nearest($c['x'], ($box['left'] + $box['right']) / 2, $z);
                 $fits = $c['x'] - $box['left'] <= $width / 2 && $box['right'] - $c['x'] <= $width / 2
                     && $c['y'] - $box['top'] <= $height / 2 && $box['bottom'] - $c['y'] <= $height / 2;
             } else {
@@ -108,7 +110,11 @@ final class Viewport
             $zoom
         );
 
-        return ['latitude' => (float) $center['lat'], 'longitude' => (float) $center['lng'], 'located' => true];
+        return [
+            'latitude'  => (float) $center['lat'],
+            'longitude' => Bounds::wrap((float) $center['lng']),
+            'located'   => true,
+        ];
     }
 
     /**
@@ -134,6 +140,8 @@ final class Viewport
             foreach ($path['path'] as $point) {
                 $px = $this->webmercator->latLngToPixels($point[1], $point[0], self::MAX_FIT_ZOOM);
                 if ($previous !== null) {
+                    // Segments go the short way round, as they are drawn.
+                    $px['x'] = self::nearest($px['x'], $previous['x'], self::MAX_FIT_ZOOM);
                     foreach (Compositor::curveExtremes($previous, $px, $bezier) as $extreme) {
                         $at = $this->webmercator->pixelsToLatLng($extreme['x'], $extreme['y'], self::MAX_FIT_ZOOM);
                         $bounds->extend($at['lat'], $at['lng']);
@@ -184,6 +192,22 @@ final class Viewport
     }
 
     /**
+     * The copy of an x pixel position (one per trip round the world) nearest another.
+     *
+     * @param int|float $x      A position in world pixels.
+     * @param int|float $target The position to be near.
+     * @param int|float $zoom   Zoom level (sets the world's width in pixels).
+     *
+     * @return float $x plus or minus whole world widths, within half a world of $target.
+     */
+    public static function nearest(int|float $x, int|float $target, int|float $zoom): float
+    {
+        $world = WebMercator::TILE_SIZE * 2 ** $zoom;
+
+        return $x - round(($x - $target) / $world) * $world;
+    }
+
+    /**
      * The content box in world pixels at a zoom, with margins.
      *
      * @param Bounds                    $bounds  Everything to show (not empty).
@@ -194,8 +218,11 @@ final class Viewport
      */
     private function box(Bounds $bounds, int|float $zoom, array $margins): array
     {
-        $nw = $this->webmercator->latLngToPixels($bounds->maxLat, $bounds->minLng, $zoom);
-        $se = $this->webmercator->latLngToPixels($bounds->minLat, $bounds->maxLng, $zoom);
+        // West to east may cross the antimeridian: east is then past 180, and its
+        // pixels past the world's right edge, as the drawing expects.
+        [$west, $east] = $bounds->span();
+        $nw = $this->webmercator->latLngToPixels($bounds->maxLat, $west, $zoom);
+        $se = $this->webmercator->latLngToPixels($bounds->minLat, $east, $zoom);
 
         return [
             'left'   => (float) $nw['x'] - $margins[3],

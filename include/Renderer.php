@@ -137,8 +137,8 @@ final class Renderer
         $viewport = new Viewport($this->webmercator);
         $viewport->extendForCurves($paths, $params->bezier, $bounds);
         if ($params->bbox !== null) {
-            $bounds->extend($params->bbox[1], $params->bbox[0]);
-            $bounds->extend($params->bbox[3], $params->bbox[2]);
+            // minLng > maxLng means the box crosses the antimeridian.
+            $bounds->extendArea($params->bbox[1], $params->bbox[0], $params->bbox[3], $params->bbox[2]);
         }
         foreach ($params->visible as [$lat, $lng]) {
             $bounds->extend($lat, $lng);
