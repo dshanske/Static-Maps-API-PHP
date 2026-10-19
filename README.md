@@ -51,7 +51,7 @@ Shipped providers (the first style is the provider's default):
 | `carto` | `light`: Positron · `dark`: Dark Matter · `streets`: Voyager. [CARTO](https://carto.com/basemaps/): free for non-commercial use; CARTO now requires an API key (#17). |
 | `custom` | Draws `tileurl`; requires a valid `token`. |
 
-Esri styles draw the "Powered by Esri" logo by default; the others draw the OpenStreetMap logo. `attribution` overrides either.
+Esri styles draw the "Powered by Esri" logo by default; the OpenStreetMap, OpenTopoMap and CARTO styles draw the OpenStreetMap logo. Each shipped provider sets this itself, so changing `defaults.attribution` only affects providers you add. The `attribution` parameter overrides either.
 
 Installs can switch providers or styles off, add their own, and set API keys; see [Configuration](#configuration).
 
