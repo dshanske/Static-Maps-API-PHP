@@ -7,14 +7,22 @@
 namespace StaticMaps;
 
 /**
- * Turns `path[]` values, or a `polyline`, into paths to draw.
+ * Turns `path[]` values, and a `polyline`, into paths and shapes to draw.
  *
- * A path is a string of `key:value;` pairs (`color`, `weight`) followed by
- * points written as `[lng,lat]`, e.g. `color:ff0000;weight:4;[-122.6,45.5][-122.7,45.6]`.
- * `polyline` is used only when there is no `path[]`; it holds one path as
- * `enc:<encoded polyline>;color:...;weight:...`, in Google's Encoded Polyline
- * format (lat,lng pairs, precision 5), as produced by Google Maps, Mapbox,
- * OSRM and other routing services (#43).
+ * A path is a string of `key:value;` pairs and its geometry, one of:
+ *
+ * - points written as `[lng,lat]`, e.g. `color:ff0000;weight:4;[-122.6,45.5][-122.7,45.6]`;
+ * - `enc:<encoded polyline>` in Google's Encoded Polyline format (lat,lng
+ *   pairs; `precision:5` by default, `precision:6` for OSRM and Valhalla) (#43, #36);
+ * - `circle:lng,lat,radius` with the radius in metres, drawn as a polygon that
+ *   follows the Earth's curvature;
+ * - `rect:minLng,minLat,maxLng,maxLat`.
+ *
+ * Style keys (#36): `color` and `fillcolor` (RRGGBB, or RRGGBBAA with opacity;
+ * a `fillcolor` closes and fills the shape), `weight` (pixels, 0-100),
+ * `linestyle` (`solid`, `dashed`, `dotted`) and `geodesic:true` (follow great
+ * circles). `polyline` is a shortcut for one `enc:` path, drawn after the
+ * `path[]` ones.
  */
 final class PathParser
 {
@@ -31,91 +39,305 @@ final class PathParser
     ) {
     }
 
+    /** @var int Points in a circle. */
+    private const CIRCLE_POINTS = 72;
+
+    /** @var float Mean Earth radius in metres (for circles and great circles). */
+    private const EARTH_RADIUS = 6371008.8;
+
+    /** @var float Largest circle radius in metres: about half the Earth's circumference. */
+    private const MAX_RADIUS = 20000000.0;
+
     /**
      * Parse the paths of a request.
      *
-     * A path whose points can't be read, or are out of range, is left out and
-     * reported in an `X-Path-<n>` header (n counting from 1, the polyline is 1).
-     * A path that would take the total number of points over `$maxPoints` is
-     * left out (not drawn, not in the bounds) and counted in an `X-Map-Limit` header.
+     * A path that can't be drawn (no or unreadable geometry, points out of
+     * range, an invalid style) is left out and reported in an `X-Path-<n>`
+     * header: n counts the `path[]` values from 1, then the `polyline`. A path
+     * that would take the total number of points over `$maxPoints` is left out
+     * (not drawn, not in the bounds) and counted in an `X-Map-Limit` header.
      *
      * @param mixed  $paths    The `path` parameter: a string, a list of strings, or false.
      * @param mixed  $polyline The `polyline` parameter, or false.
      * @param Bounds $bounds   Box to widen with every point.
      *
      * @return array{paths: list<array<string, mixed>>, headers: list<string>} The paths
-     *         (`color`, `weight` and `path`, a list of [lng, lat] points, plus any other
-     *         `key:value` pairs) and headers to send.
+     *         (`color`, `weight`, `path`: a list of [lng, lat] points, `closed`, `fill`
+     *         (RRGGBB[AA] or null), `linestyle`, `geodesic`, plus any other `key:value`
+     *         pairs) and headers to send.
      */
     public function parse(mixed $paths, mixed $polyline, Bounds $bounds): array
     {
+        $values = $paths ? array_values(is_array($paths) ? $paths : [$paths]) : [];
+        if ($polyline) {
+            $values[] = is_string($polyline) ? self::asPolyline($polyline) : ['polyline' => $polyline];
+        }
+
         $result = array();
         $headers = array();
         $total = 0;
         $over = 0;
-        if ($paths) {
-            if (!is_array($paths)) {
-                $paths = array($paths);
+        foreach ($values as $n => $value) {
+            [$path, $problem] = $this->parseOne($value);
+            if ($path === null) {
+                $headers[] = 'X-Path-' . ($n + 1) . ': ' . $problem;
+                continue;
             }
-
-            foreach (array_values($paths) as $n => $path) {
-                if (!is_string($path)) {
-                    $headers[] = 'X-Path-' . ($n + 1) . ': not a path';
-                    continue;
-                }
-                $properties = $this->styleProperties($path);
-
-                // Now parse the points into an array
-                if (preg_match_all('/(?P<point>\[[0-9\.-]+,[0-9\.-]+\])/', $path, $matches)) {
-                    $points = json_decode('[' . implode(',', $matches['point']) . ']');
-                    if (!self::validPoints($points)) {
-                        $headers[] = 'X-Path-' . ($n + 1) . ': points must be [lng,lat] numbers in range';
-                        continue;
-                    }
-                    if (!$this->withinLimit($total, count($points))) {
-                        $over++;
-                        continue;
-                    }
-                    $properties['path'] = $points;
-                    // Adjust the bounds to fit the path (each segment the short way round, #35)
-                    $bounds->extendPath($properties['path']);
-                }
-                if (array_key_exists('path', $properties)) {
-                    $result[] = $properties;
-                } else {
-                    $headers[] = 'X-Path-' . ($n + 1) . ': no points (expected [lng,lat] pairs)';
-                }
+            if (!$this->withinLimit($total, count($path['path']))) {
+                $over++;
+                continue;
             }
-        } elseif ($polyline) {
-            if (!is_string($polyline)) {
-                return ['paths' => [], 'headers' => ['X-Path-1: not a polyline']];
-            }
-            $properties = $this->styleProperties($polyline);
-            if (array_key_exists('enc', $properties)) {
-                // Google's encoding stores each point as lat,lng (#43); paths use [lng, lat].
-                $points = array_map(
-                    static fn (array $pair): array => count($pair) === 2 ? [$pair[1], $pair[0]] : $pair,
-                    Polyline::pair(Polyline::decode($properties['enc']))
-                );
-                if (!self::validPoints($points)) {
-                    return ['paths' => [], 'headers' => ['X-Path-1: the polyline has points out of range']];
-                }
-                if (!$this->withinLimit($total, count($points))) {
-                    return ['paths' => [], 'headers' => [$this->limitHeader(1)]];
-                }
-                $properties['path'] = $points;
-                $bounds->extendPath($properties['path']);
-
-                $result[] = $properties;
-            } else {
-                $headers[] = 'X-Path-1: no points (expected enc:<encoded polyline>)';
-            }
+            // Each segment the short way round (#35); geodesic paths are already split into short steps.
+            $bounds->extendPath($path['closed'] ? [...$path['path'], $path['path'][0]] : $path['path']);
+            $result[] = $path;
         }
         if ($over > 0) {
             $headers[] = $this->limitHeader($over);
         }
 
         return ['paths' => $result, 'headers' => $headers];
+    }
+
+    /**
+     * Mark a `polyline` value, so parseOne() can tell it from a `path[]` value.
+     *
+     * @param string $value The `polyline` parameter.
+     *
+     * @return array{polyline: string} The value, marked.
+     */
+    private static function asPolyline(string $value): array
+    {
+        return ['polyline' => $value];
+    }
+
+    /**
+     * Parse one `path[]` value or the `polyline`.
+     *
+     * @param mixed $value A `path[]` string, or ['polyline' => value].
+     *
+     * @return array{array<string, mixed>|null, string|null} The path, or null and the problem.
+     */
+    private function parseOne(mixed $value): array
+    {
+        $isPolyline = is_array($value) && array_key_exists('polyline', $value);
+        $string = $isPolyline ? $value['polyline'] : $value;
+        if (!is_string($string)) {
+            return [null, $isPolyline ? 'not a polyline' : 'not a path'];
+        }
+        $properties = $this->styleProperties($string);
+
+        $style = $this->checkStyle($properties);
+        if ($style !== null) {
+            return [null, $style];
+        }
+
+        $kinds = array_values(array_filter(['enc', 'circle', 'rect'], fn (string $k): bool => isset($properties[$k])));
+        $hasPoints = preg_match_all('/(?P<point>\[[0-9\.-]+,[0-9\.-]+\])/', $string, $matches) > 0;
+        if (count($kinds) + ($hasPoints ? 1 : 0) > 1) {
+            return [null, 'use one of [lng,lat] points, enc, circle or rect'];
+        }
+
+        $closed = isset($properties['fillcolor']);
+        if (isset($properties['circle'])) {
+            [$points, $problem] = self::circle((string) $properties['circle']);
+            $closed = true;
+        } elseif (isset($properties['rect'])) {
+            [$points, $problem] = self::rect((string) $properties['rect']);
+            $closed = true;
+        } elseif (isset($properties['enc'])) {
+            [$points, $problem] = self::decode((string) $properties['enc'], $properties['precision'] ?? '5');
+        } elseif ($hasPoints) {
+            $points = json_decode('[' . implode(',', $matches['point']) . ']');
+            $problem = self::validPoints($points) ? null : 'points must be [lng,lat] numbers in range';
+        } else {
+            return [null, $isPolyline
+                ? 'no points (expected enc:<encoded polyline>)'
+                : 'no points (expected [lng,lat] pairs, enc, circle or rect)'];
+        }
+        if ($problem !== null) {
+            return [null, $problem];
+        }
+
+        $geodesic = in_array($properties['geodesic'] ?? 'false', ['true', '1'], true);
+        if ($geodesic && !isset($properties['circle']) && !isset($properties['rect'])) {
+            $points = self::greatCircle($closed ? [...$points, $points[0]] : $points);
+            if ($closed) {
+                array_pop($points);
+            }
+        }
+
+        $properties['path'] = $points;
+        $properties['closed'] = $closed;
+        $properties['fill'] = $properties['fillcolor'] ?? null;
+        $properties['linestyle'] = $properties['linestyle'] ?? 'solid';
+        $properties['geodesic'] = $geodesic;
+
+        return [$properties, null];
+    }
+
+    /**
+     * Check a path's style values.
+     *
+     * @param array<string, mixed> $properties The path's `key:value` pairs (with defaults).
+     *
+     * @return string|null The problem, or null if the style is valid.
+     */
+    private function checkStyle(array $properties): ?string
+    {
+        foreach (['color', 'fillcolor'] as $key) {
+            $value = $properties[$key] ?? null;
+            if ($value !== null && !preg_match('/^[0-9a-fA-F]{6}([0-9a-fA-F]{2})?$/', (string) $value)) {
+                return "$key must be RRGGBB or RRGGBBAA (hex)";
+            }
+        }
+        $weight = $properties['weight'];
+        if (!is_numeric($weight) || (float) $weight < 0 || (float) $weight > 100) {
+            return 'weight must be a number of pixels from 0 to 100';
+        }
+        $linestyle = $properties['linestyle'] ?? 'solid';
+        if (!in_array($linestyle, ['solid', 'dashed', 'dotted'], true)) {
+            return 'linestyle must be solid, dashed or dotted';
+        }
+        if (isset($properties['geodesic']) && !in_array($properties['geodesic'], ['true', 'false', '1', '0'], true)) {
+            return 'geodesic must be true or false';
+        }
+        if (isset($properties['precision']) && !in_array($properties['precision'], ['5', '6'], true)) {
+            return 'precision must be 5 or 6';
+        }
+
+        return null;
+    }
+
+    /**
+     * Decode an encoded polyline.
+     *
+     * @param string $encoded   The encoded polyline.
+     * @param mixed  $precision Decimal places: '5' (Google) or '6' (OSRM, Valhalla).
+     *
+     * @return array{list<array{float, float}>, string|null} [lng, lat] points, and a problem or null.
+     */
+    private static function decode(string $encoded, mixed $precision): array
+    {
+        // Google's encoding stores each point as lat,lng (#43); paths use [lng, lat].
+        $points = array_map(
+            static fn (array $pair): array => count($pair) === 2 ? [$pair[1], $pair[0]] : $pair,
+            Polyline::pair(Polyline::decode($encoded, (int) $precision))
+        );
+
+        return [$points, self::validPoints($points) ? null : 'the polyline has points out of range'];
+    }
+
+    /**
+     * The points of a circle, following the Earth's curvature.
+     *
+     * @param string $value The `circle` value, `lng,lat,radius`: centre in degrees, radius in metres.
+     *
+     * @return array{list<array{float, float}>, string|null} [lng, lat] points round the circle
+     *         (latitudes kept within the map's limits), and a problem or null.
+     */
+    private static function circle(string $value): array
+    {
+        $parts = array_map('trim', explode(',', $value));
+        if (
+            count($parts) !== 3 || !Parameters::isValidPoint($parts[1], $parts[0])
+            || !is_numeric($parts[2]) || (float) $parts[2] <= 0 || (float) $parts[2] > self::MAX_RADIUS
+        ) {
+            return [[], 'circle must be lng,lat,radius with the radius in metres (up to 20000000)'];
+        }
+        $lat = deg2rad((float) $parts[1]);
+        $lng = deg2rad((float) $parts[0]);
+        $d = (float) $parts[2] / self::EARTH_RADIUS;
+
+        $points = [];
+        for ($i = 0; $i < self::CIRCLE_POINTS; $i++) {
+            $bearing = 2 * M_PI * $i / self::CIRCLE_POINTS;
+            $lat2 = asin(sin($lat) * cos($d) + cos($lat) * sin($d) * cos($bearing));
+            $lng2 = $lng + atan2(sin($bearing) * sin($d) * cos($lat), cos($d) - sin($lat) * sin($lat2));
+            $points[] = [Bounds::wrap(rad2deg($lng2)), self::clampLat(rad2deg($lat2))];
+        }
+
+        return [$points, null];
+    }
+
+    /**
+     * The corners of a rectangle, with points along the long edges so they are drawn the right way round.
+     *
+     * @param string $value The `rect` value, `minLng,minLat,maxLng,maxLat` in degrees (minLng > maxLng
+     *                      crosses ±180°).
+     *
+     * @return array{list<array{float, float}>, string|null} [lng, lat] points, and a problem or null.
+     */
+    private static function rect(string $value): array
+    {
+        $parts = array_map('trim', explode(',', $value));
+        if (
+            count($parts) !== 4 || !Parameters::isValidPoint($parts[1], $parts[0])
+            || !Parameters::isValidPoint($parts[3], $parts[2]) || (float) $parts[1] > (float) $parts[3]
+        ) {
+            return [[], 'rect must be minLng,minLat,maxLng,maxLat with minLat no more than maxLat'];
+        }
+        [$west, $south, $east, $north] = array_map('floatval', $parts);
+        $width = $east >= $west ? $east - $west : $east + 360 - $west;
+
+        // Four steps along the top and bottom, so no step is more than 90 degrees.
+        $points = [];
+        for ($i = 0; $i <= 4; $i++) {
+            $points[] = [Bounds::wrap($west + $width * $i / 4), $south];
+        }
+        for ($i = 4; $i >= 0; $i--) {
+            $points[] = [Bounds::wrap($west + $width * $i / 4), $north];
+        }
+
+        return [$points, null];
+    }
+
+    /**
+     * Split each segment along its great circle, in steps of at most 1 degree.
+     *
+     * @param list<array{mixed, mixed}> $points The path's [lng, lat] points in degrees.
+     *
+     * @return list<array{float, float}> The points along the great circles.
+     */
+    private static function greatCircle(array $points): array
+    {
+        $result = [[(float) $points[0][0], (float) $points[0][1]]];
+        for ($i = 1, $count = count($points); $i < $count; $i++) {
+            [$lng1, $lat1] = [deg2rad((float) $points[$i - 1][0]), deg2rad((float) $points[$i - 1][1])];
+            [$lng2, $lat2] = [deg2rad((float) $points[$i][0]), deg2rad((float) $points[$i][1])];
+            $d = 2 * asin(sqrt(
+                sin(($lat2 - $lat1) / 2) ** 2 + cos($lat1) * cos($lat2) * sin(($lng2 - $lng1) / 2) ** 2
+            ));
+            $steps = (int) min(180, max(1, ceil(rad2deg($d))));
+            for ($k = 1; $k <= $steps; $k++) {
+                if ($d < 1e-12) {
+                    break;
+                }
+                $f = $k / $steps;
+                $a = sin((1 - $f) * $d) / sin($d);
+                $b = sin($f * $d) / sin($d);
+                $x = $a * cos($lat1) * cos($lng1) + $b * cos($lat2) * cos($lng2);
+                $y = $a * cos($lat1) * sin($lng1) + $b * cos($lat2) * sin($lng2);
+                $z = $a * sin($lat1) + $b * sin($lat2);
+                $result[] = [rad2deg(atan2($y, $x)), self::clampLat(rad2deg(atan2($z, sqrt($x * $x + $y * $y))))];
+            }
+            if ($d < 1e-12) {
+                $result[] = [(float) $points[$i][0], (float) $points[$i][1]];
+            }
+        }
+
+        return $result;
+    }
+
+    /**
+     * Keep a latitude within the map (Web Mercator stops at about ±85.05°).
+     *
+     * @param float $lat Latitude in degrees.
+     *
+     * @return float The latitude, clamped.
+     */
+    private static function clampLat(float $lat): float
+    {
+        return max(-Parameters::MAX_LATITUDE, min(Parameters::MAX_LATITUDE, $lat));
     }
 
     /**

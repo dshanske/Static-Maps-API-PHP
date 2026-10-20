@@ -18,6 +18,12 @@ stable interface; pin a commit if you need a fixed point.
 
 ### Added
 
+- Shapes and path styles (#36): `enc:` encoded polylines inside `path[]` (any
+  number, with `precision:6` for OSRM and Valhalla), `circle:lng,lat,radius`
+  (metres), `rect:minLng,minLat,maxLng,maxLat`, `fillcolor` (closes and fills
+  a polygon), 8-digit `RRGGBBAA` colours with opacity, `linestyle` (`dashed`,
+  `dotted`) and `geodesic:true` (great-circle lines).
+
 - `scale=2` for high-density images (#10): the same area at twice the pixels,
   with markers, paths and attribution twice as large. Tiles come from the next
   zoom level up, or as `@2x` tiles where a style's URLs have the new `{r}`
@@ -137,6 +143,10 @@ stable interface; pin a commit if you need a fixed point.
 
 ### Changed
 
+- `polyline` is drawn together with `path[]` values (after them) instead of
+  being ignored when the request has `path[]`; its `X-Path-<n>` number comes
+  after theirs (#36).
+
 - Automatic fitting (no `zoom`) uses the tightest zoom at which the content
   fits, instead of one level below it, and counts marker icon sizes, path
   widths, `bezier` curves and `padding`, so nothing is cut off at the edge.
@@ -219,6 +229,10 @@ stable interface; pin a commit if you need a fixed point.
   (#24)
 
 ### Fixed
+
+- A path with an invalid `color` or `weight` (e.g. `color:red`) stopped the
+  whole map with a PHP error and an empty response; it is now left out with an
+  `X-Path-<n>` header (#36).
 
 - Maps across the antimeridian (±180°) (#35): markers and paths on both sides
   are fitted as one small area instead of the whole world in between, path

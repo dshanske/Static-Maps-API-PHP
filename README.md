@@ -473,6 +473,27 @@ A path is specified as a list of longitude and latitudes, as well as optional pr
 
 The coordinates of the path are the first value of the property, specified as a list of coordinates similar to GeoJSON.
 
+Instead of points, a path can be given as one of these shapes:
+
+| Geometry | Meaning |
+|---|---|
+| `[lng,lat][lng,lat]…` | A line through the points (**longitude first**, as in GeoJSON). |
+| `enc:<encoded polyline>` | The same, as an [encoded polyline](#polylines) (latitude first, precision 5; add `precision:6` for OSRM and Valhalla output). |
+| `circle:lng,lat,radius` | A circle with the radius in **metres** (up to 20,000 km), following the Earth's curvature. Handy for an approximate location that hides the exact point. |
+| `rect:minLng,minLat,maxLng,maxLat` | A rectangle, for example to show a bounding box. `minLng` greater than `maxLng` crosses the antimeridian. |
+
+Style properties, as `key:value;` pairs:
+
+| Property | Default | Meaning |
+|---|---|---|
+| `color` | `333333` (`defaults.path_color`) | Line colour, `RRGGBB`, or `RRGGBBAA` with an opacity (`00` transparent to `ff` opaque). |
+| `weight` | `3` (`defaults.path_weight`) | Line width in pixels, 0-100 (0 for a fill without an outline). |
+| `fillcolor` | none | Fill colour, `RRGGBB` or `RRGGBBAA`. A path with a fill is closed into a polygon; circles and rectangles are always closed. |
+| `linestyle` | `solid` | `solid`, `dashed` or `dotted`. |
+| `geodesic` | `false` | `true` follows the great circle between points (the shortest route on the globe, as flights do), instead of a straight line on the map. `bezier` doesn't apply to geodesic or closed paths. |
+
+A path whose geometry or style can't be used is left out, with an `X-Path-<n>` header saying why (or HTTP 400 with `errors.strict`).
+
 ### Examples
 
 Simple path with default color and weight.
@@ -487,11 +508,25 @@ Specifying the color and weight of the path.
 path[]=[-122.651082,45.508543],[-122.653617,45.506468],[-122.654183,45.506756];weight:6;color:0033ff
 ```
 
+A translucent red polygon with a thin black outline:
+
+```
+path[]=color:000000;weight:1;fillcolor:ff000060;[-122.72,45.53][-122.70,45.50][-122.68,45.53]
+```
+
+A 1 km circle around an approximate location, a dashed bounding box, and a flight that follows the great circle:
+
+```
+path[]=color:0055ff;fillcolor:0055ff30;circle:-122.65,45.52,1000
+path[]=color:008800;linestyle:dashed;rect:-122.70,45.49,-122.62,45.54
+path[]=color:0066ff;geodesic:true;[-0.1,51.5][-118.2,34.05]
+```
+
 ## Polylines
 
 `polyline` draws one path given as an encoded polyline, which makes long paths much shorter than `path[]`. It uses [Google's Encoded Polyline Algorithm](https://developers.google.com/maps/documentation/utilities/polylinealgorithm): points in **latitude, longitude** order, precision 5 (1e-5 degrees). That is what Google Maps, Mapbox, OSRM, Valhalla, GraphHopper and polyline libraries such as `@mapbox/polyline` produce, so their output can be passed straight in. (Note that `path[]` writes each point the other way round, as `[lng,lat]`.)
 
-The value starts with `enc:` and the encoded string, optionally followed by `color` and `weight` like a path. `polyline` is ignored when the request also has `path[]`. A polyline with points out of range is left out with an `X-Path-1` header.
+The value starts with `enc:` and the encoded string, optionally followed by any of the path style properties (and `precision:6` for precision-6 polylines). It's a shortcut for one `path[]=enc:…`: any number of encoded polylines can be given as `path[]` values, and `polyline` is drawn after them. A polyline that can't be used is left out with an `X-Path-<n>` header, numbered after the `path[]` values.
 
 ### Examples
 

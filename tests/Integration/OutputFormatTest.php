@@ -80,6 +80,6 @@ final class OutputFormatTest extends RenderTestCase
         $this->assertSame('not a marker (key:value pairs separated by ;)', $response->header('X-Marker-1'));
         $this->assertNotNull($response->header('X-Marker-2'));
         $this->assertSame('not a path', $response->header('X-Path-1'));
-        $this->assertSame('no points (expected [lng,lat] pairs)', $response->header('X-Path-2'));
+        $this->assertSame('no points (expected [lng,lat] pairs, enc, circle or rect)', $response->header('X-Path-2'));
     }
 }
