@@ -18,6 +18,12 @@ stable interface; pin a commit if you need a fixed point.
 
 ### Added
 
+- Public-sector maps (#32): `usgs` (US Topo, imagery, imagery with topo),
+  `nasa-gibs` (Blue Marble), `swisstopo` (colour, grey, SWISSIMAGE), `ign`
+  (Plan IGN, orthophotos), `basemap-at` (standard, grau, Orthofoto, with
+  labels) and `os` (Ordnance Survey Road, Outdoor, Light; needs a free key);
+  overlays `usgs-hydro` and `basemap-at-labels`. Regional ones have `bounds`.
+
 - Shipped overlays (#31): OpenRailwayMap's `railways`, `railway-maxspeed`,
   `railway-signals`, `railway-electrification` and `railway-gauge`
   (small-scale, public, non-commercial use, per its tile policy).

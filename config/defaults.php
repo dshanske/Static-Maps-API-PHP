@@ -790,6 +790,190 @@ return [
                 ],
             ],
         ],
+
+        // ---- Public-sector maps (#32). Free; most are regional, so they have
+        // `bounds`: maps outside get the default map (X-Map-Fallback: outside).
+        // Terms checked 2026-10-21; zoom ranges sampled the same day.
+
+        // USGS The National Map (USA). USGS data is public domain; USGS asks
+        // for credit (https://www.usgs.gov/information-policies-and-instructions/copyrights-and-credits).
+        // Real tiles to zoom 16 (17 returns 404). Cache-Control: max-age=86400.
+        // Bounds include Alaska (across the antimeridian), Hawaii and Puerto Rico.
+        'usgs' => [
+            'name'             => 'USGS The National Map',
+            'cache'            => 'headers',
+            'attribution'      => 'text',
+            'attribution_text' => 'USGS The National Map',
+            'maxzoom'          => 16,
+            'bounds'           => [172.0, 17.5, -64.5, 71.5],
+            'default_style'    => 'topo',
+            'styles' => [
+                'topo' => [
+                    'name'             => 'US Topo',
+                    'attribution_html' => '<a href="https://www.usgs.gov/programs/national-geospatial-program/national-map">USGS The National Map</a>: National Boundaries Dataset, 3DEP Elevation Program, Geographic Names Information System, National Hydrography Dataset, National Land Cover Database, National Structures Dataset, and National Transportation Dataset; USGS Global Ecosystems; U.S. Census Bureau TIGER/Line data; USFS Road data; Natural Earth Data; U.S. Department of State HIU; NOAA National Centers for Environmental Information',
+                    'layers'           => ['https://basemap.nationalmap.gov/arcgis/rest/services/USGSTopo/MapServer/tile/{z}/{y}/{x}'],
+                ],
+                'satellite' => [
+                    'name'             => 'USGS Imagery',
+                    'attribution_text' => 'USDA, USGS The National Map',
+                    'attribution_html' => 'USDA, <a href="https://www.usgs.gov/programs/national-geospatial-program/national-map">USGS The National Map</a>: Orthoimagery',
+                    'layers'           => ['https://basemap.nationalmap.gov/arcgis/rest/services/USGSImageryOnly/MapServer/tile/{z}/{y}/{x}'],
+                ],
+                'hybrid' => [
+                    'name'             => 'USGS Imagery with topo',
+                    'attribution_html' => '<a href="https://www.usgs.gov/programs/national-geospatial-program/national-map">USGS The National Map</a>: Orthoimagery and US Topo',
+                    'layers'           => ['https://basemap.nationalmap.gov/arcgis/rest/services/USGSImageryTopo/MapServer/tile/{z}/{y}/{x}'],
+                ],
+            ],
+        ],
+
+        // NASA GIBS (https://www.earthdata.nasa.gov/gibs), worldwide. NASA
+        // supports "full and open sharing of data" and asks for an
+        // acknowledgement of GIBS. Blue Marble is a small-scale layer: real
+        // tiles to zoom 8 (9 is refused). Cache-Control: public, max-age=259200.
+        'nasa-gibs' => [
+            'name'             => 'NASA GIBS',
+            'cache'            => 'headers',
+            'attribution'      => 'text',
+            'attribution_text' => 'Imagery: NASA GIBS',
+            'attribution_html' => 'We acknowledge the use of imagery provided by services from NASA\'s <a href="https://www.earthdata.nasa.gov/gibs">Global Imagery Browse Services (GIBS)</a>, part of NASA\'s Earth Science Data and Information System (ESDIS).',
+            'maxzoom'          => 8,
+            'default_style'    => 'bluemarble',
+            'styles' => [
+                'bluemarble' => [
+                    'name'   => 'Blue Marble, shaded relief and bathymetry',
+                    'layers' => ['https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/BlueMarble_ShadedRelief_Bathymetry/default/GoogleMapsCompatible_Level8/{z}/{y}/{x}.jpeg'],
+                ],
+            ],
+        ],
+
+        // swisstopo (Switzerland). Free geodata and geoservices "may be enriched
+        // and processed and also used commercially"; the source must be named
+        // ("©swisstopo"); access may be restricted for excessive use
+        // (https://www.swisstopo.admin.ch/en/terms-of-use-free-geodata-and-geoservices).
+        // Real tiles to zoom 19 (imagery 20). Cache-Control with s-maxage of a year.
+        'swisstopo' => [
+            'name'             => 'swisstopo',
+            'cache'            => 'headers',
+            'attribution'      => 'text',
+            'attribution_text' => '© swisstopo',
+            'attribution_html' => '© <a href="https://www.swisstopo.admin.ch/">swisstopo</a>',
+            'maxzoom'          => 19,
+            'bounds'           => [5.9, 45.8, 10.5, 47.85],
+            'default_style'    => 'topo',
+            'styles' => [
+                'topo' => [
+                    'name'   => 'National map (colour)',
+                    'layers' => ['https://wmts.geo.admin.ch/1.0.0/ch.swisstopo.pixelkarte-farbe/default/current/3857/{z}/{x}/{y}.jpeg'],
+                ],
+                'topo-gray' => [
+                    'name'   => 'National map (grey)',
+                    'layers' => ['https://wmts.geo.admin.ch/1.0.0/ch.swisstopo.pixelkarte-grau/default/current/3857/{z}/{x}/{y}.jpeg'],
+                ],
+                'satellite' => [
+                    'name'    => 'SWISSIMAGE',
+                    'maxzoom' => 20,
+                    'layers'  => ['https://wmts.geo.admin.ch/1.0.0/ch.swisstopo.swissimage/default/current/3857/{z}/{x}/{y}.jpeg'],
+                ],
+            ],
+        ],
+
+        // IGN Géoplateforme (France, including overseas departments, so no
+        // bounds). Public WMTS layers need no key and have no rate limit; the
+        // data is under the Licence Ouverte Etalab 2.0 unless stated otherwise,
+        // which allows commercial use with the source named
+        // (https://cartes.gouv.fr/cgu/). Real tiles to zoom 19. IGN sends
+        // Cache-Control: private, so the tile cache doesn't keep its tiles.
+        'ign' => [
+            'name'             => 'IGN (France)',
+            'cache'            => 'headers',
+            'attribution'      => 'text',
+            'attribution_text' => '© IGN',
+            'attribution_html' => 'Source: <a href="https://www.ign.fr/">IGN</a> (Géoplateforme)',
+            'maxzoom'          => 19,
+            'default_style'    => 'streets',
+            'styles' => [
+                'streets' => [
+                    'name'   => 'Plan IGN',
+                    'layers' => ['https://data.geopf.fr/wmts?SERVICE=WMTS&REQUEST=GetTile&VERSION=1.0.0&LAYER=GEOGRAPHICALGRIDSYSTEMS.PLANIGNV2&STYLE=normal&TILEMATRIXSET=PM&FORMAT=image/png&TILEMATRIX={z}&TILEROW={y}&TILECOL={x}'],
+                ],
+                'satellite' => [
+                    'name'   => 'Orthophotos',
+                    'layers' => ['https://data.geopf.fr/wmts?SERVICE=WMTS&REQUEST=GetTile&VERSION=1.0.0&LAYER=ORTHOIMAGERY.ORTHOPHOTOS&STYLE=normal&TILEMATRIXSET=PM&FORMAT=image/jpeg&TILEMATRIX={z}&TILEROW={y}&TILECOL={x}'],
+                ],
+            ],
+        ],
+
+        // basemap.at (Austria). Open Government Data Österreich, CC BY 4.0:
+        // free for private and commercial use; credit "Grundkarte: basemap.at"
+        // or "Datenquelle: basemap.at", with basemap.at linked
+        // (https://basemap.at/). Real tiles to zoom 19 (20 isn't complete).
+        // Cache-Control: max-age=1209600.
+        'basemap-at' => [
+            'name'             => 'basemap.at',
+            'cache'            => 'headers',
+            'attribution'      => 'text',
+            'attribution_text' => 'Grundkarte: basemap.at',
+            'attribution_html' => 'Grundkarte: <a href="https://basemap.at/">basemap.at</a> (CC BY 4.0)',
+            'maxzoom'          => 19,
+            'bounds'           => [9.5, 46.35, 17.2, 49.05],
+            'default_style'    => 'streets',
+            'styles' => [
+                'streets' => [
+                    'name'   => 'basemap.at',
+                    'layers' => ['https://mapsneu.wien.gv.at/basemap/geolandbasemap/normal/google3857/{z}/{y}/{x}.png'],
+                ],
+                'gray' => [
+                    'name'   => 'basemap.at grau',
+                    'layers' => ['https://mapsneu.wien.gv.at/basemap/bmapgrau/normal/google3857/{z}/{y}/{x}.png'],
+                ],
+                'satellite' => [
+                    'name'   => 'basemap.at Orthofoto',
+                    'layers' => ['https://mapsneu.wien.gv.at/basemap/bmaporthofoto30cm/normal/google3857/{z}/{y}/{x}.jpeg'],
+                ],
+                'hybrid' => [
+                    'name'   => 'basemap.at Orthofoto with labels',
+                    'layers' => [
+                        'https://mapsneu.wien.gv.at/basemap/bmaporthofoto30cm/normal/google3857/{z}/{y}/{x}.jpeg',
+                        'https://mapsneu.wien.gv.at/basemap/bmapoverlay/normal/google3857/{z}/{y}/{x}.png',
+                    ],
+                ],
+            ],
+        ],
+
+        // Ordnance Survey Maps API (Great Britain). Needs a free OS Data Hub
+        // key on the OpenData plan, sent in OS's `key` header:
+        //     'providers' => ['os' => ['key' => 'your-os-data-hub-key']],
+        // OpenData covers zoom 7-16 (Open Zoomstack); 17-20 are Premium, so
+        // the maximum is 16 (https://docs.os.uk/os-apis/accessing-os-apis/os-maps-api/layers-and-styles).
+        // OS OpenData is under the Open Government Licence, whose credit is
+        // "Contains OS data © Crown copyright and database right".
+        'os' => [
+            'name'             => 'Ordnance Survey',
+            'cache'            => 'headers',
+            'headers'          => ['key' => '{key}'],
+            'attribution'      => 'text',
+            'attribution_text' => 'Contains OS data © Crown copyright and database right',
+            'attribution_html' => 'Contains <a href="https://www.ordnancesurvey.co.uk/">OS</a> data © Crown copyright and database right',
+            'minzoom'          => 7,
+            'maxzoom'          => 16,
+            'bounds'           => [-8.8, 49.8, 2.0, 60.95],
+            'default_style'    => 'streets',
+            'styles' => [
+                'streets' => [
+                    'name'   => 'OS Road',
+                    'layers' => ['https://api.os.uk/maps/raster/v1/zxy/Road_3857/{z}/{x}/{y}.png'],
+                ],
+                'outdoors' => [
+                    'name'   => 'OS Outdoor',
+                    'layers' => ['https://api.os.uk/maps/raster/v1/zxy/Outdoor_3857/{z}/{x}/{y}.png'],
+                ],
+                'light' => [
+                    'name'   => 'OS Light',
+                    'layers' => ['https://api.os.uk/maps/raster/v1/zxy/Light_3857/{z}/{x}/{y}.png'],
+                ],
+            ],
+        ],
     ],
 
     /*
@@ -870,6 +1054,27 @@ return [
             'maxzoom'          => 19,
             'attribution_text' => 'Data © OpenStreetMap contributors, Style: CC-BY-SA 2.0 OpenRailwayMap',
             'attribution_html' => 'Data © <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors, Style: <a href="https://creativecommons.org/licenses/by-sa/2.0/">CC-BY-SA 2.0</a> <a href="https://www.openrailwaymap.org/">OpenRailwayMap</a>',
+        ],
+        // USGS National Hydrography (USA): rivers, lakes and streams over any map
+        // (public domain; see the usgs provider). Real tiles to zoom 16.
+        'usgs-hydro' => [
+            'name'             => 'USGS hydrography',
+            'layers'           => ['https://basemap.nationalmap.gov/arcgis/rest/services/USGSHydroCached/MapServer/tile/{z}/{y}/{x}'],
+            'cache'            => 'headers',
+            'maxzoom'          => 16,
+            'bounds'           => [172.0, 17.5, -64.5, 71.5],
+            'attribution_text' => 'USGS The National Map',
+            'attribution_html' => '<a href="https://www.usgs.gov/programs/national-geospatial-program/national-map">USGS The National Map</a>: National Hydrography Dataset',
+        ],
+        // basemap.at labels and roads (Austria), for imagery or other maps (see the basemap-at provider).
+        'basemap-at-labels' => [
+            'name'             => 'basemap.at labels',
+            'layers'           => ['https://mapsneu.wien.gv.at/basemap/bmapoverlay/normal/google3857/{z}/{y}/{x}.png'],
+            'cache'            => 'headers',
+            'maxzoom'          => 19,
+            'bounds'           => [9.5, 46.35, 17.2, 49.05],
+            'attribution_text' => 'Grundkarte: basemap.at',
+            'attribution_html' => 'Grundkarte: <a href="https://basemap.at/">basemap.at</a> (CC BY 4.0)',
         ],
     ],
 

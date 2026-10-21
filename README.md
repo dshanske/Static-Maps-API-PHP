@@ -104,6 +104,12 @@ Shipped providers (the first style is the provider's default). Max zoom is the h
 | `opentopomap` | `topo`: [OpenTopoMap](https://www.opentopomap.org/) | 17 |
 | `carto` | `light`: Positron · `dark`: Dark Matter · `streets`: Voyager. [CARTO](https://carto.com/basemaps/) **needs an API key**: these styles are unavailable until the install sets `'providers' => ['carto' => ['key' => '...']]`. Keys are [free](https://carto.com/basemaps/apikey) (5 million requests a month non-commercial, 1 million commercial). | 20 |
 | `stadia` | `light`: Alidade Smooth · `dark`: Alidade Smooth Dark · `bright`: Alidade Bright · `streets`: OSM Bright · `outdoors`: Outdoors · `toner`, `toner-lite`, `toner-dark`: Stamen Toner · `terrain`: Stamen Terrain · `watercolor`: Stamen Watercolor. [Stadia Maps](https://stadiamaps.com/) **needs an API key** (`'providers' => ['stadia' => ['key' => '...']]`), sent in Stadia's `Authorization` header. Its free tier is for non-commercial use only. Its tiles are never cached and its map images are `private`, as agreed with Stadia (see [Provider terms](#provider-terms)). High-density `@2x` tiles for `scale=2`. | 20; `watercolor`: 16 |
+| `usgs` | `topo`: [US Topo](https://basemap.nationalmap.gov/arcgis/rest/services/USGSTopo/MapServer) · `satellite`: USGS Imagery · `hybrid`: imagery with topo. USGS The National Map, public domain. **USA only** (`bounds`). | 16 |
+| `nasa-gibs` | `bluemarble`: [Blue Marble](https://www.earthdata.nasa.gov/gibs) shaded relief and bathymetry, worldwide | 8 |
+| `swisstopo` | `topo`: national map (colour) · `topo-gray`: grey · `satellite`: SWISSIMAGE. [swisstopo](https://www.swisstopo.admin.ch/), **Switzerland only**. | 19; `satellite`: 20 |
+| `ign` | `streets`: Plan IGN · `satellite`: orthophotos. [IGN Géoplateforme](https://geoservices.ign.fr/), France including overseas departments. | 19 |
+| `basemap-at` | `streets`: basemap.at · `gray`: grau · `satellite`: Orthofoto · `hybrid`: Orthofoto with labels. [basemap.at](https://basemap.at/), **Austria only**. | 19 |
+| `os` | `streets`: OS Road · `outdoors`: OS Outdoor · `light`: OS Light. [Ordnance Survey](https://www.ordnancesurvey.co.uk/products/os-maps-api) **needs a free OS Data Hub key** (`'providers' => ['os' => ['key' => '...']]`, sent in OS's `key` header). The free OpenData plan covers zoom 7-16. **Great Britain only**. | 16 (from 7) |
 | `custom` | Draws `tileurl`; requires a valid `key`. | `zoom.max` (18) |
 
 Every shipped map draws the credit its provider requires on the image, kept short: "© OpenStreetMap contributors" on OpenStreetMap, the OpenTopoMap and CARTO credits on theirs, and on Esri maps the "Powered by Esri" logo with the main data sources. Esri's terms allow its full source list near the map rather than on it, so the complete credit, as HTML with links, comes from [`/api/v1/attribution`](#query-api): call it with the same parameters as the image and show the `html` next to it. Each shipped provider sets its own attribution, so changing `defaults.attribution` only affects providers you add.
@@ -501,6 +507,8 @@ Shipped overlays:
 | `railway-signals` | OpenRailwayMap: signals and train protection | 19 |
 | `railway-electrification` | OpenRailwayMap: electrification | 19 |
 | `railway-gauge` | OpenRailwayMap: track gauges | 19 |
+| `usgs-hydro` | USGS National Hydrography: rivers, lakes and streams (USA) | 16 |
+| `basemap-at-labels` | basemap.at labels and roads (Austria), e.g. over imagery | 19 |
 
 An install can switch them off with `'overlays' => ['railways' => ['enabled' => false]]`.
 
@@ -525,6 +533,12 @@ What an install does beyond that is its own responsibility: which providers it a
 | Stadia Maps | Needs a key. The free tier is for non-commercial use only. The terms forbid proxying or caching access to Stadia's services; Stadia support confirmed (2026-10-20) that a server like this doesn't violate that as long as each request results in API calls to Stadia's servers, so Stadia tiles are never cached and map images are marked `private`. Alidade Satellite is left out (its imagery terms forbid processing the imagery). Credit: Stadia Maps, OpenMapTiles, OpenStreetMap, and Stamen Design for the Stamen styles. | [Terms of service](https://stadiamaps.com/terms-of-service), [attribution](https://docs.stadiamaps.com/attribution/) |
 | OpenTopoMap | CC-BY-SA, so commercial use is allowed with credit. No mass downloads. | [About](https://opentopomap.org/about) |
 | OpenRailwayMap (overlays) | Small-scale, public, non-commercial use only; for-profit use must run its own tile server. Tiles are CC-BY-SA 2.0. | [Tile usage](https://wiki.openstreetmap.org/wiki/OpenRailwayMap/API) |
+| USGS (`usgs`, `usgs-hydro`) | Public domain; USGS asks for credit. | [Copyrights and credits](https://www.usgs.gov/information-policies-and-instructions/copyrights-and-credits) |
+| NASA GIBS (`nasa-gibs`) | Full and open sharing; NASA asks for an acknowledgement of GIBS (in `attribution_html`). | [GIBS](https://www.earthdata.nasa.gov/engage/open-data-services-software/earthdata-developer-portal/gibs-api) |
+| swisstopo | Free, including commercial use; the source ("©swisstopo") must be named; access may be restricted for excessive use. | [Terms of use](https://www.swisstopo.admin.ch/en/terms-of-use-free-geodata-and-geoservices) |
+| IGN (`ign`) | Public WMTS layers: no key and no rate limit; Licence Ouverte Etalab 2.0 (commercial use allowed, name the source). | [CGU](https://cartes.gouv.fr/cgu/) |
+| basemap.at | CC BY 4.0, private and commercial use; credit "Grundkarte: basemap.at" with a link. | [basemap.at](https://basemap.at/) |
+| Ordnance Survey (`os`) | Needs a free OS Data Hub key; the OpenData plan covers zoom 7-16 (17-20 are Premium); Open Government Licence credit. | [OS Maps API](https://docs.os.uk/os-apis/accessing-os-apis/os-maps-api) |
 | OpenStreetMap France (`osm-fr`) | Free for non-profit sites with moderate traffic; very low use on a business site is tolerated. The credit must be visible on the map. Service may be cut off without notice. | [Usage](https://www.openstreetmap.fr/usage/) |
 | OpenStreetMap Germany (`osm-de`) | Non-commercial use only (small sites such as a company's directions page are fine). Full-speed tiles are limited per IP address. | [German style](https://www.openstreetmap.de/germanstyle.html) |
 
