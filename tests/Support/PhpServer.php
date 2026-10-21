@@ -119,13 +119,17 @@ final class PhpServer
      * @param string       $method         HTTP method, e.g. `POST` or `HEAD`.
      * @param string       $path           Path and query string, starting with `/`.
      * @param list<string> $requestHeaders Extra request header lines, e.g. `If-None-Match: "x"`.
+     * @param string|null  $body           Request body, e.g. JSON for a POST, or null for none.
      *
      * @return Response The status, headers and body.
      */
-    public function request(string $method, string $path, array $requestHeaders = []): Response
+    public function request(string $method, string $path, array $requestHeaders = [], ?string $body = null): Response
     {
         $ch = curl_init($this->url . $path);
         $headers = [];
+        if ($body !== null) {
+            curl_setopt($ch, CURLOPT_POSTFIELDS, $body);
+        }
         curl_setopt_array($ch, [
             CURLOPT_HTTPHEADER     => $requestHeaders,
             CURLOPT_CUSTOMREQUEST  => $method,

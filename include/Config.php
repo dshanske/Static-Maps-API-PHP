@@ -676,7 +676,7 @@ class Config
             throw new RuntimeException("Setting 'errors.strict' must be true or false");
         }
         $limits = [
-            'max_width', 'max_height', 'max_markers', 'max_points', 'max_overlays',
+            'max_width', 'max_height', 'max_markers', 'max_points', 'max_overlays', 'max_body_bytes',
             'icon_urls', 'icon_bytes', 'icon_pixels',
         ];
         foreach ($limits as $limit) {

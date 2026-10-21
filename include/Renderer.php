@@ -76,6 +76,8 @@ final class Renderer
 
         try {
             $params = Parameters::parse($request, $this->config);
+            // GeoJSON features become markers and paths after the request's own (#38).
+            $geojson = GeoJson::toOverlays($request->get('geojson'));
         } catch (InvalidRequest $e) {
             return Response::error(400, $e->getMessage());
         }
@@ -113,8 +115,13 @@ final class Renderer
             (int) $limits['icon_urls'],
             (int) $limits['icon_bytes'],
             (int) $limits['icon_pixels']
-        ))->parse($request->get('marker'), $mayFetchUrls, $bounds);
+        ))->parse(
+            array_merge(self::values($request->get('marker')), $geojson['markers']),
+            $mayFetchUrls,
+            $bounds
+        );
         $markers = $parsed['markers'];
+        $headers = array_merge($headers, $geojson['headers']);
         $headers = array_merge($headers, $parsed['headers']);
 
         // Geocoding was removed (#16): `location` is ignored, with a deprecation notice.
@@ -127,7 +134,11 @@ final class Renderer
             $config['defaults']['path_color'],
             $config['defaults']['path_weight'],
             (int) $config['limits']['max_points']
-        ))->parse($request->get('path'), $request->get('polyline'), $bounds);
+        ))->parse(
+            array_merge(self::values($request->get('path')), $geojson['paths']),
+            $request->get('polyline'),
+            $bounds
+        );
         $paths = $parsedPaths['paths'];
         $headers = array_merge($headers, $parsedPaths['headers']);
 
@@ -312,6 +323,22 @@ final class Renderer
         $headers = array_merge($headers, $typeHeaders, $cacheHeaders);
 
         return new Response($headers, $body);
+    }
+
+    /**
+     * A `marker[]` or `path[]` parameter as a list.
+     *
+     * @param mixed $value The parameter: false when not given, a string, or a list.
+     *
+     * @return list<mixed> Its values.
+     */
+    private static function values(mixed $value): array
+    {
+        if ($value === false || $value === '' || $value === null) {
+            return [];
+        }
+
+        return is_array($value) ? array_values($value) : [$value];
     }
 
     /**

@@ -18,6 +18,13 @@ stable interface; pin a commit if you need a fixed point.
 
 ### Added
 
+- GeoJSON (#38): `geojson` draws a Feature, FeatureCollection or geometry as
+  markers and paths, styled with simplestyle-spec properties; skipped
+  features are counted in `X-Map-GeoJSON`.
+- POST with a JSON body (#38): the same parameters as a JSON object
+  (`Content-Type: application/json`), for maps too large for a URL. Bodies
+  over `limits.max_body_bytes` (1 MB) get 413.
+
 - Stadia Maps provider `stadia` (#33), with a key: Alidade Smooth (`light`,
   `dark`), Alidade Bright, OSM Bright, Outdoors, and the Stamen styles Toner
   (`toner`, `toner-lite`, `toner-dark`), Terrain and Watercolor. The key is

@@ -54,6 +54,8 @@ return [
     //     'icon_urls'   => 5,      // different marker icon URLs per map
     //     'icon_bytes'  => 262144, // largest icon download
     //     'icon_pixels' => 256,    // icons from URLs are drawn at most this big
+    //     'max_overlays'   => 3,       // overlay= layers per map
+    //     'max_body_bytes' => 1048576, // largest JSON request body
     // ],
 
     // Answer 400 for a marker or path that can't be drawn, instead of leaving

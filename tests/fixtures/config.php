@@ -32,6 +32,8 @@ return [
     ],
     // Small limits so the download-limit tests run quickly.
     'remote'     => ['timeout' => 2, 'connect_timeout' => 2, 'max_bytes' => 200000, 'max_redirects' => 2],
+    // A small JSON body limit for GeoJsonTest (#38).
+    'limits'     => ['max_body_bytes' => 20000],
     // The only client: key `test-token`. (tokens.txt is for LegacyTokenTest.)
     'token_file' => __DIR__ . '/no-such-tokens.txt',
     'access'     => ['clients_file' => __DIR__ . '/no-such-clients.json'],
