@@ -63,7 +63,10 @@ final class DemoPageTest extends RenderTestCase
         $this->assertSame(200, $response->status, $response->body);
         $this->assertStringStartsWith('image/', (string) $response->header('Content-Type'));
         foreach (array_keys($response->headers) as $name) {
-            $this->assertDoesNotMatchRegularExpression('/^x-(marker|path)-|^x-map-(geojson|error|limit)/i', (string) $name);
+            $this->assertDoesNotMatchRegularExpression(
+                '/^x-(marker|path)-|^x-map-(geojson|error|limit)/i',
+                (string) $name
+            );
         }
     }
 }
