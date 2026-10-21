@@ -8,7 +8,7 @@ Static Maps API
 
 Parameters can be sent in the query string, as POST form data, or as a POST JSON body (see [POST with a JSON body](#post-with-a-json-body)).
 
-Every map needs a location: `latitude` **and** `longitude`, or at least one valid marker, path or `geojson` feature (the map is then fitted to them). A request without one gets HTTP 400 with the reason as plain text, as does a request with only one of `latitude` / `longitude`. A request with no parameters at all, such as opening the service's address in a browser, gets an HTML page describing the service (see [Home page](#home-page)).
+Every map needs a location: `latitude` **and** `longitude`, or at least one valid marker, path or `geojson` feature (the map is then fitted to them). A request without one gets HTTP 400 with the reason as plain text, as does a request with only one of `latitude` / `longitude`. A request with no parameters at all, such as opening the service's address in a browser, gets an HTML page: by default a demo page for trying the API (see [Home page](#home-page)).
 
 Numbers are checked: a value that isn't a number, or is out of the range given below, gets HTTP 400 with the reason (for example `zoom must be between 0 and 30`). An empty value (`width=`) counts as not given.
 
@@ -554,17 +554,15 @@ If the configuration is invalid, every request returns HTTP 500 and the reason i
 
 ### Home page
 
-A request without any parameters returns the HTML page in `home_page` (default `assets/home.html`, which names the service and links to this documentation). To describe your own install, point `home_page` at your own HTML file. It is sent as-is and is not run as PHP.
+A request without any parameters returns the HTML page in `home_page`. It is sent as-is and is not run as PHP.
 
-`assets/demo.html` is a demo and test page you can use as the landing page instead (#92). In `data/config.php`:
+The default is a demo and test page, `assets/demo.html` (#92). It builds a map request from a form, with the providers, styles, overlays and icons this install offers (read from the [query API](#query-api)), and draws it when asked. It shows the image, its full credit, the notices the server sent (`X-Map-*`, `X-Marker-<n>`, `X-Path-<n>`, errors), and the request URL and an `<img>` tag to copy. Examples fill the form with pins and labels, routes, circles, a geodesic flight, GeoJSON, an overlay, `scale=2` and a regional map's fallback. A client key can be typed in to try the maps and features that need one; it's only used for the page's own requests.
+
+The page fetches no map until someone asks for one, but each map drawn uses your tile providers. For a public install where you'd rather not offer that, use the plain page, which only names the service and links to this documentation, or your own HTML file. In `data/config.php`:
 
 ```php
-'home_page' => __DIR__ . '/../assets/demo.html',
+'home_page' => __DIR__ . '/../assets/home.html',
 ```
-
-It builds a map request from a form, with the providers, styles, overlays and icons this install offers (read from the [query API](#query-api)), and draws it when asked. It shows the image, its full credit, the notices the server sent (`X-Map-*`, `X-Marker-<n>`, `X-Path-<n>`, errors), and the request URL and an `<img>` tag to copy. Examples fill the form with pins and labels, routes, circles, a geodesic flight, GeoJSON, an overlay, `scale=2` and a regional map's fallback. A client key can be typed in to try the maps and features that need one; it's only used for the page's own requests.
-
-The page fetches no map until someone asks for one, but each map drawn uses your tile providers, so consider whether a public install should show it.
 
 ## Paths
 

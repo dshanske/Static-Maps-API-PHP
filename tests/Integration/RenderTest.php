@@ -94,7 +94,8 @@ final class RenderTest extends RenderTestCase
     }
 
     /**
-     * A request without any parameters gets the HTML home page, at every entry point (#47).
+     * A request without any parameters gets the HTML home page, at every entry point (#47):
+     * by default the demo page (#92).
      *
      * @return void
      */
@@ -106,6 +107,7 @@ final class RenderTest extends RenderTestCase
             $this->assertSame(200, $response->status, $path);
             $this->assertSame('text/html; charset=utf-8', $response->header('Content-Type'), $path);
             $this->assertStringContainsString('<title>Static Maps API</title>', $response->body);
+            $this->assertStringContainsString('id="demo-examples"', $response->body, $path);
         }
         $this->assertSame([], $this->tileRequests());
         $this->assertSame([], self::$app?->errors());

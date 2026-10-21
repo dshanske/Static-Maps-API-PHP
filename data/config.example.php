@@ -107,10 +107,10 @@ return [
     // Deprecated: the old token file. Move it with: php bin/clients.php import
     // 'token_file' => __DIR__ . '/apikeys.txt',
 
-    // Your own HTML page for requests without parameters (default: assets/home.html),
-    // or the shipped demo page, which lets visitors try the API (#92).
+    // The page for requests without parameters. The default, assets/demo.html,
+    // lets visitors try the API (#92); use the plain page or your own instead:
+    // 'home_page' => __DIR__ . '/../assets/home.html',
     // 'home_page' => __DIR__ . '/home.html',
-    // 'home_page' => __DIR__ . '/../assets/demo.html',
 
     // Change, add or switch off providers and styles. Only list what you change.
     // Settings on a provider apply to all its styles; a style can override them.

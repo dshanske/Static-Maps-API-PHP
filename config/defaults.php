@@ -292,13 +292,14 @@ return [
     /*
      * HTML page returned for a request without any parameters, for example
      * when someone opens the service's address in a browser. The file is sent
-     * as-is (it is not run as PHP), with Content-Type text/html. Point this at
-     * your own file to describe your install, or at assets/demo.html, a demo
-     * page where visitors can build and draw maps (#92).
-     * Default: assets/home.html.
-     * Example override: 'home_page' => __DIR__ . '/home.html',
+     * as-is (it is not run as PHP), with Content-Type text/html. The default
+     * is a demo page where visitors can build and draw maps (#92); each map
+     * drawn there uses your tile providers. assets/home.html is a plain page
+     * that only names the service, or point this at your own file.
+     * Default: assets/demo.html.
+     * Example override: 'home_page' => __DIR__ . '/../assets/home.html',
      */
-    'home_page' => __DIR__ . '/../assets/home.html',
+    'home_page' => __DIR__ . '/../assets/demo.html',
 
     /*
      * Tile providers and their map styles.

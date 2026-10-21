@@ -18,9 +18,10 @@ stable interface; pin a commit if you need a fixed point.
 
 ### Added
 
-- A demo page, `assets/demo.html`, for installs to use as their `home_page`:
-  it builds and draws map requests, with the install's providers, overlays
-  and icons, and shows the notices the server sends, with examples (#92).
+- A demo page, `assets/demo.html`, now the default `home_page`: it builds
+  and draws map requests, with the install's providers, overlays and icons,
+  and shows the notices the server sends, with examples. Set `home_page` to
+  `assets/home.html` for the plain page (#92).
 - Public-sector maps (#32): `usgs` (US Topo, imagery, imagery with topo),
   `nasa-gibs` (Blue Marble), `swisstopo` (colour, grey, SWISSIMAGE), `ign`
   (Plan IGN, orthophotos), `basemap-at` (standard, grau, Orthofoto, with
