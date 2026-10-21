@@ -133,7 +133,8 @@ final class ConfigTest extends TestCase
         $this->assertSame(['osm', 'streets'], [$config['defaults']['provider'], $config['defaults']['style']]);
         $this->assertSame(['min' => 2, 'max' => 18, 'max_limit' => null], $config['zoom']);
         $this->assertSame(
-            ['osm', 'esri', 'osm-fr', 'osm-de', 'opentopomap', 'carto', 'stadia'],
+            ['osm', 'esri', 'osm-fr', 'osm-de', 'opentopomap', 'carto', 'stadia', 'usgs', 'nasa-gibs', 'swisstopo',
+                'ign', 'basemap-at', 'os'],
             array_keys($config['providers'])
         );
         $this->assertSame([], $config['deprecations']);
@@ -151,7 +152,7 @@ final class ConfigTest extends TestCase
     {
         $config = Config::load(null, $this->configFile([
             'defaults'  => ['attribution' => 'mapbox'],
-            'providers' => ['carto' => ['key' => 'k'], 'stadia' => ['key' => 'k']],
+            'providers' => ['carto' => ['key' => 'k'], 'stadia' => ['key' => 'k'], 'os' => ['key' => 'k']],
         ]));
 
         $expected = [
@@ -162,6 +163,12 @@ final class ConfigTest extends TestCase
             'opentopomap' => 'text',
             'carto'       => 'text',
             'stadia'      => 'text',
+            'usgs'        => 'text',
+            'nasa-gibs'   => 'text',
+            'swisstopo'   => 'text',
+            'ign'         => 'text',
+            'basemap-at'  => 'text',
+            'os'          => 'text',
         ];
         $this->assertSame(array_keys($expected), array_keys($config['providers']));
         foreach ($expected as $provider => $attribution) {
@@ -189,7 +196,7 @@ final class ConfigTest extends TestCase
     {
         $config = Config::load(null, $this->configFile([
             'zoom'      => ['max' => 5],
-            'providers' => ['carto' => ['key' => 'k'], 'stadia' => ['key' => 'k']],
+            'providers' => ['carto' => ['key' => 'k'], 'stadia' => ['key' => 'k'], 'os' => ['key' => 'k']],
         ]));
         $expected = [
             'osm/streets'         => 19,
@@ -224,6 +231,22 @@ final class ConfigTest extends TestCase
             'stadia/toner-dark'   => 20,
             'stadia/terrain'      => 20,
             'stadia/watercolor'   => 16,
+            'usgs/topo'           => 16,
+            'usgs/satellite'      => 16,
+            'usgs/hybrid'         => 16,
+            'nasa-gibs/bluemarble' => 8,
+            'swisstopo/topo'      => 19,
+            'swisstopo/topo-gray' => 19,
+            'swisstopo/satellite' => 20,
+            'ign/streets'         => 19,
+            'ign/satellite'       => 19,
+            'basemap-at/streets'  => 19,
+            'basemap-at/gray'     => 19,
+            'basemap-at/satellite' => 19,
+            'basemap-at/hybrid'   => 19,
+            'os/streets'          => 16,
+            'os/outdoors'         => 16,
+            'os/light'            => 16,
         ];
 
         $actual = [];
@@ -245,7 +268,7 @@ final class ConfigTest extends TestCase
     {
         $config = Config::load(null, '/nonexistent/config.php');
         $ids = ['railways', 'railway-maxspeed', 'railway-signals', 'railway-electrification', 'railway-gauge'];
-        $this->assertSame($ids, array_keys($config['overlays']));
+        $this->assertSame([...$ids, 'usgs-hydro', 'basemap-at-labels'], array_keys($config['overlays']));
         foreach ($ids as $id) {
             $overlay = (array) Config::resolveOverlay($config, $id, null);
             $this->assertSame(19, $overlay['maxzoom'], $id);
@@ -254,6 +277,25 @@ final class ConfigTest extends TestCase
             $this->assertStringContainsString('CC-BY-SA 2.0 OpenRailwayMap', $overlay['attribution_text'], $id);
             $this->assertStringStartsWith('https://a.tiles.openrailwaymap.org/', $overlay['layers'][0], $id);
         }
+    }
+
+    /**
+     * Public-sector maps (#32): regional ones have valid bounds; OS needs a key sent in its header.
+     *
+     * @return void
+     */
+    public function testPublicSectorMaps(): void
+    {
+        $config = Config::load(null, $this->configFile(['providers' => ['os' => ['key' => 'abc']]]));
+        foreach (['usgs', 'swisstopo', 'basemap-at', 'os'] as $id) {
+            $this->assertTrue(Config::validBounds($config['providers'][$id]['bounds']), $id);
+        }
+        $this->assertNull(Config::resolve(Config::load(null, '/nonexistent/config.php'), 'os', 'streets', null));
+        $os = (array) Config::resolve($config, 'os', 'streets', new Client('t'));
+        $this->assertSame(['key: abc'], Config::headerLines($os));
+        $this->assertSame([7, 16], [$os['minzoom'], $os['maxzoom']], 'OpenData zoom levels only');
+        $this->assertNotNull(Config::resolveOverlay($config, 'usgs-hydro', null));
+        $this->assertNotNull(Config::resolveOverlay($config, 'basemap-at-labels', null));
     }
 
     /**
