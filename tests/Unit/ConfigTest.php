@@ -236,6 +236,27 @@ final class ConfigTest extends TestCase
     }
 
     /**
+     * The shipped overlays (#31): OpenRailwayMap's five styles, keyless, cached by headers, to zoom 19,
+     * with the CC-BY-SA credit.
+     *
+     * @return void
+     */
+    public function testShippedOverlays(): void
+    {
+        $config = Config::load(null, '/nonexistent/config.php');
+        $ids = ['railways', 'railway-maxspeed', 'railway-signals', 'railway-electrification', 'railway-gauge'];
+        $this->assertSame($ids, array_keys($config['overlays']));
+        foreach ($ids as $id) {
+            $overlay = (array) Config::resolveOverlay($config, $id, null);
+            $this->assertSame(19, $overlay['maxzoom'], $id);
+            $this->assertSame('headers', $overlay['cache'], $id);
+            $this->assertFalse($overlay['needs_client'], $id);
+            $this->assertStringContainsString('CC-BY-SA 2.0 OpenRailwayMap', $overlay['attribution_text'], $id);
+            $this->assertStringStartsWith('https://a.tiles.openrailwaymap.org/', $overlay['layers'][0], $id);
+        }
+    }
+
+    /**
      * Stadia (#33): needs a key, sends it in its Authorization header (never in the URL),
      * and never uses the tile cache, as agreed with Stadia (2026-10-20).
      *

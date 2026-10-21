@@ -15,9 +15,15 @@
 
 $tiles = (string) getenv('TILE_SERVER_URL');
 
+$shipped = include __DIR__ . '/../../config/defaults.php';
 $providers = [];
-foreach (array_keys((include __DIR__ . '/../../config/defaults.php')['providers']) as $id) {
+foreach (array_keys($shipped['providers']) as $id) {
     $providers[$id] = ['enabled' => false];
+}
+// Shipped overlays too: tests never reach a real tile server.
+$overlays = [];
+foreach (array_keys($shipped['overlays']) as $id) {
+    $overlays[$id] = ['enabled' => false];
 }
 
 return [
@@ -46,7 +52,7 @@ return [
         'off'     => ['key' => 'disabled-key', 'enabled' => false],
     ],
     // Overlays for OverlayTest (#30).
-    'overlays' => [
+    'overlays' => $overlays + [
         // Transparent tiles with a white square in the middle of each.
         'squares' => [
             'name'             => 'Squares',
