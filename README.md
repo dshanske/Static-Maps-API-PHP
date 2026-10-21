@@ -100,6 +100,7 @@ Shipped providers (the first style is the provider's default). Max zoom is the h
 | `osm-de` | `streets`: [OpenStreetMap Germany](https://www.openstreetmap.de/germanstyle.html) style, labels in German and the local language. Free, donation-funded server for non-commercial use; it limits how many tiles one IP address gets at full speed. | 19 |
 | `opentopomap` | `topo`: [OpenTopoMap](https://www.opentopomap.org/) | 17 |
 | `carto` | `light`: Positron · `dark`: Dark Matter · `streets`: Voyager. [CARTO](https://carto.com/basemaps/) **needs an API key**: these styles are unavailable until the install sets `'providers' => ['carto' => ['key' => '...']]`. Keys are [free](https://carto.com/basemaps/apikey) (5 million requests a month non-commercial, 1 million commercial). | 20 |
+| `stadia` | `light`: Alidade Smooth · `dark`: Alidade Smooth Dark · `bright`: Alidade Bright · `streets`: OSM Bright · `outdoors`: Outdoors · `toner`, `toner-lite`, `toner-dark`: Stamen Toner · `terrain`: Stamen Terrain · `watercolor`: Stamen Watercolor. [Stadia Maps](https://stadiamaps.com/) **needs an API key** (`'providers' => ['stadia' => ['key' => '...']]`), sent in Stadia's `Authorization` header. Its free tier is for non-commercial use only. Its tiles are never cached and its map images are `private`, as agreed with Stadia (see [Provider terms](#provider-terms)). High-density `@2x` tiles for `scale=2`. | 20; `watercolor`: 16 |
 | `custom` | Draws `tileurl`; requires a valid `key`. | `zoom.max` (18) |
 
 Every shipped map draws the credit its provider requires on the image, kept short: "© OpenStreetMap contributors" on OpenStreetMap, the OpenTopoMap and CARTO credits on theirs, and on Esri maps the "Powered by Esri" logo with the main data sources. Esri's terms allow its full source list near the map rather than on it, so the complete credit, as HTML with links, comes from [`/api/v1/attribution`](#query-api): call it with the same parameters as the image and show the `html` next to it. Each shipped provider sets its own attribution, so changing `defaults.attribution` only affects providers you add.
@@ -121,11 +122,11 @@ Maps whose tiles no longer exist are removed rather than deprecated, since they 
 
 | Removed | Why | Removed in | Instead |
 |---|---|---|---|
-| `basemap=stamen-toner`, `stamen-toner-background`, `stamen-toner-lite`, `stamen-terrain`, `stamen-terrain-background`, `stamen-watercolor` | Stamen's tile hosting shut down in 2023 | 1.0.0 | `carto` `light` / `dark` for a similar look |
+| `basemap=stamen-toner`, `stamen-toner-background`, `stamen-toner-lite`, `stamen-terrain`, `stamen-terrain-background`, `stamen-watercolor` | Stamen's tile hosting shut down in 2023 | 1.0.0 | `provider=stadia` with `style=toner`, `toner-lite`, `terrain` or `watercolor` (needs a Stadia key), or `carto` `light` / `dark` for a similar look |
 
 ### Deprecated basemap ids
 
-`basemap=<id>` still works for these ids, with `Deprecation` and `Link` response headers. New providers and styles have no `basemap` id. The Stamen ids (`stamen-toner`, `stamen-terrain`, `stamen-watercolor` and their variants) were removed because Stamen's tile hosting shut down in 2023; requests for them get the default map.
+`basemap=<id>` still works for these ids, with `Deprecation` and `Link` response headers. New providers and styles have no `basemap` id. The Stamen ids (`stamen-toner`, `stamen-terrain`, `stamen-watercolor` and their variants) were removed because Stamen's tile hosting shut down in 2023; requests for them get the default map. The Stamen styles are available again through Stadia Maps (`provider=stadia`, with a key).
 
 | `basemap` | Same as |
 |---|---|
@@ -506,11 +507,12 @@ What an install does beyond that is its own responsibility: which providers it a
 | OpenStreetMap | No heavy use or bulk downloading. A proxy must send a clear, contactable User-Agent. Commercial services are warned that access may be withdrawn at any time. | [Tile usage policy](https://operations.osmfoundation.org/policies/tiles/) |
 | Esri / ArcGIS | "Powered by Esri" and the data sources must be credited. | [Attribution requirements](https://developers.arcgis.com/documentation/esri-and-data-attribution/), [terms of use](https://www.esri.com/en-us/legal/terms/full-master-agreement) |
 | CARTO | Needs a free key. Non-commercial use up to 5 million requests a month; commercial use up to 1 million, then a paid plan. | [Basemaps](https://carto.com/basemaps), [legal](https://carto.com/legal) |
+| Stadia Maps | Needs a key. The free tier is for non-commercial use only. The terms forbid proxying or caching access to Stadia's services; Stadia support confirmed (2026-10-20) that a server like this doesn't violate that as long as each request results in API calls to Stadia's servers, so Stadia tiles are never cached and map images are marked `private`. Alidade Satellite is left out (its imagery terms forbid processing the imagery). Credit: Stadia Maps, OpenMapTiles, OpenStreetMap, and Stamen Design for the Stamen styles. | [Terms of service](https://stadiamaps.com/terms-of-service), [attribution](https://docs.stadiamaps.com/attribution/) |
 | OpenTopoMap | CC-BY-SA, so commercial use is allowed with credit. No mass downloads. | [About](https://opentopomap.org/about) |
 | OpenStreetMap France (`osm-fr`) | Free for non-profit sites with moderate traffic; very low use on a business site is tolerated. The credit must be visible on the map. Service may be cut off without notice. | [Usage](https://www.openstreetmap.fr/usage/) |
 | OpenStreetMap Germany (`osm-de`) | Non-commercial use only (small sites such as a company's directions page are fine). Full-speed tiles are limited per IP address. | [German style](https://www.openstreetmap.de/germanstyle.html) |
 
-Some providers have been looked at and left out because their terms don't allow this kind of use. For example, Stadia Maps' [terms](https://stadiamaps.com/terms-of-service) forbid proxying its tiles, and its free tier is for non-commercial use only.
+Providers whose terms don't allow this kind of use are left out; each provider issue records the terms review.
 
 Install files written for the older format (`basemaps` and `defaults.basemap`) keep working: they are translated to providers and styles, and each request logs a deprecation message until you update the file.
 

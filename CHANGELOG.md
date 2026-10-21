@@ -18,6 +18,12 @@ stable interface; pin a commit if you need a fixed point.
 
 ### Added
 
+- Stadia Maps provider `stadia` (#33), with a key: Alidade Smooth (`light`,
+  `dark`), Alidade Bright, OSM Bright, Outdoors, and the Stamen styles Toner
+  (`toner`, `toner-lite`, `toner-dark`), Terrain and Watercolor. The key is
+  sent in Stadia's `Authorization` header; tiles are never cached and images
+  are private, as agreed with Stadia support. Free tier: non-commercial only.
+
 - Overlays (#30): an `overlays` setting and the `overlay` request parameter
   draw transparent tile layers on top of any map, with their own opacity,
   zoom range, coverage, key and headers, and their credit added to the map's

@@ -132,7 +132,7 @@ final class ConfigTest extends TestCase
         $this->assertSame(['osm', 'streets'], [$config['defaults']['provider'], $config['defaults']['style']]);
         $this->assertSame(['min' => 2, 'max' => 18, 'max_limit' => null], $config['zoom']);
         $this->assertSame(
-            ['osm', 'esri', 'osm-fr', 'osm-de', 'opentopomap', 'carto'],
+            ['osm', 'esri', 'osm-fr', 'osm-de', 'opentopomap', 'carto', 'stadia'],
             array_keys($config['providers'])
         );
         $this->assertSame([], $config['deprecations']);
@@ -150,7 +150,7 @@ final class ConfigTest extends TestCase
     {
         $config = Config::load(null, $this->configFile([
             'defaults'  => ['attribution' => 'mapbox'],
-            'providers' => ['carto' => ['key' => 'k']],
+            'providers' => ['carto' => ['key' => 'k'], 'stadia' => ['key' => 'k']],
         ]));
 
         $expected = [
@@ -160,6 +160,7 @@ final class ConfigTest extends TestCase
             'osm-de'      => 'text',
             'opentopomap' => 'text',
             'carto'       => 'text',
+            'stadia'      => 'text',
         ];
         $this->assertSame(array_keys($expected), array_keys($config['providers']));
         foreach ($expected as $provider => $attribution) {
@@ -187,7 +188,7 @@ final class ConfigTest extends TestCase
     {
         $config = Config::load(null, $this->configFile([
             'zoom'      => ['max' => 5],
-            'providers' => ['carto' => ['key' => 'k']],
+            'providers' => ['carto' => ['key' => 'k'], 'stadia' => ['key' => 'k']],
         ]));
         $expected = [
             'osm/streets'         => 19,
@@ -212,6 +213,16 @@ final class ConfigTest extends TestCase
             'carto/light'         => 20,
             'carto/dark'          => 20,
             'carto/streets'       => 20,
+            'stadia/light'        => 20,
+            'stadia/dark'         => 20,
+            'stadia/bright'       => 20,
+            'stadia/streets'      => 20,
+            'stadia/outdoors'     => 20,
+            'stadia/toner'        => 20,
+            'stadia/toner-lite'   => 20,
+            'stadia/toner-dark'   => 20,
+            'stadia/terrain'      => 20,
+            'stadia/watercolor'   => 16,
         ];
 
         $actual = [];
@@ -221,6 +232,30 @@ final class ConfigTest extends TestCase
             }
         }
         $this->assertSame($expected, $actual);
+    }
+
+    /**
+     * Stadia (#33): needs a key, sends it in its Authorization header (never in the URL),
+     * and never uses the tile cache, as agreed with Stadia (2026-10-20).
+     *
+     * @return void
+     */
+    public function testStadia(): void
+    {
+        $without = Config::load(null, '/nonexistent/config.php');
+        $this->assertNull(Config::resolve($without, 'stadia', 'toner', new Client('t')), 'no key: unavailable');
+
+        $config = Config::load(null, $this->configFile(['providers' => ['stadia' => ['key' => 'abc']]]));
+        $this->assertNull(Config::resolve($config, 'stadia', 'toner', null), 'needs a client key');
+        foreach (array_keys($config['providers']['stadia']['styles']) as $style) {
+            $resolved = (array) Config::resolve($config, 'stadia', $style, new Client('t'));
+            $this->assertSame(['Authorization: Stadia-Auth abc'], Config::headerLines($resolved), $style);
+            $this->assertSame('off', $resolved['cache'], $style);
+            $this->assertStringNotContainsString('{key}', $resolved['layers'][0], $style);
+            $this->assertStringContainsString('Stadia Maps', $resolved['attribution_text'], $style);
+            $stamen = str_starts_with($style, 'toner') || in_array($style, ['terrain', 'watercolor'], true);
+            $this->assertSame($stamen, str_contains($resolved['attribution_text'], 'Stamen Design'), $style);
+        }
     }
 
     /**
