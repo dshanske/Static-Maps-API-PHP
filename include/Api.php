@@ -124,6 +124,7 @@ final class Api
             'scales'       => range(1, Parameters::MAX_SCALE),
             'attributions' => Attribution::NAMES,
             'attribution_positions' => Attribution::POSITIONS,
+            'scalebars'    => ScaleBar::UNITS,
             'access'       => [
                 'mode'         => $this->config['access']['mode'],
                 'credentials'  => $this->config['access']['credentials'],

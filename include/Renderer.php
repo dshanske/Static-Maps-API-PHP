@@ -226,7 +226,38 @@ final class Renderer
             static fn (string $t): bool => $t !== ''
         );
         $text = $credits === [] ? null : implode(' | ', $credits);
-        (new Attribution($remote))->draw($im, $attribution, $text, $position, $imageWidth, $imageHeight, $scale);
+        $drawn = (new Attribution($remote))->draw(
+            $im,
+            $attribution,
+            $text,
+            $position,
+            $imageWidth,
+            $imageHeight,
+            $scale
+        );
+
+        // The scale bar (#102), clear of the attribution; left out where one scale would mislead.
+        if ($params->scalebar !== null) {
+            [, $south, , $north] = $plan->bounds($this->webmercator, $width, $height);
+            $variation = ScaleBar::variation($latitude, $south, $north);
+            if ($variation > ScaleBar::MAX_VARIATION) {
+                $headers[] = sprintf(
+                    'X-Map-Scalebar: left out; the scale changes by %d%% across this map (at most %d%%)',
+                    (int) round($variation * 100),
+                    (int) round(ScaleBar::MAX_VARIATION * 100)
+                );
+            } else {
+                ScaleBar::draw(
+                    $im,
+                    ScaleBar::bars($params->scalebar, ScaleBar::metresPerPixel($latitude, $zoom), $width),
+                    $params->scalebarPosition,
+                    $imageWidth,
+                    $imageHeight,
+                    $scale,
+                    $drawn
+                );
+            }
+        }
 
         [$typeHeaders, $body] = $this->encode($im, $format, $params->quality);
         $cacheHeaders = $this->cacheHeaders($headers, $basemap, $client !== null && !$client->signed, $body);

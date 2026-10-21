@@ -41,6 +41,8 @@ Numbers are checked: a value that isn't a number, or is out of the range given b
 * `quality` - default 75 - JPEG and WebP quality, a whole number from 1 to 100.
 * `overlay` - optional - Transparent layers to draw on top of the map, e.g. `overlay=railways` or `overlay=railways,seamarks` (also `overlay[]=`), from the install's [`overlays`](#overlays). Drawn in order, after the map and before paths and markers, with their credit added to the map's. At most 3 (`limits.max_overlays`). Unknown, unavailable or extra ones are left out and listed in an `X-Map-Overlay` header, e.g. `unavailable=nope; over-limit=d; max=3`.
 * `scale` - default 1 - `2` for a high-density ("retina") image: the same map area at twice the `width` and `height` in pixels, with markers, paths and the attribution drawn twice as large, for example for `<img srcset="… 2x">`. Tiles come from the next zoom level up, so the map shows more detail and its labels look smaller; maps with `@2x` tiles (`{r}` in their URLs) use those instead. At a map's highest zoom the tiles are enlarged, with an `X-Map-Scale: enlarged` header. The size limits apply to the image as sent, so a `scale=2` map can be at most 640 × 640 by default. `/api/v1/` lists the `scales` accepted.
+* `scalebar` - optional - Draw a scale bar (#102): `metric`, `imperial`, or `both` (two bars, metric above). It shows a round distance (1, 2 or 5 × 10ⁿ m, km, ft or mi) at most a quarter of the image wide (150 px at most), measured at the map's centre, on a light strip like the text attribution. Web Mercator's scale changes with latitude, so where it changes by more than 10% between the centre and the top or bottom edge (low zooms, and maps far from the equator at middle zooms) the bar is left out, with an `X-Map-Scalebar` header saying so. Anything else gets HTTP 400.
+* `scalebar_position` - default "bottomleft" - The scale bar's corner: `bottomleft`, `bottomright`, `topleft` or `topright`. It never covers the attribution: in the same corner, or next to a credit that spans the width, it moves past it. Anything else gets HTTP 400.
 * `bezier` - Specify a bezier curve to your path, an angle in degrees between -89 and 89. 25 will give you a nicely curved line. [More Info](https://aaronparecki.com/2017/01/02/6/day-13-curved-map-lines)
 
 Maps can cross the antimeridian (±180° longitude). Markers and paths either side of it are fitted together as one small area (Fiji, the Bering Strait), and each path segment takes the short way round, so a path from Japan to Alaska crosses the Pacific.
@@ -83,6 +85,7 @@ Headers on a map that was drawn, but not quite as requested:
 | `X-Map-Scale` | A `scale=2` map at the map's highest zoom: its tiles were enlarged instead of taken from the next zoom up. |
 | `X-Map-Format` | The requested `format` isn't available on this server; the map was sent as PNG. |
 | `X-Map-Attribution` | The `attribution` image URL wasn't used (it needs a valid key). |
+| `X-Map-Scalebar` | The scale bar was left out: the scale changes too much across this map for one bar (see `scalebar`). |
 | `X-Marker-<n>`, `X-Path-<n>` | Marker or path number n (counting from 1) was left out, and why. |
 | `Deprecation`, `Link` | The request used something deprecated (see [Deprecated](#deprecated)). |
 
