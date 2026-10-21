@@ -810,7 +810,7 @@ return [
      *   'key', 'headers', 'requires_auth', 'enabled', 'cache' as for providers
      *                      (a client's `providers` list names overlays too).
      *
-     * No overlays are shipped yet. Example override:
+     * Example override (an overlay of your own):
      *   'overlays' => [
      *       'railways' => [
      *           'name'             => 'OpenRailwayMap',
@@ -819,7 +819,59 @@ return [
      *       ],
      *   ],
      */
-    'overlays' => [],
+    'overlays' => [
+        // OpenRailwayMap (https://www.openrailwaymap.org/): railway lines over any
+        // map. Its tile policy (https://wiki.openstreetmap.org/wiki/OpenRailwayMap/API,
+        // summarised on #31, 2026-10-18) allows small-scale, public,
+        // non-commercial use; for-profit use must run its own tile server. Tiles
+        // are CC-BY-SA 2.0 and send Cache-Control and ETags, so caching follows
+        // them. Real tiles to zoom 19 (checked 2026-10-21; 20 returns 404).
+        // Railway lines, stations and infrastructure.
+        'railways' => [
+            'name'             => 'OpenRailwayMap',
+            'layers'           => ['https://a.tiles.openrailwaymap.org/standard/{z}/{x}/{y}.png'],
+            'cache'            => 'headers',
+            'maxzoom'          => 19,
+            'attribution_text' => 'Data © OpenStreetMap contributors, Style: CC-BY-SA 2.0 OpenRailwayMap',
+            'attribution_html' => 'Data © <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors, Style: <a href="https://creativecommons.org/licenses/by-sa/2.0/">CC-BY-SA 2.0</a> <a href="https://www.openrailwaymap.org/">OpenRailwayMap</a>',
+        ],
+        // Maximum speeds.
+        'railway-maxspeed' => [
+            'name'             => 'OpenRailwayMap: maximum speeds',
+            'layers'           => ['https://a.tiles.openrailwaymap.org/maxspeed/{z}/{x}/{y}.png'],
+            'cache'            => 'headers',
+            'maxzoom'          => 19,
+            'attribution_text' => 'Data © OpenStreetMap contributors, Style: CC-BY-SA 2.0 OpenRailwayMap',
+            'attribution_html' => 'Data © <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors, Style: <a href="https://creativecommons.org/licenses/by-sa/2.0/">CC-BY-SA 2.0</a> <a href="https://www.openrailwaymap.org/">OpenRailwayMap</a>',
+        ],
+        // Signals and train protection.
+        'railway-signals' => [
+            'name'             => 'OpenRailwayMap: signals',
+            'layers'           => ['https://a.tiles.openrailwaymap.org/signals/{z}/{x}/{y}.png'],
+            'cache'            => 'headers',
+            'maxzoom'          => 19,
+            'attribution_text' => 'Data © OpenStreetMap contributors, Style: CC-BY-SA 2.0 OpenRailwayMap',
+            'attribution_html' => 'Data © <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors, Style: <a href="https://creativecommons.org/licenses/by-sa/2.0/">CC-BY-SA 2.0</a> <a href="https://www.openrailwaymap.org/">OpenRailwayMap</a>',
+        ],
+        // Electrification.
+        'railway-electrification' => [
+            'name'             => 'OpenRailwayMap: electrification',
+            'layers'           => ['https://a.tiles.openrailwaymap.org/electrification/{z}/{x}/{y}.png'],
+            'cache'            => 'headers',
+            'maxzoom'          => 19,
+            'attribution_text' => 'Data © OpenStreetMap contributors, Style: CC-BY-SA 2.0 OpenRailwayMap',
+            'attribution_html' => 'Data © <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors, Style: <a href="https://creativecommons.org/licenses/by-sa/2.0/">CC-BY-SA 2.0</a> <a href="https://www.openrailwaymap.org/">OpenRailwayMap</a>',
+        ],
+        // Track gauges.
+        'railway-gauge' => [
+            'name'             => 'OpenRailwayMap: track gauge',
+            'layers'           => ['https://a.tiles.openrailwaymap.org/gauge/{z}/{x}/{y}.png'],
+            'cache'            => 'headers',
+            'maxzoom'          => 19,
+            'attribution_text' => 'Data © OpenStreetMap contributors, Style: CC-BY-SA 2.0 OpenRailwayMap',
+            'attribution_html' => 'Data © <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors, Style: <a href="https://creativecommons.org/licenses/by-sa/2.0/">CC-BY-SA 2.0</a> <a href="https://www.openrailwaymap.org/">OpenRailwayMap</a>',
+        ],
+    ],
 
     /*
      * DEPRECATED (#40): the old `basemap` request parameter. Each old id maps to

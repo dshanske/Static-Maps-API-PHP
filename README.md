@@ -490,7 +490,19 @@ Overlays are transparent tile layers, such as railways or sea marks, that a requ
 ],
 ```
 
-An overlay can also have `maxzoom`, `bounds` (skipped for maps entirely outside them), `attribution_html`, `key`, `headers`, `requires_auth`, `enabled` and `cache`, as providers can. A client's `providers` list names overlays too. Failed overlay tiles are left transparent. No overlays are shipped yet; `/api/v1/overlays` lists the ones an install has. Check each source's terms first (below).
+An overlay can also have `maxzoom`, `bounds` (skipped for maps entirely outside them), `attribution_html`, `key`, `headers`, `requires_auth`, `enabled` and `cache`, as providers can. A client's `providers` list names overlays too. Failed overlay tiles are left transparent. `/api/v1/overlays` lists the ones an install has. Check each source's terms first (below).
+
+Shipped overlays:
+
+| `overlay` | Shows | Max zoom |
+|---|---|---|
+| `railways` | [OpenRailwayMap](https://www.openrailwaymap.org/): railway lines, stations and infrastructure | 19 |
+| `railway-maxspeed` | OpenRailwayMap: maximum speeds | 19 |
+| `railway-signals` | OpenRailwayMap: signals and train protection | 19 |
+| `railway-electrification` | OpenRailwayMap: electrification | 19 |
+| `railway-gauge` | OpenRailwayMap: track gauges | 19 |
+
+An install can switch them off with `'overlays' => ['railways' => ['enabled' => false]]`.
 
 ### Regional maps
 
@@ -512,6 +524,7 @@ What an install does beyond that is its own responsibility: which providers it a
 | CARTO | Needs a free key. Non-commercial use up to 5 million requests a month; commercial use up to 1 million, then a paid plan. | [Basemaps](https://carto.com/basemaps), [legal](https://carto.com/legal) |
 | Stadia Maps | Needs a key. The free tier is for non-commercial use only. The terms forbid proxying or caching access to Stadia's services; Stadia support confirmed (2026-10-20) that a server like this doesn't violate that as long as each request results in API calls to Stadia's servers, so Stadia tiles are never cached and map images are marked `private`. Alidade Satellite is left out (its imagery terms forbid processing the imagery). Credit: Stadia Maps, OpenMapTiles, OpenStreetMap, and Stamen Design for the Stamen styles. | [Terms of service](https://stadiamaps.com/terms-of-service), [attribution](https://docs.stadiamaps.com/attribution/) |
 | OpenTopoMap | CC-BY-SA, so commercial use is allowed with credit. No mass downloads. | [About](https://opentopomap.org/about) |
+| OpenRailwayMap (overlays) | Small-scale, public, non-commercial use only; for-profit use must run its own tile server. Tiles are CC-BY-SA 2.0. | [Tile usage](https://wiki.openstreetmap.org/wiki/OpenRailwayMap/API) |
 | OpenStreetMap France (`osm-fr`) | Free for non-profit sites with moderate traffic; very low use on a business site is tolerated. The credit must be visible on the map. Service may be cut off without notice. | [Usage](https://www.openstreetmap.fr/usage/) |
 | OpenStreetMap Germany (`osm-de`) | Non-commercial use only (small sites such as a company's directions page are fine). Full-speed tiles are limited per IP address. | [German style](https://www.openstreetmap.de/germanstyle.html) |
 

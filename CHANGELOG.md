@@ -18,6 +18,9 @@ stable interface; pin a commit if you need a fixed point.
 
 ### Added
 
+- Shipped overlays (#31): OpenRailwayMap's `railways`, `railway-maxspeed`,
+  `railway-signals`, `railway-electrification` and `railway-gauge`
+  (small-scale, public, non-commercial use, per its tile policy).
 - GeoJSON (#38): `geojson` draws a Feature, FeatureCollection or geometry as
   markers and paths, styled with simplestyle-spec properties; skipped
   features are counted in `X-Map-GeoJSON`.
