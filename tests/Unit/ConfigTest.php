@@ -133,7 +133,7 @@ final class ConfigTest extends TestCase
         $this->assertSame(['osm', 'streets'], [$config['defaults']['provider'], $config['defaults']['style']]);
         $this->assertSame(['min' => 2, 'max' => 18, 'max_limit' => null], $config['zoom']);
         $this->assertSame(
-            ['osm', 'esri', 'osm-fr', 'osm-de', 'opentopomap', 'carto', 'stadia', 'usgs', 'nasa-gibs', 'swisstopo',
+            ['osm', 'esri', 'osm-fr', 'osm-de', 'opentopomap', 'carto', 'stadia', 'geoapify', 'usgs', 'nasa-gibs', 'swisstopo',
                 'ign', 'basemap-at', 'os'],
             array_keys($config['providers'])
         );
@@ -152,7 +152,7 @@ final class ConfigTest extends TestCase
     {
         $config = Config::load(null, $this->configFile([
             'defaults'  => ['attribution' => 'mapbox'],
-            'providers' => ['carto' => ['key' => 'k'], 'stadia' => ['key' => 'k'], 'os' => ['key' => 'k']],
+            'providers' => ['carto' => ['key' => 'k'], 'stadia' => ['key' => 'k'], 'geoapify' => ['key' => 'k'], 'os' => ['key' => 'k']],
         ]));
 
         $expected = [
@@ -163,6 +163,7 @@ final class ConfigTest extends TestCase
             'opentopomap' => 'text',
             'carto'       => 'text',
             'stadia'      => 'text',
+            'geoapify'    => 'text',
             'usgs'        => 'text',
             'nasa-gibs'   => 'text',
             'swisstopo'   => 'text',
@@ -196,7 +197,7 @@ final class ConfigTest extends TestCase
     {
         $config = Config::load(null, $this->configFile([
             'zoom'      => ['max' => 5],
-            'providers' => ['carto' => ['key' => 'k'], 'stadia' => ['key' => 'k'], 'os' => ['key' => 'k']],
+            'providers' => ['carto' => ['key' => 'k'], 'stadia' => ['key' => 'k'], 'geoapify' => ['key' => 'k'], 'os' => ['key' => 'k']],
         ]));
         $expected = [
             'osm/streets'         => 19,
@@ -231,6 +232,15 @@ final class ConfigTest extends TestCase
             'stadia/toner-dark'   => 20,
             'stadia/terrain'      => 20,
             'stadia/watercolor'   => 16,
+            'geoapify/streets'      => 20,
+            'geoapify/streets-gray' => 20,
+            'geoapify/osm-carto'    => 20,
+            'geoapify/basic'        => 20,
+            'geoapify/liberty'      => 20,
+            'geoapify/light'        => 20,
+            'geoapify/dark'         => 20,
+            'geoapify/toner'        => 20,
+            'geoapify/toner-gray'   => 20,
             'usgs/topo'           => 16,
             'usgs/satellite'      => 16,
             'usgs/hybrid'         => 16,
@@ -276,6 +286,23 @@ final class ConfigTest extends TestCase
             $this->assertFalse($overlay['needs_client'], $id);
             $this->assertStringContainsString('CC-BY-SA 2.0 OpenRailwayMap', $overlay['attribution_text'], $id);
             $this->assertStringStartsWith('https://a.tiles.openrailwaymap.org/', $overlay['layers'][0], $id);
+        }
+    }
+
+    /**
+     * Geoapify (#33): needs a key in its apiKey parameter, URL-encoded; the free-plan credit on every style.
+     *
+     * @return void
+     */
+    public function testGeoapify(): void
+    {
+        $this->assertNull(Config::resolve(Config::load(null, '/nonexistent/config.php'), 'geoapify', 'streets', null));
+        $config = Config::load(null, $this->configFile(['providers' => ['geoapify' => ['key' => 'a b']]]));
+        foreach (array_keys($config['providers']['geoapify']['styles']) as $style) {
+            $resolved = (array) Config::resolve($config, 'geoapify', $style, new Client('t'));
+            $this->assertStringStartsWith('Powered by Geoapify', $resolved['attribution_text'], $style);
+            $url = Config::tileUrl($resolved['layers'][0], 1, 2, 3, $resolved['key']);
+            $this->assertStringEndsWith('/3/1/2{r}.png?apiKey=a%20b', $url, $style);
         }
     }
 

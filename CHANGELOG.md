@@ -24,6 +24,10 @@ stable interface; pin a commit if you need a fixed point.
   labels) and `os` (Ordnance Survey Road, Outdoor, Light; needs a free key);
   overlays `usgs-hydro` and `basemap-at-labels`. Regional ones have `bounds`.
 
+- Geoapify provider `geoapify` (#33), with a key: OSM Bright (and Grey), OSM
+  Carto, Klokantech Basic, OSM Liberty, Positron, Dark Matter and Toner (and
+  Grey), with `@2x` tiles.
+
 - Shipped overlays (#31): OpenRailwayMap's `railways`, `railway-maxspeed`,
   `railway-signals`, `railway-electrification` and `railway-gauge`
   (small-scale, public, non-commercial use, per its tile policy).
