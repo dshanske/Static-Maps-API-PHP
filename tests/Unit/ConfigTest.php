@@ -71,6 +71,9 @@ final class ConfigTest extends TestCase
                 'max_height'  => 1280,
                 'max_markers' => 100,
                 'max_points'  => 10000,
+                'icon_urls'   => 5,
+                'icon_bytes'  => 262144,
+                'icon_pixels' => 256,
             ],
             'errors'          => ['strict' => false],
             'cache'           => [

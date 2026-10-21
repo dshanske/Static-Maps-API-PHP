@@ -203,4 +203,73 @@ final class MarkerParserTest extends TestCase
         $this->assertStringStartsWith('X-Marker-1: lat and lng must be numbers in range', $result['headers'][0]);
         $this->assertTrue($bounds->isEmpty());
     }
+
+    /**
+     * Generated pins, dots and labels (#37): drawn at the requested density, with their anchors.
+     *
+     * @return void
+     */
+    public function testGeneratedIcons(): void
+    {
+        $result = (new MarkerParser(null, PHP_INT_MAX, 2))->parse([
+            'lat:1;lng:2;icon:pin;color:00ff00;size:large;label:A',
+            'lat:1;lng:2;icon:dot;size:small',
+            'lat:1;lng:2;icon:none;label:Hello',
+        ], false, new Bounds());
+
+        $this->assertSame([], $result['headers']);
+        [$pin, $dot, $text] = $result['markers'];
+        $this->assertSame(100, imagesy($pin['iconImg']), 'a large pin is 50 CSS px, drawn at density 2');
+        $this->assertSame(2.0, $pin['density']);
+        $this->assertSame(['frac', 0.5, 1.0], $pin['anchor']);
+        $this->assertSame(['frac', 0.5, 0.5], $dot['anchor']);
+        $this->assertSame(['frac', 0.5, 0.5], $text['anchor']);
+        // The pin's fill colour is in its upper half.
+        $rgba = imagecolorsforindex($pin['iconImg'], imagecolorat($pin['iconImg'], 16, 22));
+        $this->assertSame([0, 255, 0], [$rgba['red'], $rgba['green'], $rgba['blue']]);
+    }
+
+    /**
+     * Anchor, scale, rotation and opacity are read and checked; bad values leave the marker out.
+     *
+     * @return void
+     */
+    public function testOptions(): void
+    {
+        $result = self::parser()->parse([
+            'lat:1;lng:2;icon:small-blue-cutout;anchor:topleft;scale:2;rotation:90;opacity:0.5',
+            'lat:1;lng:2;icon:dot-small-red;anchor:3,4',
+            'lat:1;lng:2;icon:pin;anchor:middle',
+            'lat:1;lng:2;icon:pin;scale:9',
+            'lat:1;lng:2;icon:pin;rotation:left',
+            'lat:1;lng:2;icon:pin;opacity:2',
+            'lat:1;lng:2;icon:pin;color:red',
+            'lat:1;lng:2;icon:pin;size:huge',
+            'lat:1;lng:2;icon:pin;label:ABCD',
+            'lat:1;lng:2;icon:none',
+            'lat:1;lng:2;icon:small-blue-cutout;label:A',
+        ], false, new Bounds());
+
+        [$first, $second] = $result['markers'];
+        $this->assertSame([['frac', 0.0, 0.0], 2.0, 90.0, 0.5], [
+            $first['anchor'],
+            $first['scale'],
+            $first['rotation'],
+            $first['opacity'],
+        ]);
+        $this->assertSame(['px', 3.0, 4.0], $second['anchor']);
+        $this->assertCount(2, $result['markers']);
+        $this->assertSame([
+            'X-Marker-3: anchor must be center, top, bottom, left, right, topleft, topright, bottomleft, '
+                . 'bottomright, or x,y in pixels',
+            'X-Marker-4: scale must be a number from 0.25 to 4',
+            'X-Marker-5: rotation must be a number of degrees',
+            'X-Marker-6: opacity must be a number from 0 to 1',
+            'X-Marker-7: color must be RRGGBB (hex)',
+            'X-Marker-8: size must be small, medium or large',
+            'X-Marker-9: label must be at most 3 characters on icon:pin',
+            'X-Marker-10: icon:none needs a label',
+            'X-Marker-11: label works with icon:pin, dot or none',
+        ], $result['headers']);
+    }
 }

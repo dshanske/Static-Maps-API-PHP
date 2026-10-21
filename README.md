@@ -200,7 +200,35 @@ The API runs from the same `index.php` as the maps; the nginx configuration unde
 * `lat` - Latitude of the pin.
 * `lng` - Longitude of the pin.
 * (`location`, an address to geocode, is no longer supported. A marker with only a `location` is skipped, with an `X-Marker-<n>` header saying so.)
-* `icon` - Icon to use for the marker. Must choose one of the icons provided in this library, or specify a full URL to a png image. If an invalid icon is specified, the marker will not be rendered. Using a URL required authentication.
+* `icon` - Icon to use for the marker:
+  * one of the [built-in icons](#built-in-marker-images) below;
+  * `pin` or `dot`: drawn on request in any `color` and `size`, with an optional `label`, sharp at any `scale`;
+  * `none`: a text `label` on its own, with a white halo;
+  * a full URL to a PNG image, for clients with a [key](#access-and-client-keys). At most 5 different icon URLs per map (`limits.icon_urls`), each at most 256 KB (`limits.icon_bytes`). Images over 256 px (`limits.icon_pixels`) are drawn at that size.
+
+  A marker whose icon can't be used is left out, with an `X-Marker-<n>` header saying why.
+
+Options for any icon:
+
+| Option | Default | Meaning |
+|---|---|---|
+| `color` | `d32f2f` | Fill colour of a `pin` or `dot`, `RRGGBB`. |
+| `size` | `medium` | Size of a `pin` (30, 40 or 50 px high) or `dot` (12, 18 or 24 px): `small`, `medium` or `large`. |
+| `label` | none | Up to 3 characters on a `pin` or `dot` (e.g. `A`, `12`), or up to 32 characters of text with `icon:none`. |
+| `labelcolor` | white or dark, to suit the `color` | Label colour, `RRGGBB`. |
+| `anchor` | bottom centre (`dot`, `dot-*` and labels: centre) | Which point of the icon is on the marker's position: `center`, `top`, `bottom`, `left`, `right`, `topleft`, `topright`, `bottomleft`, `bottomright`, or `x,y` in pixels from the icon's top-left corner. |
+| `scale` | `1` | Size factor, 0.25 to 4. |
+| `rotation` | `0` | Clockwise rotation in degrees, about the anchor, e.g. for a heading. |
+| `opacity` | `1` | 0 (invisible) to 1. |
+
+For example, a large green pin labelled A, and an arrow-like pin turned to a heading of 45°:
+
+```
+marker[]=lat:45.5165;lng:-122.6764;icon:pin;size:large;color:43a047;label:A
+marker[]=lat:45.52;lng:-122.68;icon:pin;color:000000;rotation:45
+```
+
+`/api/v1/icons` lists the built-in icons, the generated types, sizes and anchors, and the icon URL limits.
 
 
 ### Built-In Marker Images

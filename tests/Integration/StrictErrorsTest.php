@@ -94,4 +94,43 @@ final class StrictErrorsTest extends RenderTestCase
         $polyline = $this->render(self::MAP + ['polyline' => 'enc:_p~iF~ps|U' . str_repeat('??', 20)]);
         $this->assertSame('left out 1 path(s) over the limit of 20 points', $polyline->header('X-Map-Limit'));
     }
+
+    /**
+     * At most icon_urls (here 2) different icon URLs; the same URL again doesn't count twice.
+     *
+     * @return void
+     */
+    public function testIconUrlLimit(): void
+    {
+        $tiles = (string) self::$tiles?->url;
+        $icon = static fn (string $path): string => 'lat:45.5165;lng:-122.6764;icon:' . $tiles . $path;
+        $two = ['/overlay/1/1/1.png', '/overlay/1/1/2.png', '/overlay/1/1/1.png'];
+        $ok = $this->render(self::MAP + ['key' => 'test-token', 'marker' => array_map($icon, $two)]);
+        $this->assertSame(200, $ok->status);
+
+        // Three markers (this config's max_markers), three different URLs.
+        $three = ['/overlay/1/1/1.png', '/overlay/1/1/2.png', '/overlay/1/2/1.png'];
+        $over = $this->render(self::MAP + ['key' => 'test-token', 'marker' => array_map($icon, $three)]);
+        $this->assertSame(400, $over->status);
+        $this->assertSame("marker 3: at most 2 different icon URLs per map\n", $over->body);
+    }
+
+    /**
+     * Icons from URLs bigger than icon_pixels (here 64) are drawn at that size: the 256 px
+     * fixture icon's 16 px white centre square becomes 4 px, 32 px above the anchor.
+     *
+     * @return void
+     */
+    public function testLargeIconsAreDrawnSmaller(): void
+    {
+        $marker = 'lat:45.5165;lng:-122.6764;icon:' . self::$tiles?->url . '/overlay/1/1/1.png';
+        $response = $this->render(
+            ['latitude' => 45.5165, 'longitude' => -122.6764, 'zoom' => 14, 'width' => 300, 'height' => 300]
+            + ['key' => 'test-token', 'marker' => [$marker]]
+        );
+
+        $im = $response->image();
+        $this->assertPixel([255, 255, 255], $im, 150, 118, 10);
+        $this->assertNotSame([255, 255, 255], self::rgbAt($im, 150, 22), 'not at full size');
+    }
 }

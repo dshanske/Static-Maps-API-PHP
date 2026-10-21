@@ -87,6 +87,13 @@ return [
      *               would go over is left out, with an `X-Map-Limit` header.
      *               Default: 10000.
      *
+     * 'icon_urls'   Most different marker icon URLs per map (only clients with
+     *               a key may use them); markers with more are left out with an
+     *               `X-Marker-<n>` header. Default: 5.
+     * 'icon_bytes'  Largest marker icon download, in bytes. Default: 262144 (256 KB).
+     * 'icon_pixels' Marker icons from URLs larger than this many pixels wide or
+     *               high are drawn at this size. Default: 256.
+     *
      * Example override: 'limits' => ['max_width' => 2048, 'max_height' => 2048, 'max_markers' => 20],
      */
     'limits' => [
@@ -94,6 +101,9 @@ return [
         'max_height'  => 1280,
         'max_markers' => 100,
         'max_points'  => 10000,
+        'icon_urls'   => 5,
+        'icon_bytes'  => 262144,
+        'icon_pixels' => 256,
     ],
 
     /*

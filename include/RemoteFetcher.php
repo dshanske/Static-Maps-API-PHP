@@ -53,6 +53,21 @@ final class RemoteFetcher
     }
 
     /**
+     * The same fetcher with a lower size limit.
+     *
+     * @param int $bytes Largest response body accepted, in bytes.
+     *
+     * @return self A copy whose limit is the lower of its own and $bytes.
+     */
+    public function withMaxBytes(int $bytes): self
+    {
+        $copy = clone $this;
+        $copy->maxBytes = min($this->maxBytes, $bytes);
+
+        return $copy;
+    }
+
+    /**
      * A curl handle for one download, with all limits set.
      *
      * The body is returned by curl_exec() or curl_multi_getcontent(). A download

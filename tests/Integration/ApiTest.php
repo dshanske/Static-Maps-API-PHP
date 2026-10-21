@@ -243,6 +243,10 @@ final class ApiTest extends RenderTestCase
             $icons['small-blue-cutout']
         );
         $this->assertSame('center', $icons['dot-small-red']['anchor']);
+        $this->assertSame(['pin', 'dot', 'none'], $data['generated']['types']);
+        $this->assertSame(['small', 'medium', 'large'], $data['generated']['sizes']);
+        $this->assertContains('bottomright', $data['anchors']);
+        $this->assertSame(['icons' => 5, 'bytes' => 262144, 'pixels' => 256], $data['url_limits']);
 
         $image = self::$app->get($icons['dot-small-red']['url']);
         $this->assertSame(200, $image->status);

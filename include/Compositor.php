@@ -324,34 +324,32 @@ final class Compositor
     /**
      * Where a marker icon sits around its anchor point, as drawn by drawMarkers().
      *
-     * Icons are shrunk by 1.5 on maps under 120 px wide or high. Icons with a
-     * shadow are anchored at their bottom centre; `dot-*` icons at their centre.
-     *
-     * @param GdImage $icon   The icon image.
-     * @param string  $name   The icon name (or URL); a `dot-` prefix means centre-anchored.
-     * @param int     $width  Map width in pixels.
-     * @param int     $height Map height in pixels.
+     * @param array<string, mixed> $marker A marker from MarkerParser (see MarkerIcon::place()).
+     * @param int                  $width  Map width in CSS pixels.
+     * @param int                  $height Map height in CSS pixels.
      *
      * @return array{top: int, right: int, bottom: int, left: int} Pixels the icon reaches from
-     *         its anchor in each direction.
+     *         its anchor in each direction, at the map's CSS size.
      */
-    public static function markerBox(GdImage $icon, string $name, int $width, int $height): array
+    public static function markerBox(array $marker, int $width, int $height): array
     {
-        $shrink = ($width < 120 || $height < 120) ? 1.5 : 1;
-        $w = $shrink > 1 ? max(1, (int) round(imagesx($icon) / $shrink)) : imagesx($icon);
-        $h = $shrink > 1 ? max(1, (int) round(imagesy($icon) / $shrink)) : imagesy($icon);
-        $left = (int) round($w / 2);
-        $top = preg_match('/^dot-/', $name) ? (int) round($h / 2) : $h;
+        [$icon, $ax, $ay] = MarkerIcon::place($marker, $width, $height, 1);
 
-        return ['top' => $top, 'right' => $w - $left, 'bottom' => $h - $top, 'left' => $left];
+        return [
+            'top'    => (int) ceil($ay),
+            'right'  => (int) ceil(imagesx($icon) - $ax),
+            'bottom' => (int) ceil(imagesy($icon) - $ay),
+            'left'   => (int) ceil($ax),
+        ];
     }
 
     /**
      * Copy marker icons onto the image.
      *
-     * Icons whose name starts with `dot-` have no shadow and are centred on their
-     * point; other icons are anchored at their bottom-centre pixel. On images
-     * under 120px wide or high, icons are shrunk by 1.5.
+     * Each icon is placed by MarkerIcon::place(): resized (marker `scale`, the
+     * request's `scale`, 1/1.5 on maps under 120 CSS pixels), rotated and faded,
+     * with its anchor on the marker's point. By default `dot-*` and generated
+     * dots are anchored at their centre, other icons at their bottom centre.
      *
      * @param GdImage                     $im       The map image.
      * @param list<array<string, mixed>>  $markers  Markers from MarkerParser::parse().
@@ -376,69 +374,18 @@ final class Compositor
         int $scale = 1
     ): void {
         foreach ($markers as $marker) {
-            // Icons that start with 'dot-' do not have a shadow
-            $shadow = !preg_match('/^dot-/', $marker['icon']);
-
-            // Small maps (in CSS pixels, before scaling) shrink icons.
-            if ($width / $scale < 120 || $height / $scale < 120) {
-                $shrinkFactor = 1.5 / $scale;
-            } else {
-                $shrinkFactor = 1 / $scale;
-            }
-
-            // Icons with a shadow are centered at the bottom middle pixel.
-            // Icons with no shadow are centered in the center pixel.
+            // The icon at its size (marker scale, request scale, small maps), rotated and faded (#37).
+            [$markerImg, $ax, $ay] = MarkerIcon::place($marker, $width / $scale, $height / $scale, $scale);
 
             $px = $this->webmercator->latLngToPixels($marker['lat'], $marker['lng'], $zoom);
             // The copy of the marker nearest the map centre (maps across the antimeridian, #35).
             $px['x'] = Viewport::nearest($px['x'], $leftEdge + $width / 2, $zoom);
-            $pos = array(
-                'x' => $px['x'] - $leftEdge,
-                'y' => $px['y'] - $topEdge
-            );
-
-            if ($shrinkFactor != 1) {
-                $icon = $marker['iconImg'];
-                $markerImg = imagecreatetruecolor(
-                    max(1, (int) round(imagesx($icon) / $shrinkFactor)),
-                    max(1, (int) round(imagesy($icon) / $shrinkFactor))
-                );
-                imagealphablending($markerImg, true);
-                $color = imagecolorallocatealpha($markerImg, 0, 0, 0, 127);
-                imagefill($markerImg, 0, 0, $color);
-                imagecopyresampled(
-                    $markerImg,
-                    $icon,
-                    0,
-                    0,
-                    0,
-                    0,
-                    imagesx($markerImg),
-                    imagesy($markerImg),
-                    imagesx($icon),
-                    imagesy($icon)
-                );
-            } else {
-                $markerImg = $marker['iconImg'];
-            }
-
-            if ($shadow) {
-                $iconPos = array(
-                    'x' => $pos['x'] - round(imagesx($markerImg) / 2),
-                    'y' => $pos['y'] - imagesy($markerImg)
-                );
-            } else {
-                $iconPos = array(
-                    'x' => $pos['x'] - round(imagesx($markerImg) / 2),
-                    'y' => $pos['y'] - round(imagesy($markerImg) / 2)
-                );
-            }
 
             imagecopy(
                 $im,
                 $markerImg,
-                (int) $iconPos['x'],
-                (int) $iconPos['y'],
+                (int) ($px['x'] - $leftEdge - $ax),
+                (int) ($px['y'] - $topEdge - $ay),
                 0,
                 0,
                 imagesx($markerImg),
