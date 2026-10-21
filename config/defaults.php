@@ -791,6 +791,70 @@ return [
             ],
         ],
 
+        // Geoapify (https://www.geoapify.com/). Needs an API key, sent as the
+        // apiKey parameter (the only way Geoapify accepts it):
+        //     'providers' => ['geoapify' => ['key' => 'your-geoapify-key']],
+        // Terms (https://www.geoapify.com/term-and-conditions/, checked
+        // 2026-10-21): commercial use of the free plan is allowed in development
+        // and "with some limitations" in production (ask Geoapify); load must
+        // be reasonable; nothing forbids proxying or caching. The free plan
+        // requires "Powered by Geoapify", and OpenStreetMap and OpenMapTiles
+        // credit apply (https://apidocs.geoapify.com/docs/maps/map-tiles/).
+        // Caching follows its headers, which are Cache-Control: private, no-cache
+        // (checked 2026-10-21), so the tile cache doesn't keep Geoapify tiles.
+        // Tiles to zoom 20, per its documentation;
+        // {r} gives @2x tiles for scale=2.
+        'geoapify' => [
+            'name'             => 'Geoapify',
+            'cache'            => 'headers',
+            'attribution'      => 'text',
+            'attribution_text' => 'Powered by Geoapify | © OpenMapTiles © OpenStreetMap contributors',
+            'attribution_html' => 'Powered by <a href="https://www.geoapify.com/">Geoapify</a> | © <a href="https://openmaptiles.org/">OpenMapTiles</a> © <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+            'maxzoom'          => 20,
+            'default_style'    => 'streets',
+            'styles' => [
+                'streets' => [
+                    'name'   => 'OSM Bright',
+                    'layers' => ['https://maps.geoapify.com/v1/tile/osm-bright/{z}/{x}/{y}{r}.png?apiKey={key}'],
+                ],
+                'streets-gray' => [
+                    'name'   => 'OSM Bright Grey',
+                    'layers' => ['https://maps.geoapify.com/v1/tile/osm-bright-grey/{z}/{x}/{y}{r}.png?apiKey={key}'],
+                ],
+                'osm-carto' => [
+                    'name'   => 'OSM Carto',
+                    // OSM Carto doesn't use OpenMapTiles, so its credit doesn't name it.
+                    'attribution_text' => 'Powered by Geoapify | © OpenStreetMap contributors',
+                    'attribution_html' => 'Powered by <a href="https://www.geoapify.com/">Geoapify</a> | © <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+                    'layers' => ['https://maps.geoapify.com/v1/tile/osm-carto/{z}/{x}/{y}{r}.png?apiKey={key}'],
+                ],
+                'basic' => [
+                    'name'   => 'Klokantech Basic',
+                    'layers' => ['https://maps.geoapify.com/v1/tile/klokantech-basic/{z}/{x}/{y}{r}.png?apiKey={key}'],
+                ],
+                'liberty' => [
+                    'name'   => 'OSM Liberty',
+                    'layers' => ['https://maps.geoapify.com/v1/tile/osm-liberty/{z}/{x}/{y}{r}.png?apiKey={key}'],
+                ],
+                'light' => [
+                    'name'   => 'Positron',
+                    'layers' => ['https://maps.geoapify.com/v1/tile/positron/{z}/{x}/{y}{r}.png?apiKey={key}'],
+                ],
+                'dark' => [
+                    'name'   => 'Dark Matter',
+                    'layers' => ['https://maps.geoapify.com/v1/tile/dark-matter/{z}/{x}/{y}{r}.png?apiKey={key}'],
+                ],
+                'toner' => [
+                    'name'   => 'Toner',
+                    'layers' => ['https://maps.geoapify.com/v1/tile/toner/{z}/{x}/{y}{r}.png?apiKey={key}'],
+                ],
+                'toner-gray' => [
+                    'name'   => 'Toner Grey',
+                    'layers' => ['https://maps.geoapify.com/v1/tile/toner-grey/{z}/{x}/{y}{r}.png?apiKey={key}'],
+                ],
+            ],
+        ],
+
         // ---- Public-sector maps (#32). Free; most are regional, so they have
         // `bounds`: maps outside get the default map (X-Map-Fallback: outside).
         // Terms checked 2026-10-21; zoom ranges sampled the same day.
