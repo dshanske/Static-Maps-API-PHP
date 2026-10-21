@@ -109,6 +109,12 @@ final class BoundsTest extends TestCase
                 $b->extend(-17, 178);
                 $b->extend(-18, -179.5);
             }, [178.0, 180.5]],
+            // The crossing segment's end misses -179.14... + 360 by a rounding error (#93).
+            'rounding at 180'      => [
+                static fn (Bounds $b) => $b->extendPath([[170, 50], [179.13361088874973, 50],
+                    [-179.14374802213686, 50], [-170, 50]]),
+                [170.0, 190.0],
+            ],
             'all the way round'    => [
                 static fn (Bounds $b) => $b->extendPath([[0, 0], [120, 0], [-120, 0], [0, 0]]),
                 [-180.0, 180.0],

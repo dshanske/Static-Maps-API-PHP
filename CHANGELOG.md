@@ -278,6 +278,9 @@ stable interface; pin a commit if you need a fixed point.
 
 ### Fixed
 
+- A geodesic path across the antimeridian (Tokyo to Anchorage) no longer
+  zooms the map out to the whole world: a rounding error kept the two sides
+  from being joined (#93).
 - Headers with the same name were sent only once, the last one winning, so a
   map with both markers and paths over their limits only reported the paths.
   Same-name headers are now combined into one, the values separated by `, `
