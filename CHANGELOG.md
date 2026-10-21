@@ -239,6 +239,11 @@ stable interface; pin a commit if you need a fixed point.
 
 ### Fixed
 
+- Headers with the same name were sent only once, the last one winning, so a
+  map with both markers and paths over their limits only reported the paths.
+  Same-name headers are now combined into one, the values separated by `, `
+  (#79).
+
 - A path with an invalid `color` or `weight` (e.g. `color:red`) stopped the
   whole map with a PHP error and an empty response; it is now left out with an
   `X-Path-<n>` header (#36).

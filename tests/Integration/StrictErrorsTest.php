@@ -133,4 +133,23 @@ final class StrictErrorsTest extends RenderTestCase
         $this->assertPixel([255, 255, 255], $im, 150, 118, 10);
         $this->assertNotSame([255, 255, 255], self::rgbAt($im, 150, 22), 'not at full size');
     }
+
+    /**
+     * Markers and paths both over their limits: one X-Map-Limit header with both notices (#79).
+     *
+     * @return void
+     */
+    public function testBothLimitsAreReported(): void
+    {
+        $ten = implode('', array_fill(0, 10, '[-122.67,45.51]'));
+        $response = $this->render(self::MAP + [
+            'marker' => array_fill(0, 5, 'lat:45.5165;lng:-122.6764;icon:dot-small-blue'),
+            'path'   => [$ten, $ten, $ten],
+        ]);
+
+        $this->assertSame(
+            'left out 2 marker(s) over the limit of 3, left out 1 path(s) over the limit of 20 points',
+            $response->header('X-Map-Limit')
+        );
+    }
 }
