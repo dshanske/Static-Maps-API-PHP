@@ -37,6 +37,7 @@ final class Compositor
      * @param mixed                            $height  Image height in pixels.
      * @param int                              $tileSize Size each tile is drawn at, in pixels; tiles of
      *                                                  another size are resized to it (scale=2, #10).
+     * @param float                            $opacity  Layer opacity, 0-1 (overlays, #30).
      *
      * @return void
      */
@@ -47,7 +48,8 @@ final class Compositor
         array $pos,
         mixed $width,
         mixed $height,
-        int $tileSize = WebMercator::TILE_SIZE
+        int $tileSize = WebMercator::TILE_SIZE,
+        float $opacity = 1.0
     ): void {
         foreach ($tiles as $x => $yTiles) {
             foreach ($yTiles as $y => $tile) {
@@ -58,6 +60,10 @@ final class Compositor
                 $oy = (($y - $tilePos['y']) * $tileSize) - $pos['y'] + ($height / 2);
 
                 // Truncated to whole pixels, as PHP did implicitly before 8.1.
+                if ($opacity < 1) {
+                    // Add transparency to every pixel (fully transparent ones stay so).
+                    $tile = self::faded($tile, $opacity);
+                }
                 if (imagesx($tile) === $tileSize && imagesy($tile) === $tileSize) {
                     imagecopy($im, $tile, (int) $ox, (int) $oy, 0, 0, $tileSize, $tileSize);
                 } else {
@@ -198,6 +204,27 @@ final class Compositor
         $opacity = strlen($hex) === 8 ? hexdec(substr($hex, 6, 2)) / 255 : 1.0;
 
         return [new ImagickPixel('#' . substr($hex, 0, 6)), (float) $opacity];
+    }
+
+    /**
+     * A copy of a tile with more transparency.
+     *
+     * @param GdImage $tile    The tile.
+     * @param float   $opacity Opacity from 0 to 1.
+     *
+     * @return GdImage The faded copy.
+     */
+    private static function faded(GdImage $tile, float $opacity): GdImage
+    {
+        $copy = imagecreatetruecolor(imagesx($tile), imagesy($tile));
+        imagealphablending($copy, false);
+        imagesavealpha($copy, true);
+        imagefill($copy, 0, 0, (int) imagecolorallocatealpha($copy, 0, 0, 0, 127));
+        imagecopy($copy, $tile, 0, 0, 0, 0, imagesx($tile), imagesy($tile));
+        imagefilter($copy, IMG_FILTER_COLORIZE, 0, 0, 0, (int) round(127 * (1 - $opacity)));
+        imagealphablending($copy, true);
+
+        return $copy;
     }
 
     /**

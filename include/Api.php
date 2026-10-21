@@ -15,6 +15,7 @@ namespace StaticMaps;
  * - `/api/v1/providers` Providers and styles that can be drawn, removed ids and
  *                       deprecated basemap ids.
  * - `/api/v1/icons`     Built-in marker icons.
+ * - `/api/v1/overlays`  Overlays a request can add with `overlay=` (#30).
  * - `/api/v1/attribution` The credit for one map, chosen by the same
  *                       `provider` / `style` / `basemap` parameters as the image.
  *
@@ -67,6 +68,7 @@ final class Api
             '/api/v1'             => $this->root(),
             '/api/v1/providers'   => $this->providers(),
             '/api/v1/icons'       => $this->icons(),
+            '/api/v1/overlays'    => $this->overlays(),
             '/api/v1/attribution' => $this->attribution($request, $extraHeaders),
             default               => null,
         };
@@ -157,6 +159,7 @@ final class Api
                     'labels_layer'  => count($style['layers']) > 1,
                     'requires_auth' => (bool) ($style['requires_auth'] ?? false),
                     'needs_key'     => (bool) ($style['needs_client'] ?? false),
+                    'bounds'        => $style['bounds'] ?? null,
                 ];
             }
             if ($styles === []) {
@@ -199,9 +202,38 @@ final class Api
     }
 
     /**
+     * `/api/v1/overlays`: the overlays this client may add with `overlay=` (#30).
+     *
+     * @return array<string, mixed> The response data.
+     */
+    private function overlays(): array
+    {
+        $overlays = [];
+        foreach (array_keys($this->config['overlays']) as $id) {
+            $overlay = Config::resolveOverlay($this->config, (string) $id, $this->client);
+            if ($overlay === null) {
+                continue;
+            }
+            $overlays[] = [
+                'id'               => (string) $id,
+                'name'             => (string) ($overlay['name'] ?? $id),
+                'minzoom'          => $overlay['minzoom'],
+                'maxzoom'          => $overlay['maxzoom'],
+                'opacity'          => $overlay['opacity'],
+                'bounds'           => $overlay['bounds'] ?? null,
+                'attribution_text' => $overlay['attribution_text'] ?? null,
+                'attribution_html' => $overlay['attribution_html'] ?? null,
+                'needs_key'        => (bool) ($overlay['needs_client'] ?? false),
+            ];
+        }
+
+        return ['overlays' => $overlays, 'max_overlays' => (int) $this->config['limits']['max_overlays']];
+    }
+
+    /**
      * `/api/v1/attribution`: the credit for the map a request would draw.
      *
-     * Takes the same `provider`, `style`, `basemap`, `tileurl`, `token` and
+     * Takes the same `provider`, `style`, `basemap`, `tileurl`, `key`, `overlay` and
      * `attribution` parameters as a map request, so a client can pass the
      * image's query string and show the result next to the image.
      *
@@ -221,10 +253,25 @@ final class Api
         if (!Attribution::isKnown($logo)) {
             $logo = $map['attribution'] ?? $this->config['defaults']['attribution'];
         }
-        $text = isset($map['attribution_text']) ? (string) $map['attribution_text'] : null;
-        $html = isset($map['attribution_html'])
-            ? (string) $map['attribution_html']
-            : ($text === null ? null : htmlspecialchars($text, ENT_QUOTES | ENT_HTML5));
+        // The map's credit, then each requested overlay's (#30).
+        [$overlays, $overlayHeaders] = (new MapChooser($this->config))->overlays($request, $this->client);
+        $headers = array_merge($headers, $overlayHeaders);
+        $texts = [];
+        $htmls = [];
+        foreach ([$map, ...$overlays] as $layer) {
+            $layerText = isset($layer['attribution_text']) ? (string) $layer['attribution_text'] : null;
+            if ($layerText !== null && $layerText !== '') {
+                $texts[] = $layerText;
+            }
+            $layerHtml = isset($layer['attribution_html'])
+                ? (string) $layer['attribution_html']
+                : ($layerText === null ? null : htmlspecialchars($layerText, ENT_QUOTES | ENT_HTML5));
+            if ($layerHtml !== null && $layerHtml !== '') {
+                $htmls[] = $layerHtml;
+            }
+        }
+        $text = $texts === [] ? null : implode(' | ', $texts);
+        $html = $htmls === [] ? null : implode(' | ', $htmls);
 
         $notice = null;
         foreach ($headers as $header) {
@@ -236,6 +283,7 @@ final class Api
         return [
             'provider'    => $map['provider'] ?? null,
             'style'       => $map['style'] ?? null,
+            'overlays'    => array_column($overlays, 'overlay'),
             'fallback'    => $notice,
             'attribution' => $logo,
             'text'        => $text,
@@ -300,6 +348,7 @@ final class Api
             'self'      => $this->base . '/api/v1/',
             'providers' => $this->base . '/api/v1/providers',
             'icons'     => $this->base . '/api/v1/icons',
+            'overlays'  => $this->base . '/api/v1/overlays',
             'attribution' => $this->base . '/api/v1/attribution',
         ];
     }

@@ -93,6 +93,9 @@ return [
      * 'icon_bytes'  Largest marker icon download, in bytes. Default: 262144 (256 KB).
      * 'icon_pixels' Marker icons from URLs larger than this many pixels wide or
      *               high are drawn at this size. Default: 256.
+     * 'max_overlays' Most `overlay` layers on one map (#30); more are left out, with
+     *               an `X-Map-Overlay` header. Each one downloads its own tiles.
+     *               Default: 3.
      *
      * Example override: 'limits' => ['max_width' => 2048, 'max_height' => 2048, 'max_markers' => 20],
      */
@@ -104,6 +107,7 @@ return [
         'icon_urls'   => 5,
         'icon_bytes'  => 262144,
         'icon_pixels' => 256,
+        'max_overlays' => 3,
     ],
 
     /*
@@ -311,8 +315,8 @@ return [
      *                   first style.
      *   'styles'        (array, required) The provider's styles, keyed by style
      *                   id. Each style has a `name` (string) and `layers` (list
-     *                   of one or two tile URL templates: the base map, then an
-     *                   optional overlay drawn on top, usually labels).
+     *                   of one to five tile URL templates, drawn in order: the
+     *                   base map, then e.g. labels on top).
      *                   Placeholders: {z} zoom, {x} column, {y} row, and {key}
      *                   for the API key. {Z}, {X}, {Y} also work. {r} is for
      *                   providers with high-density tiles: it is '@2x' (512 px
@@ -356,6 +360,12 @@ return [
      *                   URLs do. Tile requests that send headers don't follow
      *                   redirects, so a key is never sent to another server.
      *                   Headers are never shown by the query API.
+     *   'bounds'        (array) Area the tiles cover, for regional maps:
+     *                   [minLng, minLat, maxLng, maxLat] in degrees. A map
+     *                   partly outside gets an `X-Map-Coverage: partial`
+     *                   header; one entirely outside gets the default map
+     *                   instead (`X-Map-Fallback: outside`). Shown by the
+     *                   query API. Default: none (the whole world).
      *   'key'           (string) API key inserted into {key}. Put keys in
      *                   data/config.php only, never in this file. A style
      *                   whose layers use {key} is unavailable (requests get the
@@ -694,6 +704,35 @@ return [
             ],
         ],
     ],
+
+    /*
+     * Overlays (#30): transparent layers a request can draw on top of any map
+     * with `overlay=<id>` (several: `overlay=a,b`, at most `limits.max_overlays`),
+     * after the map's own layers and before paths and markers. Keyed by id
+     * (not the same as a provider id). Each overlay has:
+     *
+     *   'name'             (string) Human-readable name.
+     *   'layers'           (list, required) 1-5 tile URL templates, as for styles.
+     *   'opacity'          (number) 0-1. Default: 1.
+     *   'minzoom', 'maxzoom' (int) Zoom range; outside it the overlay is
+     *                      skipped. Default: zoom.min / zoom.max.
+     *   'bounds'           (array) [minLng, minLat, maxLng, maxLat]: the overlay is
+     *                      skipped for maps entirely outside it.
+     *   'attribution_text' (string) Credit added to the map's on the image.
+     *   'attribution_html' (string) Credit with links, for /api/v1/attribution.
+     *   'key', 'headers', 'requires_auth', 'enabled', 'cache' as for providers
+     *                      (a client's `providers` list names overlays too).
+     *
+     * No overlays are shipped yet. Example override:
+     *   'overlays' => [
+     *       'railways' => [
+     *           'name'             => 'OpenRailwayMap',
+     *           'layers'           => ['https://tiles.openrailwaymap.org/standard/{z}/{x}/{y}.png'],
+     *           'attribution_text' => 'Style: CC-BY-SA 2.0 OpenRailwayMap',
+     *       ],
+     *   ],
+     */
+    'overlays' => [],
 
     /*
      * DEPRECATED (#40): the old `basemap` request parameter. Each old id maps to

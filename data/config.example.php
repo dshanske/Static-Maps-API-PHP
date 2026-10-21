@@ -145,6 +145,16 @@ return [
     //     ],
     // ],
 
+    // Overlays drawn on top of any map with overlay=<id> (see config/defaults.php).
+    // 'overlays' => [
+    //     'railways' => [
+    //         'name'             => 'OpenRailwayMap',
+    //         'layers'           => ['https://tiles.openrailwaymap.org/standard/{z}/{x}/{y}.png'],
+    //         'opacity'          => 0.8,
+    //         'attribution_text' => 'Style: CC-BY-SA 2.0 OpenRailwayMap',
+    //     ],
+    // ],
+
     // Maps your install took out of service: requests for them still get the
     // default map, and the X-Map-Fallback header says "removed".
     // 'removed' => ['my-provider' => 'Our tile server was shut down (2027-01)'],

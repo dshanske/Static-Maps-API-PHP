@@ -27,7 +27,11 @@ class Config
         'enabled',
         'key',
         'headers',
+        'bounds',
     ];
+
+    /** @var int Most tile layers in one style or overlay. */
+    public const MAX_LAYERS = 5;
 
     /**
      * Load the default settings and merge the per-install settings over them.
@@ -145,6 +149,66 @@ class Config
         if (($resolved['enabled'] ?? true) === false) {
             return null;
         }
+        $resolved = self::available($config, $resolved, $provider, $client, $isDefault);
+        if ($resolved === null) {
+            return null;
+        }
+        $resolved['provider'] = $provider;
+        $resolved['style'] = $style;
+
+        return $resolved;
+    }
+
+    /**
+     * Resolve an overlay (#30): layers drawn on top of any map with `overlay=<id>`.
+     *
+     * The same rules as resolve() apply: it is unavailable when disabled, when it
+     * needs an API key that isn't set, or when it needs a client the request
+     * doesn't have (a client's `providers` list names overlays too).
+     *
+     * @param array<string, mixed> $config The loaded configuration.
+     * @param string               $id     Overlay id.
+     * @param Client|null          $client The request's client, or null without a valid key.
+     *
+     * @return array<string, mixed>|null The overlay's settings (with `minzoom`, `maxzoom` and
+     *         `opacity` filled in, plus `overlay` and `needs_client`), or null if unknown or
+     *         unavailable.
+     */
+    public static function resolveOverlay(array $config, string $id, ?Client $client): ?array
+    {
+        $overlay = $config['overlays'][$id] ?? null;
+        if (!is_array($overlay) || ($overlay['enabled'] ?? true) === false) {
+            return null;
+        }
+        $resolved = self::available($config, $overlay, $id, $client, false);
+        if ($resolved === null) {
+            return null;
+        }
+        $resolved['opacity'] = (float) ($resolved['opacity'] ?? 1);
+        $resolved['overlay'] = $id;
+
+        return $resolved;
+    }
+
+    /**
+     * Apply the key and client rules to a style or overlay, and fill in its zoom range.
+     *
+     * @param array<string, mixed> $config    The loaded configuration.
+     * @param array<string, mixed> $resolved  The style's or overlay's settings.
+     * @param string               $id        Provider or overlay id (for a client's `providers` list).
+     * @param Client|null          $client    The request's client, or null.
+     * @param bool                 $isDefault True for the default map (a client's list doesn't apply).
+     *
+     * @return array<string, mixed>|null The settings with `needs_client`, `minzoom` and `maxzoom`,
+     *         or null if unavailable.
+     */
+    private static function available(
+        array $config,
+        array $resolved,
+        string $id,
+        ?Client $client,
+        bool $isDefault
+    ): ?array {
         // A style that needs an API key is unavailable until one is set.
         if (self::needsKey($resolved) && !(is_string($resolved['key'] ?? null) && $resolved['key'] !== '')) {
             return null;
@@ -152,7 +216,7 @@ class Config
         $needsClient = ($resolved['requires_auth'] ?? false)
             || self::needsKey($resolved)
             || ($config['access']['mode'] ?? 'open') === 'restricted';
-        if ($needsClient && ($client === null || (!$isDefault && !$client->mayUse($provider)))) {
+        if ($needsClient && ($client === null || (!$isDefault && !$client->mayUse($id)))) {
             return null;
         }
         $resolved['needs_client'] = $needsClient;
@@ -164,10 +228,70 @@ class Config
             $resolved['maxzoom'] = min($resolved['maxzoom'], (int) $limit);
             $resolved['minzoom'] = min($resolved['minzoom'], $resolved['maxzoom']);
         }
-        $resolved['provider'] = $provider;
-        $resolved['style'] = $style;
 
         return $resolved;
+    }
+
+    /**
+     * Check a style's or overlay's `layers`.
+     *
+     * @param mixed  $layers The value.
+     * @param string $what   What it belongs to, for the message, e.g. "Style 'osm/streets'".
+     *
+     * @return void
+     *
+     * @throws RuntimeException If it isn't a list of 1 to MAX_LAYERS tile URL templates.
+     */
+    private static function validateLayers(mixed $layers, string $what): void
+    {
+        $valid = is_array($layers) && array_is_list($layers) && count($layers) >= 1
+            && count($layers) <= self::MAX_LAYERS
+            && count(array_filter($layers, 'is_string')) === count($layers);
+        if (!$valid) {
+            throw new RuntimeException("$what needs 'layers': a list of 1 to " . self::MAX_LAYERS . ' tile URLs');
+        }
+    }
+
+    /**
+     * Check `headers` settings.
+     *
+     * @param mixed  $headers The value.
+     * @param string $what    What it belongs to, for the message, e.g. "Provider 'x'".
+     *
+     * @return void
+     *
+     * @throws RuntimeException If it isn't a map of valid header names to values.
+     */
+    private static function validateHeaders(mixed $headers, string $what): void
+    {
+        if (!is_array($headers)) {
+            throw new RuntimeException("$what headers must map header names to values");
+        }
+        foreach ($headers as $name => $value) {
+            // Header names are tokens; values must not break the header (no CR, LF or NUL).
+            if (
+                !is_string($name) || !preg_match('/^[A-Za-z0-9-]+$/', $name)
+                || !is_string($value) || preg_match('/[\r\n\0]/', $value)
+            ) {
+                throw new RuntimeException("$what has an invalid request header '$name'");
+            }
+        }
+    }
+
+    /**
+     * Whether a `bounds` setting is valid.
+     *
+     * @param mixed $bounds The value.
+     *
+     * @return bool True for [minLng, minLat, maxLng, maxLat] in range with minLat <= maxLat
+     *              (minLng > maxLng crosses the antimeridian).
+     */
+    public static function validBounds(mixed $bounds): bool
+    {
+        return is_array($bounds) && array_is_list($bounds) && count($bounds) === 4
+            && Parameters::isValidPoint($bounds[1], $bounds[0])
+            && Parameters::isValidPoint($bounds[3], $bounds[2])
+            && $bounds[1] <= $bounds[3];
     }
 
     /**
@@ -392,7 +516,7 @@ class Config
     {
         $sections = [
             'defaults', 'access', 'clients', 'limits', 'errors', 'cache', 'remote', 'zoom',
-            'providers', 'basemap_aliases', 'removed',
+            'providers', 'overlays', 'basemap_aliases', 'removed',
         ];
         foreach ($sections as $section) {
             if (!isset($config[$section]) || !is_array($config[$section])) {
@@ -420,19 +544,7 @@ class Config
                 }
             }
             foreach (array_merge([$provider], array_values($styles)) as $settings) {
-                $headers = is_array($settings) ? ($settings['headers'] ?? []) : [];
-                if (!is_array($headers)) {
-                    throw new RuntimeException("Provider '$id' headers must map header names to values");
-                }
-                foreach ($headers as $name => $value) {
-                    // Header names are tokens; values must not break the header (no CR, LF or NUL).
-                    if (
-                        !is_string($name) || !preg_match('/^[A-Za-z0-9-]+$/', $name)
-                        || !is_string($value) || preg_match('/[\r\n\0]/', $value)
-                    ) {
-                        throw new RuntimeException("Provider '$id' has an invalid request header '$name'");
-                    }
-                }
+                self::validateHeaders(is_array($settings) ? ($settings['headers'] ?? []) : [], "Provider '$id'");
                 $policy = is_array($settings) ? ($settings['cache'] ?? 'headers') : 'headers';
                 if (!in_array($policy, ['headers', 'off'], true)) {
                     throw new RuntimeException("Provider '$id' has a cache setting that isn't 'headers' or 'off'");
@@ -452,10 +564,42 @@ class Config
                 if (!$enabled) {
                     continue;
                 }
-                $layers = $style['layers'] ?? null;
-                if (!is_array($layers) || !array_is_list($layers) || count($layers) < 1 || count($layers) > 2) {
-                    throw new RuntimeException("Style '$id/$styleId' needs 'layers': a list of one or two tile URLs");
+                self::validateLayers($style['layers'] ?? null, "Style '$id/$styleId'");
+                $bounds = $style['bounds'] ?? $provider['bounds'] ?? null;
+                if ($bounds !== null && !self::validBounds($bounds)) {
+                    throw new RuntimeException(
+                        "Style '$id/$styleId' bounds must be [minLng, minLat, maxLng, maxLat] in range"
+                    );
                 }
+            }
+        }
+
+        foreach ($config['overlays'] as $id => $overlay) {
+            if (!is_array($overlay)) {
+                throw new RuntimeException("Overlay '$id' must be an array");
+            }
+            if (isset($config['providers'][$id])) {
+                throw new RuntimeException("Overlay '$id' has the same id as a provider");
+            }
+            if (($overlay['enabled'] ?? true) === false) {
+                continue;
+            }
+            self::validateLayers($overlay['layers'] ?? null, "Overlay '$id'");
+            if (isset($overlay['bounds']) && !self::validBounds($overlay['bounds'])) {
+                throw new RuntimeException("Overlay '$id' bounds must be [minLng, minLat, maxLng, maxLat] in range");
+            }
+            $opacity = $overlay['opacity'] ?? 1;
+            if (!is_int($opacity) && !is_float($opacity) || $opacity < 0 || $opacity > 1) {
+                throw new RuntimeException("Overlay '$id' opacity must be a number from 0 to 1");
+            }
+            foreach (['attribution_text', 'attribution_html', 'name'] as $key) {
+                if (isset($overlay[$key]) && !is_string($overlay[$key])) {
+                    throw new RuntimeException("Overlay '$id' $key must be a string");
+                }
+            }
+            self::validateHeaders($overlay['headers'] ?? [], "Overlay '$id'");
+            if (!in_array($overlay['cache'] ?? 'headers', ['headers', 'off'], true)) {
+                throw new RuntimeException("Overlay '$id' has a cache setting that isn't 'headers' or 'off'");
             }
         }
 
@@ -531,7 +675,10 @@ class Config
         if (!is_bool($config['errors']['strict'] ?? null)) {
             throw new RuntimeException("Setting 'errors.strict' must be true or false");
         }
-        $limits = ['max_width', 'max_height', 'max_markers', 'max_points', 'icon_urls', 'icon_bytes', 'icon_pixels'];
+        $limits = [
+            'max_width', 'max_height', 'max_markers', 'max_points', 'max_overlays',
+            'icon_urls', 'icon_bytes', 'icon_pixels',
+        ];
         foreach ($limits as $limit) {
             if (!is_int($config['limits'][$limit] ?? null) || $config['limits'][$limit] < 1) {
                 throw new RuntimeException("Setting 'limits.$limit' must be a whole number of 1 or more");

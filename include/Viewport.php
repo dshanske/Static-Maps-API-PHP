@@ -192,6 +192,54 @@ final class Viewport
     }
 
     /**
+     * How much of the map a coverage area (`bounds`, #30) covers.
+     *
+     * @param list<float|int>|null $bounds    The area, [minLng, minLat, maxLng, maxLat] (minLng > maxLng crosses
+     *                                        the antimeridian), or null for the whole world.
+     * @param float                $latitude  Map centre latitude in degrees.
+     * @param float                $longitude Map centre longitude in degrees.
+     * @param int|float            $zoom      Map zoom.
+     * @param int                  $width     Map width in CSS pixels.
+     * @param int                  $height    Map height in CSS pixels.
+     *
+     * @return string `full`, `partial` or `none`.
+     */
+    public function coverage(
+        ?array $bounds,
+        float $latitude,
+        float $longitude,
+        int|float $zoom,
+        int $width,
+        int $height
+    ): string {
+        if ($bounds === null) {
+            return 'full';
+        }
+        $c = $this->webmercator->latLngToPixels($latitude, $longitude, $zoom);
+        $nw = $this->webmercator->pixelsToLatLng($c['x'] - $width / 2, $c['y'] - $height / 2, $zoom);
+        $se = $this->webmercator->pixelsToLatLng($c['x'] + $width / 2, $c['y'] + $height / 2, $zoom);
+        [$west, $east] = [(float) $nw['lng'], (float) $se['lng']];
+        [$south, $north] = [(float) $se['lat'], (float) $nw['lat']];
+
+        [$bw, $bs, $be, $bn] = array_map('floatval', $bounds);
+        if ($be < $bw) {
+            $be += 360;
+        }
+        if ($north <= $bs || $south >= $bn) {
+            return 'none';
+        }
+        $overlaps = false;
+        foreach ([-360, 0, 360] as $shift) {
+            if ($bw + $shift <= $west && $east <= $be + $shift && $bs <= $south && $north <= $bn) {
+                return 'full';
+            }
+            $overlaps = $overlaps || max($west, $bw + $shift) < min($east, $be + $shift);
+        }
+
+        return $overlaps ? 'partial' : 'none';
+    }
+
+    /**
      * The copy of an x pixel position (one per trip round the world) nearest another.
      *
      * @param int|float $x      A position in world pixels.

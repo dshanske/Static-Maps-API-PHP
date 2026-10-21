@@ -9,8 +9,9 @@ namespace StaticMaps;
 use GdImage;
 
 /**
- * Downloads a block of tiles for a base layer and an optional overlay layer,
- * all in parallel with curl_multi.
+ * Downloads blocks of tiles for any number of layers (a map's own layers and
+ * overlays, #30), each with its own zoom, area, key and headers, all in
+ * parallel with curl_multi.
  *
  * Uses the tile cache when one is given (#11). A tile that fails to download
  * or decode, with no usable cached copy, is replaced by a gray tile.
@@ -26,87 +27,76 @@ final class TileFetcher
     }
 
     /**
-     * Get the tiles from $sw to $ne (inclusive) at one zoom level.
+     * Get the tiles of each layer, from its `sw` to its `ne` tile (inclusive).
      *
      * Fresh tiles come from the cache without a request; expired ones are
      * checked again with a conditional request (a 304 keeps the cached copy);
      * the rest are downloaded and, if they are images, stored. If a download
      * fails, a cached copy still within its stale-if-error window is used,
-     * else a gray tile.
+     * else a gray tile (or a transparent one, for layers with `blank` =>
+     * 'transparent'). Columns past the world's edge wrap round (#35).
      *
-     * @param string                            $tileURL    Base layer URL template.
-     * @param string|false                      $overlayURL Overlay layer URL template, or false for none.
-     * @param string|null                       $key        API key for {key}, or null.
-     * @param array{x: float|int, y: float|int} $sw         Top-left tile (lowest column and row).
-     * @param array{x: float|int, y: float|int} $ne         Bottom-right tile (highest column and row).
-     * @param mixed                             $zoom       Zoom level.
-     * @param GdImage                           $im         The map image; the gray fallback colour is
-     *                                                      allocated on it.
-     * @param list<string>                      $headers    Request header lines sent with every tile
-     *                                                      request (e.g. the provider's API key). Tile
-     *                                                      requests with headers don't follow redirects.
+     * Each layer has `template` (URL template), `key` (API key for {key}), `headers`
+     * (request header lines; tile requests with headers don't follow redirects),
+     * `zoom`, `sw` and `ne` (top-left and bottom-right tiles), `cache` (whether the
+     * tile cache may be used, default true) and `blank` (`gray` or `transparent`
+     * for failed tiles, default gray).
      *
-     * @return array{tiles: array<int, array<int, GdImage>>, overlays: array<int, array<int, GdImage>>}
-     *         Tiles indexed by column, then row. `overlays` has an empty row array for each
-     *         column when there is no overlay layer.
+     * @param list<array<string, mixed>> $layers The layers, drawn in this order.
+     * @param GdImage                    $im     The map image; the gray fallback colour is allocated on it.
+     *
+     * @return list<array<int, array<int, GdImage>>> For each layer, tiles indexed by column, then row.
      */
-    public function fetch(
-        string $tileURL,
-        string|false $overlayURL,
-        ?string $key,
-        array $sw,
-        array $ne,
-        mixed $zoom,
-        GdImage $im,
-        array $headers = []
-    ): array {
-        $result = ['tiles' => [], 'overlays' => []];
-        $layers = ['tiles' => $tileURL] + ($overlayURL ? ['overlays' => $overlayURL] : []);
-        $z = (int) $zoom;
+    public function fetchLayers(array $layers, GdImage $im): array
+    {
+        $result = [];
 
-        /** @var list<array{layer: string, template: string, x: int, tx: int, y: int,
-         *       cached: array<string, mixed>|null, handle: \CurlHandle|null, headers: array<string, string>,
-         *       body: string|null}> $jobs */
+        /** @var list<array{layer: int, template: string, key: string|null, z: int, cache: bool, x: int,
+         *       tx: int, y: int, cached: array<string, mixed>|null, handle: \CurlHandle|null,
+         *       headers: array<string, string>, body: string|null}> $jobs */
         $jobs = [];
         $mh = curl_multi_init();
-        for ($x = $sw['x']; $x <= $ne['x']; $x++) {
-            $x = (int) $x;
-            $result['tiles'][$x] ??= [];
-            $result['overlays'][$x] ??= [];
-            for ($y = $sw['y']; $y <= $ne['y']; $y++) {
-                $y = (int) $y;
-                foreach ($layers as $layer => $template) {
+        foreach ($layers as $index => $layer) {
+            $result[$index] = [];
+            $template = $layer['template'];
+            $key = $layer['key'] ?? null;
+            $headers = $layer['headers'] ?? [];
+            $z = (int) $layer['zoom'];
+            $cache = ($layer['cache'] ?? true) ? $this->cache : null;
+            for ($x = (int) $layer['sw']['x']; $x <= $layer['ne']['x']; $x++) {
+                $result[$index][$x] ??= [];
+                for ($y = (int) $layer['sw']['y']; $y <= $layer['ne']['y']; $y++) {
                     // Columns past the world's edge (maps across the antimeridian) wrap round (#35).
                     $tx = (($x % 2 ** $z) + 2 ** $z) % 2 ** $z;
-                    $cached = $this->cache?->get($template, $key, $tx, $y, $z);
-                    $job = ['layer' => $layer, 'template' => $template, 'x' => $x, 'tx' => $tx, 'y' => $y,
+                    $cached = $cache?->get($template, $key, $tx, $y, $z);
+                    $job = ['layer' => $index, 'template' => $template, 'key' => $key, 'z' => $z,
+                        'cache' => $cache !== null, 'x' => $x, 'tx' => $tx, 'y' => $y,
                         'cached' => $cached, 'handle' => null, 'headers' => [], 'body' => null];
                     if ($cached !== null && $cached['fresh']) {
                         $job['body'] = $cached['body'];
-                    } else {
                         $jobs[] = $job;
-                        $i = count($jobs) - 1;
-                        $jobs[$i]['handle'] = $this->remote->handle(
-                            Config::tileUrl($template, $tx, $y, $z, $key),
-                            array_merge($headers, self::conditionalHeaders($cached)),
-                            static function (string $line) use (&$jobs, $i): void {
-                                // A new status line (e.g. after a redirect) starts a new set of headers.
-                                if (str_starts_with($line, 'HTTP/')) {
-                                    $jobs[$i]['headers'] = [];
-                                    return;
-                                }
-                                $parts = explode(':', $line, 2);
-                                if (count($parts) === 2) {
-                                    $jobs[$i]['headers'][strtolower(trim($parts[0]))] = trim($parts[1]);
-                                }
-                            },
-                            // A provider's headers may hold its key: never send them to another server.
-                            $headers === []
-                        );
-                        curl_multi_add_handle($mh, $jobs[$i]['handle']);
                         continue;
                     }
                     $jobs[] = $job;
+                    $i = count($jobs) - 1;
+                    $jobs[$i]['handle'] = $this->remote->handle(
+                        Config::tileUrl($template, $tx, $y, $z, $key),
+                        array_merge($headers, self::conditionalHeaders($cached)),
+                        static function (string $line) use (&$jobs, $i): void {
+                            // A new status line (e.g. after a redirect) starts a new set of headers.
+                            if (str_starts_with($line, 'HTTP/')) {
+                                $jobs[$i]['headers'] = [];
+                                return;
+                            }
+                            $parts = explode(':', $line, 2);
+                            if (count($parts) === 2) {
+                                $jobs[$i]['headers'][strtolower(trim($parts[0]))] = trim($parts[1]);
+                            }
+                        },
+                        // A provider's headers may hold its key: never send them to another server.
+                        $headers === []
+                    );
+                    curl_multi_add_handle($mh, $jobs[$i]['handle']);
                 }
             }
         }
@@ -125,9 +115,15 @@ final class TileFetcher
         $grey = imagecolorallocate($im, 224, 224, 224);
         imagefill($blank, 0, 0, $grey);
 
+        $clear = imagecreatetruecolor(256, 256);
+        imagealphablending($clear, false);
+        imagesavealpha($clear, true);
+        imagefill($clear, 0, 0, (int) imagecolorallocatealpha($clear, 0, 0, 0, 127));
+
         foreach ($jobs as $job) {
-            $image = $this->resolve($job, $key, $z);
-            $result[$job['layer']][$job['x']][$job['y']] = $image === false ? $blank : $image;
+            $image = $this->resolve($job);
+            $fallback = ($layers[$job['layer']]['blank'] ?? 'gray') === 'transparent' ? $clear : $blank;
+            $result[$job['layer']][$job['x']][$job['y']] = $image === false ? $fallback : $image;
         }
 
         return $result;
@@ -136,17 +132,18 @@ final class TileFetcher
     /**
      * The image for one tile job, updating the cache on the way.
      *
-     * @param array<string, mixed> $job One tile job from fetch(): layer, template, x (where drawn), tx
-     *                                  (x wrapped round the world, as fetched), y, the cached
-     *                                  copy (or null), the curl handle (null if fresh from the
-     *                                  cache), response headers and the cached body.
-     * @param string|null          $key The layer's API key, or null.
-     * @param int                  $z   Zoom level.
+     * @param array<string, mixed> $job One tile job from fetchLayers(): layer, template, key, z, cache
+     *                                  (whether the cache is used), x (where drawn), tx (x wrapped
+     *                                  round the world, as fetched), y, the cached copy (or null),
+     *                                  the curl handle (null if fresh from the cache), response
+     *                                  headers and the cached body.
      *
      * @return GdImage|false The tile, or false if there is none to draw.
      */
-    private function resolve(array $job, ?string $key, int $z): GdImage|false
+    private function resolve(array $job): GdImage|false
     {
+        [$key, $z] = [$job['key'], $job['z']];
+        $cache = $job['cache'] ? $this->cache : null;
         if ($job['handle'] === null) {
             // Fresh from the cache.
             return @imagecreatefromstring((string) $job['body']);
@@ -159,13 +156,13 @@ final class TileFetcher
         [$template, $x, $y] = [$job['template'], $job['tx'], $job['y']];
 
         if ($status === 304 && $cached !== null) {
-            $this->cache?->refresh($template, $key, $x, $y, $z, $job['headers']);
+            $cache?->refresh($template, $key, $x, $y, $z, $job['headers']);
             return @imagecreatefromstring((string) $cached['body']);
         }
 
         $image = $content === '' ? false : @imagecreatefromstring($content);
         if ($image !== false && $status >= 200 && $status <= 299) {
-            $this->cache?->put($template, $key, $x, $y, $z, $content, $job['headers']);
+            $cache?->put($template, $key, $x, $y, $z, $content, $job['headers']);
             return $image;
         }
         // The download failed (or wasn't an image): a recent enough cached copy beats a gray tile.

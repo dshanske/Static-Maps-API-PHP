@@ -18,6 +18,15 @@ stable interface; pin a commit if you need a fixed point.
 
 ### Added
 
+- Overlays (#30): an `overlays` setting and the `overlay` request parameter
+  draw transparent tile layers on top of any map, with their own opacity,
+  zoom range, coverage, key and headers, and their credit added to the map's
+  (on the image and in `/api/v1/attribution`). At most `limits.max_overlays`
+  (3); left-out ones are listed in `X-Map-Overlay`. New `/api/v1/overlays`.
+- Regional maps (#30): `bounds` on a provider or style. Maps partly outside
+  get `X-Map-Coverage: partial`; maps entirely outside get the default map
+  with `X-Map-Fallback: outside`. The query API reports `bounds`.
+- Styles can have up to five layers (was two) (#30).
 - Generated markers and marker options (#37): `icon:pin` and `icon:dot` in any
   `color` and three `size`s, with a short `label` (and `labelcolor`), drawn at
   the request's `scale` so they stay sharp; `icon:none` for a text label;
