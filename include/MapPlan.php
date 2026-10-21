@@ -195,6 +195,104 @@ final class MapPlan
     }
 
     /**
+     * The image's edges in degrees (#101).
+     *
+     * @param WebMercator $mercator Projection maths.
+     * @param int         $width    Image width in CSS pixels (before `scale`).
+     * @param int         $height   Image height in CSS pixels.
+     *
+     * @return array{float, float, float, float} minLng, minLat, maxLng, maxLat. minLng is greater
+     *         than maxLng when the image crosses the antimeridian; -180 and 180 when it is wider
+     *         than the world.
+     */
+    public function bounds(WebMercator $mercator, int $width, int $height): array
+    {
+        $center = $mercator->latLngToPixels($this->latitude, $this->longitude, $this->zoom);
+        $world = $mercator->totalPixelsForZoomLevel($this->zoom);
+        $max = Parameters::MAX_LATITUDE;
+        $north = max(-$max, min($max, $mercator->yToLat($center['y'] - $height / 2, $this->zoom)));
+        $south = max(-$max, min($max, $mercator->yToLat($center['y'] + $height / 2, $this->zoom)));
+        if ($width >= $world) {
+            return [-180.0, $south, 180.0, $north];
+        }
+        $west = Bounds::wrap($mercator->xToLng($center['x'] - $width / 2, $this->zoom));
+        $east = Bounds::wrap($mercator->xToLng($center['x'] + $width / 2, $this->zoom));
+
+        return [$west, $south, $east, $north];
+    }
+
+    /**
+     * The `X-Map-Center`, `X-Map-Zoom` and `X-Map-Bounds` headers (#101).
+     *
+     * @param WebMercator $mercator Projection maths.
+     * @param int         $width    Image width in CSS pixels.
+     * @param int         $height   Image height in CSS pixels.
+     *
+     * @return list<string> The header lines; coordinates rounded to 6 decimals.
+     */
+    public function viewportHeaders(WebMercator $mercator, int $width, int $height): array
+    {
+        $bounds = array_map([self::class, 'number'], $this->bounds($mercator, $width, $height));
+
+        return [
+            'X-Map-Center: ' . self::number($this->latitude) . ',' . self::number($this->longitude),
+            'X-Map-Zoom: ' . (int) $this->zoom,
+            'X-Map-Bounds: ' . implode(',', $bounds),
+        ];
+    }
+
+    /**
+     * Where each marker is on the image (#101).
+     *
+     * @param WebMercator $mercator Projection maths.
+     * @param int         $width    Image width in CSS pixels.
+     * @param int         $height   Image height in CSS pixels.
+     *
+     * @return list<array{n: int, x: int, y: int, box: array{int, int, int, int}}> For each marker
+     *         drawn: its number (as in `X-Marker-<n>`), its position (the icon's anchor) and its
+     *         icon's box (left, top, right, bottom), in CSS pixels from the image's top-left
+     *         corner. Markers can be partly or wholly outside the image.
+     */
+    public function markerPositions(WebMercator $mercator, int $width, int $height): array
+    {
+        $center = $mercator->latLngToPixels($this->latitude, $this->longitude, $this->zoom);
+        $left = $center['x'] - $width / 2;
+        $top = $center['y'] - $height / 2;
+        $positions = [];
+        foreach ($this->markers as $marker) {
+            [$icon, $ax, $ay] = MarkerIcon::place($marker, $width, $height, 1);
+            $px = $mercator->latLngToPixels($marker['lat'], $marker['lng'], $this->zoom);
+            // As Compositor draws it: the copy nearest the centre (#35).
+            $x = Viewport::nearest($px['x'], $center['x'], $this->zoom) - $left;
+            $y = $px['y'] - $top;
+            $boxLeft = (int) ($x - $ax);
+            $boxTop = (int) ($y - $ay);
+            $positions[] = [
+                'n'   => (int) $marker['n'],
+                'x'   => (int) round($x),
+                'y'   => (int) round($y),
+                'box' => [$boxLeft, $boxTop, $boxLeft + imagesx($icon), $boxTop + imagesy($icon)],
+            ];
+        }
+
+        return $positions;
+    }
+
+    /**
+     * A coordinate for a header.
+     *
+     * @param float $value Degrees.
+     *
+     * @return string Rounded to 6 decimals, without trailing zeros or an exponent.
+     */
+    private static function number(float $value): string
+    {
+        $text = rtrim(rtrim(sprintf('%.6F', $value), '0'), '.');
+
+        return $text === '-0' ? '0' : $text;
+    }
+
+    /**
      * A `marker[]` or `path[]` parameter as a list.
      *
      * @param mixed $value The parameter: false when not given, a string, or a list.

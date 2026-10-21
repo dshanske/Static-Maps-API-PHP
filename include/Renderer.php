@@ -127,6 +127,10 @@ final class Renderer
         $longitude = $plan->longitude;
         $width = $params->width;
         $height = $params->height;
+        // What area the image shows (#101).
+        if ($config['viewport_headers']) {
+            $headers = array_merge($headers, $plan->viewportHeaders($this->webmercator, $width, $height));
+        }
 
         // scale=2 (#10): the same area at twice the pixels. Everything is drawn at
         // twice the size and one pixel zoom level up; tiles come from the level

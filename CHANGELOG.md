@@ -18,6 +18,10 @@ stable interface; pin a commit if you need a fixed point.
 
 ### Added
 
+- Map images say what area they show (#101): `X-Map-Center`, `X-Map-Zoom` and
+  `X-Map-Bounds` headers (switch off with `viewport_headers`), and
+  `/api/v1/plan` returns the same as JSON, with each marker's pixel position
+  and box, without drawing the map.
 - Shipped overlay `seamarks` (#31): OpenSeaMap's buoys, beacons, lights and
   harbours, to zoom 18.
 - A demo page, `assets/demo.html`, now the default `home_page`: it builds
