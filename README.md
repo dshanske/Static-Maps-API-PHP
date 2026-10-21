@@ -6,9 +6,9 @@ Static Maps API
 
 ## Parameters
 
-Parameters can be sent in either the query string or in the POST body.
+Parameters can be sent in the query string, as POST form data, or as a POST JSON body (see [POST with a JSON body](#post-with-a-json-body)).
 
-Every map needs a location: `latitude` **and** `longitude`, or at least one valid marker or path (the map is then fitted to them). A request without one gets HTTP 400 with the reason as plain text, as does a request with only one of `latitude` / `longitude`. A request with no parameters at all, such as opening the service's address in a browser, gets an HTML page describing the service (see `home_page` under Configuration).
+Every map needs a location: `latitude` **and** `longitude`, or at least one valid marker, path or `geojson` feature (the map is then fitted to them). A request without one gets HTTP 400 with the reason as plain text, as does a request with only one of `latitude` / `longitude`. A request with no parameters at all, such as opening the service's address in a browser, gets an HTML page describing the service (see `home_page` under Configuration).
 
 Numbers are checked: a value that isn't a number, or is out of the range given below, gets HTTP 400 with the reason (for example `zoom must be between 0 and 30`). An empty value (`width=`) counts as not given.
 
@@ -35,6 +35,7 @@ Numbers are checked: a value that isn't a number, or is out of the range given b
 * `location` - **deprecated, ignored** - Geocoding addresses was removed (#16): convert addresses to coordinates in your client and pass `latitude` / `longitude`. A request with `location` gets `Deprecation` and `Link` headers; with nothing else to place the map, it gets HTTP 400.
 * `marker[]` - Specify one or more markers to overlay on the map. Parameters are specified as: `key:value;`. See below for the full list of parameters. 
 * `path[]` - Specify one or more paths to draw on the map. See below for the full list of parameters to draw a path.
+* `geojson` - optional - A GeoJSON Feature, FeatureCollection or geometry, drawn as markers and paths. See [GeoJSON](#geojson).
 * `polyline` - Alternative to path: one path as a Google encoded polyline (latitude, longitude order), for shorter URLs. See [Polylines](#polylines).
 * `format` - default "png" - `png`, `png8` (a 256-colour PNG: much smaller, good for most maps), `jpg` (`jpeg` also works) or `webp` (smaller still; when the server's PHP has no WebP support, the map is sent as PNG with an `X-Map-Format` header, and `/api/v1/` lists the formats available). Anything else gets HTTP 400.
 * `quality` - default 75 - JPEG and WebP quality, a whole number from 1 to 100.
@@ -54,6 +55,7 @@ Markers and paths that can't be drawn (coordinates that aren't numbers in range,
 | `200` `text/html` | A request with no parameters at all: the install's home page. | HTML |
 | `400` | A parameter is invalid (a number out of range, unknown `format` or `attribution_position`, only one of `latitude`/`longitude`), the request doesn't place the map (no coordinates, markers or paths), or, with `errors.strict`, a marker or path can't be drawn. | One line of text saying why |
 | `403` | A key or signature problem: no valid key on a [restricted](#access-and-client-keys) server, or an invalid or expired signature. | One line of text saying why |
+| `413` | A JSON request body is over the install's limit (`limits.max_body_bytes`, 1 MB by default). | One line of text |
 | `500` | The install's configuration is invalid (details are in the server log). | One line of text |
 
 Error responses also send the reason as an `X-Map-Error` header (handy for an `<img>` that failed to load: see the browser's network panel) and `Cache-Control: no-store`.
@@ -65,6 +67,7 @@ Headers on a map that was drawn, but not quite as requested:
 | `X-Map-Fallback` | The default map was drawn instead of the requested provider or style: `removed`, `unavailable`, or `outside` (a regional map entirely outside its coverage), with `requested=` and `drawn=` (see [Providers and styles](#providers-and-styles)). |
 | `X-Map-Size` | `width` / `height` were over the install's limits and the map was drawn smaller. |
 | `X-Map-Limit` | Markers or paths over the install's limits were left out. |
+| `X-Map-GeoJSON` | `geojson` features without a supported geometry were skipped. |
 | `X-Map-Overlay` | Requested overlays that were left out: `unavailable=…` and/or `over-limit=…; max=N`. |
 | `X-Map-Coverage` | `partial` or `none`: the map is partly or wholly outside the area a regional map covers (its `bounds`). |
 | `X-Map-Scale` | A `scale=2` map at the map's highest zoom: its tiles were enlarged instead of taken from the next zoom up. |
@@ -598,6 +601,38 @@ polyline=enc:_p~iF~ps|U_ulLnnqC_mqNvxq`@;weight:6;color:0033ff
 ```
 
 Characters such as `|` and `` ` `` must be URL-encoded in a query string (`%7C`, `%60`); most HTTP libraries do this for you.
+
+## GeoJSON
+
+`geojson` draws a GeoJSON ([RFC 7946](https://www.rfc-editor.org/rfc/rfc7946)) Feature, FeatureCollection or bare geometry, styled with [simplestyle-spec](https://github.com/mapbox/simplestyle-spec) properties. Send it as an object in a [JSON body](#post-with-a-json-body), or as a JSON string in the query string. Each feature becomes a marker or path, after the request's own `marker[]` and `path[]` values. It is checked and limited like them, and numbered after them in `X-Marker-<n>` / `X-Path-<n>` headers.
+
+| Geometry | Drawn as | Properties (default) |
+|---|---|---|
+| Point, MultiPoint | Generated pins | `marker-color` (`#7e7e7e`), `marker-size` (`small`, `medium`, `large`), `marker-symbol`: one or two letters or digits, or a number up to 999, as the pin's label (icon names aren't supported) |
+| LineString, MultiLineString | Paths | `stroke` (`#555555`), `stroke-width` (2), `stroke-opacity` (1) |
+| Polygon, MultiPolygon | Filled shapes (outer ring; holes aren't drawn) | the stroke properties, plus `fill` (`#555555`) and `fill-opacity` (0.6) |
+| GeometryCollection | Each member | the feature's properties |
+
+Features without a geometry, or with another type, are skipped and counted in an `X-Map-GeoJSON` header. A `geojson` value that isn't GeoJSON gets HTTP 400.
+
+## POST with a JSON body
+
+For maps with long paths or many features, which don't fit in a URL, send `POST` with `Content-Type: application/json` and a JSON object of the same parameters:
+
+```json
+{
+  "width": 600,
+  "height": 400,
+  "key": "your-client-key",
+  "marker": ["lat:45.5165;lng:-122.6764;icon:pin;label:A"],
+  "geojson": {"type": "Feature", "properties": {"stroke": "#0055ff"},
+              "geometry": {"type": "LineString", "coordinates": [[-122.68, 45.51], [-122.66, 45.52]]}}
+}
+```
+
+Numbers and booleans count as their text and lists as `[]` parameters, so the same checks apply. Body values replace query parameters of the same name. A body over 1 MB (`limits.max_body_bytes`) gets HTTP 413; one that isn't a JSON object gets 400.
+
+The image comes back directly. POST responses aren't cached by browsers or CDNs, so POST is meant for server-side clients that store the image they get. [Signed URLs](#signed-urls) are GET-only, so a POST uses a plain `key`.
 
 ## Examples
 

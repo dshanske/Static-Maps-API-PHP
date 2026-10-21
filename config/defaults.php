@@ -93,6 +93,9 @@ return [
      * 'icon_bytes'  Largest marker icon download, in bytes. Default: 262144 (256 KB).
      * 'icon_pixels' Marker icons from URLs larger than this many pixels wide or
      *               high are drawn at this size. Default: 256.
+     * 'max_body_bytes' Largest JSON request body (POST with Content-Type:
+     *               application/json, #38), in bytes; a larger one gets 413.
+     *               Default: 1048576 (1 MB).
      * 'max_overlays' Most `overlay` layers on one map (#30); more are left out, with
      *               an `X-Map-Overlay` header. Each one downloads its own tiles.
      *               Default: 3.
@@ -108,6 +111,7 @@ return [
         'icon_bytes'  => 262144,
         'icon_pixels' => 256,
         'max_overlays' => 3,
+        'max_body_bytes' => 1048576,
     ],
 
     /*

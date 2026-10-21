@@ -75,6 +75,7 @@ final class ConfigTest extends TestCase
                 'icon_bytes'  => 262144,
                 'icon_pixels' => 256,
                 'max_overlays' => 3,
+                'max_body_bytes' => 1048576,
             ],
             'errors'          => ['strict' => false],
             'cache'           => [

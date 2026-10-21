@@ -37,7 +37,7 @@ foreach ($config['deprecations'] as $message) {
     error_log('Static Maps API: ' . $message);
 }
 
-$request = Request::fromGlobals();
+$request = Request::fromGlobals((int) $config['limits']['max_body_bytes']);
 
 // The URL path the service is installed under ('' at the site root), and the
 // request path relative to it.
@@ -53,6 +53,9 @@ if (Api::handles($path)) {
     $response = $keyError !== null
         ? Response::error(403, $keyError, $keyHeaders)
         : $api->handle((string) ($_SERVER['REQUEST_METHOD'] ?? 'GET'), $path, $request)->withHeaders($keyHeaders);
+} elseif ($request->error !== null) {
+    // A JSON body that was too large or not a JSON object (#38).
+    $response = Response::error($request->error[0], $request->error[1]);
 } elseif ($request->isEmpty()) {
     // No parameters at all (someone opened the address in a browser): say what this is.
     try {
