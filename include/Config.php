@@ -675,6 +675,9 @@ class Config
         if (!is_bool($config['errors']['strict'] ?? null)) {
             throw new RuntimeException("Setting 'errors.strict' must be true or false");
         }
+        if (!is_bool($config['viewport_headers'] ?? null)) {
+            throw new RuntimeException("Setting 'viewport_headers' must be true or false");
+        }
         $limits = [
             'max_width', 'max_height', 'max_markers', 'max_points', 'max_overlays', 'max_body_bytes',
             'icon_urls', 'icon_bytes', 'icon_pixels',

@@ -62,6 +62,9 @@ return [
     // it out with an X-Marker-<n> / X-Path-<n> header.
     // 'errors' => ['strict' => true],
 
+    // Don't send X-Map-Center, X-Map-Zoom and X-Map-Bounds with map images.
+    // 'viewport_headers' => false,
+
     // How long browsers and caches may keep map images.
     // 'cache' => [
     //     'max_age'          => 604800,   // seconds (7 days)

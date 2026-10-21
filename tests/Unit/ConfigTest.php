@@ -78,6 +78,7 @@ final class ConfigTest extends TestCase
                 'max_body_bytes' => 1048576,
             ],
             'errors'          => ['strict' => false],
+            'viewport_headers' => true,
             'cache'           => [
                 'max_age'          => 604800,
                 'fallback_max_age' => 300,
@@ -616,6 +617,7 @@ final class ConfigTest extends TestCase
                 "Style 'one/base' bounds must be",
             ],
             'strict not bool'       => [['errors' => ['strict' => 'yes']], "'errors.strict' must be"],
+            'viewport not bool'     => [['viewport_headers' => 1], "'viewport_headers' must be"],
             'max_markers zero'      => [['limits' => ['max_markers' => 0]], "'limits.max_markers' must be"],
             'limit zero'            => [['limits' => ['max_height' => 0]], "'limits.max_height' must be"],
             'cache max_age'         => [['cache' => ['max_age' => '7d']], "'cache.max_age' must be"],

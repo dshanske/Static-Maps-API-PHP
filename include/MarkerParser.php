@@ -73,7 +73,8 @@ final class MarkerParser
      *
      * @return array{markers: list<array<string, mixed>>, headers: list<string>, deprecated: bool}
      *         The markers (their `key:value` pairs plus `iconImg`, a GdImage, and `density`,
-     *         `anchor`, `scale`, `rotation`, `opacity` for MarkerIcon::place()), response
+     *         `anchor`, `scale`, `rotation`, `opacity` for MarkerIcon::place(), and `n`, the
+     *         marker's number as in `X-Marker-<n>` headers), response
      *         headers to send, and whether any marker used the removed `location`.
      */
     public function parse(mixed $value, bool $mayFetchUrls, Bounds $bounds): array
@@ -135,7 +136,8 @@ final class MarkerParser
 
             [$icon, $problem] = $this->icon($properties, $mayFetchUrls);
             if ($icon !== null) {
-                $markers[] = $icon + $properties;
+                // `n`: its number, as in X-Marker-<n> headers (#101).
+                $markers[] = ['n' => $i + 1] + $icon + $properties;
             } else {
                 $headers[] = 'X-Marker-' . ($i + 1) . ': ' . $problem;
             }

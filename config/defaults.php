@@ -129,6 +129,17 @@ return [
     ],
 
     /*
+     * Whether map images say what area they show (#101): `X-Map-Center`
+     * (lat,lng), `X-Map-Zoom` and `X-Map-Bounds` (minLng,minLat,maxLng,maxLat
+     * of the image's edges). Clients use them to place clickable areas or open
+     * an interactive map at the same view. /api/v1/plan gives the same numbers
+     * whatever this is set to.
+     * Default: true.
+     * Example override: 'viewport_headers' => false,
+     */
+    'viewport_headers' => true,
+
+    /*
      * Caching.
      *
      * 'max_age'          How long browsers, CDNs and proxies may keep a map

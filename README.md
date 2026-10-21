@@ -60,6 +60,16 @@ Markers and paths that can't be drawn (coordinates that aren't numbers in range,
 
 Error responses also send the reason as an `X-Map-Error` header (handy for an `<img>` that failed to load: see the browser's network panel) and `Cache-Control: no-store`.
 
+Every map image says what area it shows (#101), so clients can place clickable areas over it or open an interactive map at the same view:
+
+| Header | Meaning |
+|---|---|
+| `X-Map-Center` | The centre drawn, `lat,lng` (**latitude first**, as in `center`); for a fitted map, the centre that was chosen. |
+| `X-Map-Zoom` | The zoom drawn, after it was fitted and kept within the map's zoom range. |
+| `X-Map-Bounds` | The image's edges, `minLng,minLat,maxLng,maxLat` (**longitude first**, as in `bbox`). `minLng` is greater than `maxLng` when the image crosses the antimeridian; -180 and 180 when it is wider than the world. With `scale=2`, the same area as at scale 1. |
+
+Coordinates have 6 decimals. An install can switch these headers off with `'viewport_headers' => false`. [`/api/v1/plan`](#query-api) gives the same numbers, and where each marker is, as JSON; unlike the image's headers, it can be read from any origin.
+
 Headers on a map that was drawn, but not quite as requested:
 
 | Header | Meaning |
@@ -160,6 +170,7 @@ A read-only JSON API tells clients what this install supports, so they don't hav
 | `GET /api/v1/` | Version, access mode (and whether the request's key is valid), defaults (provider, style, size, format, attribution), size limits, zoom settings, formats, attribution values, whether custom tile URLs are available to this request, and links to the other endpoints |
 | `GET /api/v1/providers` | Every provider and style that can be drawn: id, name, `minzoom` / `maxzoom` (after `zoom.max_limit`), default attribution, on-image credit (`attribution_text`) and full credit (`attribution_html`), whether it has a labels layer; the default map; deprecated `basemap` ids with what they map to; removed ids with the reason |
 | `GET /api/v1/attribution` | The credit for one map, chosen by the same parameters as the image (so you can pass the image's query string): `provider`, `style`, `overlays` (those drawn), `fallback` (the `X-Map-Fallback` value if the default map would be drawn instead), `attribution` (the logo setting), `text` (what's drawn on the image), `html` (the full credit with links, for your page) and `plain` (the same without markup). When the parameters locate the map (a centre, markers, paths, `bbox`...), it is planned as the image would be, so a regional map outside its area is reported as the default map (`outside`), and overlays outside their zoom range or area are left out; marker icon URLs are not downloaded but counted at their largest size. Without a location, the map is chosen from `provider` / `style` / `basemap` alone. No tiles are fetched. |
+| `GET /api/v1/plan` | What the image for the same parameters would show, without drawing it (#101): `provider`, `style`, `fallback`, `overlays` (those drawn), `width`, `height`, `scale`, `zoom`, `center` (`latitude`, `longitude`), `bounds` (`[minLng, minLat, maxLng, maxLat]`, as in `X-Map-Bounds`) and `markers`: for each marker drawn, its number `n` (as in `X-Marker-<n>`), its position `x`, `y` (the icon's anchor) and its icon's `box` (`[left, top, right, bottom]`), in CSS pixels from the image's top-left corner. Markers can be partly or wholly outside the image. Marker icon URLs aren't downloaded: their box is the largest an icon URL can be (`limits.icon_pixels`). A request the image would refuse gets the same `400`, as JSON with an `error`. No tiles are fetched. |
 | `GET /api/v1/icons` | Every built-in marker icon: name, width and height in pixels, anchor (`bottom-center`, or `center` for `dot-*` icons) and the URL of its image |
 
 Providers or styles that are switched off, need a provider API key the install hasn't set, or need a client key are left out. Maps that need a client key are listed (with `needs_key: true`) when the request includes a valid `key` the client may use them with, and such responses aren't cached (`Cache-Control: private, no-store`). Unknown endpoints get `404`, methods other than `GET`, `HEAD` and `OPTIONS` get `405`; both with a JSON `error`. The `v1` in the path changes only if the response format changes incompatibly.

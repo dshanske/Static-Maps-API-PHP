@@ -483,11 +483,16 @@
     try {
       const response = await fetch(lastUrl, {signal: controller.signal});
       const ms = Math.round(performance.now() - started);
+      // What the image shows (#101) goes on the info line; the other X-Map-* headers are notices.
+      const viewport = ['x-map-center', 'x-map-zoom', 'x-map-bounds'];
       for (const [name, value] of response.headers) {
-        if (/^x-(map|marker|path)-/i.test(name) || name === 'deprecation') {
+        if ((/^x-(map|marker|path)-/i.test(name) && !viewport.includes(name)) || name === 'deprecation') {
           notice(name + ': ' + value, false);
         }
       }
+      const zoom = response.headers.get('X-Map-Zoom');
+      const centre = response.headers.get('X-Map-Center');
+      const shown = zoom && centre ? ', zoom ' + zoom + ' at ' + centre : '';
       const type = response.headers.get('Content-Type') || '';
       if (!response.ok || !type.startsWith('image/')) {
         notice('HTTP ' + response.status + ': ' + (await response.text()).slice(0, 500), true);
@@ -502,7 +507,7 @@
       img.onload = () => {
         img.style.width = (img.naturalWidth / scale) + 'px';
         $('meta').textContent = img.naturalWidth + ' × ' + img.naturalHeight + ' px, ' + type + ', '
-          + Math.max(1, Math.round(blob.size / 1024)) + ' KB, ' + ms + ' ms';
+          + Math.max(1, Math.round(blob.size / 1024)) + ' KB, ' + ms + ' ms' + shown;
       };
       const preview = $('preview');
       const old = preview.querySelector('img');

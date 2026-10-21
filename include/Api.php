@@ -64,12 +64,14 @@ final class Api
     {
         $endpoint = rtrim($path, '/');
         $extraHeaders = [];
+        $status = 200;
         $data = match ($endpoint) {
             '/api/v1'             => $this->root(),
             '/api/v1/providers'   => $this->providers(),
             '/api/v1/icons'       => $this->icons(),
             '/api/v1/overlays'    => $this->overlays(),
             '/api/v1/attribution' => $this->attribution($request, $extraHeaders),
+            '/api/v1/plan'        => $this->planData($request, $extraHeaders, $status),
             default               => null,
         };
 
@@ -85,7 +87,7 @@ final class Api
             return $response->withHeaders(['Allow: GET, HEAD, OPTIONS']);
         }
 
-        return $this->json(200, $data, $method)->withHeaders($extraHeaders);
+        return $this->json($status, $data, $method)->withHeaders($extraHeaders);
     }
 
     /**
@@ -254,15 +256,11 @@ final class Api
         [$overlays, $overlayHeaders] = $chooser->overlays($request, $this->client);
         $headers = array_merge($headers, $overlayHeaders);
         $plan = $this->plan($request);
-        if ($plan !== null) {
+        if ($plan instanceof MapPlan) {
             // The map and overlays the image would really use, and the notices about them.
             $map = $plan->basemap;
             $overlays = $plan->overlays;
-            $notices = '/^(X-Map-(Fallback|Overlay|Coverage)|Deprecation|Link):/i';
-            $headers = array_values(array_filter(
-                $plan->headers,
-                static fn (string $h): bool => preg_match($notices, $h) === 1
-            ));
+            $headers = self::notices($plan);
         }
 
         $logo = $request->get('attribution');
@@ -312,20 +310,80 @@ final class Api
     }
 
     /**
+     * `/api/v1/plan`: what the image for the same parameters would show (#101).
+     *
+     * @param Request      $request The request (the image's parameters).
+     * @param list<string> $headers Receives headers to send (fallback, overlay and deprecation notices).
+     * @param int          $status  Receives the HTTP status: 400 when the image would get one.
+     *
+     * @return array<string, mixed> The response data, or `error` with the reason.
+     */
+    private function planData(Request $request, array &$headers, int &$status): array
+    {
+        $plan = $this->plan($request);
+        if (!$plan instanceof MapPlan) {
+            $status = 400;
+
+            return ['error' => $plan];
+        }
+        $headers = self::notices($plan);
+        $mercator = new WebMercator();
+        $params = Parameters::parse($request, $this->config);
+        [$west, $south, $east, $north] = $plan->bounds($mercator, $params->width, $params->height);
+        $fallback = null;
+        foreach ($headers as $header) {
+            if (stripos($header, 'X-Map-Fallback:') === 0) {
+                $fallback = trim(substr($header, strlen('X-Map-Fallback:')));
+            }
+        }
+
+        return [
+            'provider' => $plan->basemap['provider'] ?? null,
+            'style'    => $plan->basemap['style'] ?? null,
+            'fallback' => $fallback,
+            'overlays' => array_column($plan->overlays, 'overlay'),
+            'width'    => $params->width,
+            'height'   => $params->height,
+            'scale'    => $params->scale,
+            'zoom'     => (int) $plan->zoom,
+            'center'   => ['latitude' => round($plan->latitude, 6), 'longitude' => round($plan->longitude, 6)],
+            'bounds'   => [round($west, 6), round($south, 6), round($east, 6), round($north, 6)],
+            'markers'  => $plan->markerPositions($mercator, $params->width, $params->height),
+        ];
+    }
+
+    /**
+     * A plan's notices that describe the map rather than its drawing.
+     *
+     * @param MapPlan $plan The plan.
+     *
+     * @return list<string> Its X-Map-Fallback, X-Map-Overlay, X-Map-Coverage, Deprecation and Link headers.
+     */
+    private static function notices(MapPlan $plan): array
+    {
+        $pattern = '/^(X-Map-(Fallback|Overlay|Coverage)|Deprecation|Link):/i';
+
+        return array_values(array_filter(
+            $plan->headers,
+            static fn (string $h): bool => preg_match($pattern, $h) === 1
+        ));
+    }
+
+    /**
      * Plan a request's map as the renderer would, without fetching tiles or icon URLs.
      *
      * @param Request $request The request.
      *
-     * @return MapPlan|null The plan; null if the request doesn't locate a map or its
-     *                      parameters are invalid (the image request would get a 400).
+     * @return MapPlan|string The plan; or, when the image request would get a 400 (it
+     *                        doesn't locate a map, or its parameters are invalid), the reason.
      */
-    private function plan(Request $request): ?MapPlan
+    private function plan(Request $request): MapPlan|string
     {
         try {
             $params = Parameters::parse($request, $this->config);
             $geojson = GeoJson::toOverlays($request->get('geojson'));
         } catch (InvalidRequest $e) {
-            return null;
+            return $e->getMessage();
         }
         $plan = MapPlan::make(
             $this->config,
@@ -339,7 +397,7 @@ final class Api
             false
         );
 
-        return $plan instanceof MapPlan ? $plan : null;
+        return $plan instanceof MapPlan ? $plan : $plan->body;
     }
 
     /**
@@ -398,6 +456,7 @@ final class Api
             'icons'     => $this->base . '/api/v1/icons',
             'overlays'  => $this->base . '/api/v1/overlays',
             'attribution' => $this->base . '/api/v1/attribution',
+            'plan'      => $this->base . '/api/v1/plan',
         ];
     }
 
