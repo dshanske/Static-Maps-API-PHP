@@ -93,7 +93,7 @@ return [
     // ],
 
     // Identify your install to tile providers (OpenStreetMap requires this).
-    // 'user_agent' => 'Static Maps API/ maps.example.com (admin@example.com)',
+    // 'user_agent' => 'Static Maps API/{version} (maps.example.com; admin@example.com)',
 
     // Who may draw which maps: 'open' (free maps for everyone; maps using your
     // provider keys need a client key) or 'restricted' (every map needs one).

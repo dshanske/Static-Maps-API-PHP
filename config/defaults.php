@@ -224,9 +224,11 @@ return [
      * User-Agent header sent when downloading tiles. Tile providers such as
      * OpenStreetMap require a User-Agent that identifies the application.
      * Set this to something that identifies your install, for example
-     * 'Static Maps API/ maps.example.com (admin@example.com)'.
+     * 'Static Maps API/{version} (maps.example.com; admin@example.com)'.
+     * `{version}` is replaced with this software's version (#41), e.g. 1.0.0.
+     * Default: 'Static Maps API/{version} (+https://github.com/dshanske/Static-Maps-API-PHP)'.
      */
-    'user_agent' => 'Static Maps API/ github.com/dshanske/Static-Maps-API-PHP',
+    'user_agent' => 'Static Maps API/{version} (+https://github.com/dshanske/Static-Maps-API-PHP)',
 
     /*
      * Who may draw which maps (#28).

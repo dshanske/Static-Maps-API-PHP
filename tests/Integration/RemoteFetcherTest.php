@@ -9,6 +9,7 @@ namespace StaticMaps\Tests\Integration;
 use PHPUnit\Framework\Attributes\DataProvider;
 use StaticMaps\RemoteFetcher;
 use StaticMaps\Tests\Support\RenderTestCase;
+use StaticMaps\Version;
 
 /**
  * StaticMaps\RemoteFetcher against the fake tile server, with the test
@@ -38,6 +39,24 @@ final class RemoteFetcherTest extends RenderTestCase
         $this->assertNotNull($body);
         $this->assertSame("\x89PNG", substr((string) $body, 0, 4));
         $this->assertSame(['Static Maps API tests'], array_column($this->tileRequests(), 'ua'));
+    }
+
+    /**
+     * `{version}` in the user_agent setting becomes the version (#41).
+     *
+     * @return void
+     */
+    public function testUserAgentVersion(): void
+    {
+        $fetcher = RemoteFetcher::fromConfig([
+            'remote'     => ['timeout' => 2, 'connect_timeout' => 2, 'max_bytes' => 200000, 'max_redirects' => 2],
+            'user_agent' => 'Static Maps API/{version} (tests)',
+        ]);
+        $this->assertNotNull($fetcher->fetch(self::$tiles?->url . '/overlay/1/1/1.png'));
+        $this->assertSame(
+            ['Static Maps API/' . Version::VERSION . ' (tests)'],
+            array_column($this->tileRequests(), 'ua')
+        );
     }
 
     /**
