@@ -20,7 +20,8 @@ stable interface; pin a commit if you need a fixed point.
 
 - A demo page, `assets/demo.html`, now the default `home_page`: it builds
   and draws map requests, with the install's providers, overlays and icons,
-  and shows the notices the server sends, with examples. Set `home_page` to
+  and shows the notices the server sends, with examples and a "Use my
+  location" button (Geolocation API). Set `home_page` to
   `assets/home.html` for the plain page (#92).
 - Public-sector maps (#32): `usgs` (US Topo, imagery, imagery with topo),
   `nasa-gibs` (Blue Marble), `swisstopo` (colour, grey, SWISSIMAGE), `ign`

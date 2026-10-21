@@ -51,6 +51,8 @@
   button.primary { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 600; }
   button:disabled { opacity: .6; cursor: progress; }
   .actions { display: flex; gap: .5rem; flex-wrap: wrap; align-items: center; }
+  .locate { margin: 0 0 .5rem; }
+  .locate .hint { margin: 0; }
   .preview { min-height: 8rem; display: flex; align-items: center; justify-content: center;
              background: var(--code); border-radius: 6px; overflow: auto; padding: .5rem; }
   .preview img { max-width: 100%; height: auto; display: block; }
@@ -108,6 +110,10 @@
           <label>Latitude <input name="latitude" inputmode="decimal" placeholder="auto"></label>
           <label>Longitude <input name="longitude" inputmode="decimal" placeholder="auto"></label>
           <label>Zoom <input name="zoom" type="number" min="0" max="30" placeholder="auto"></label>
+        </div>
+        <div class="actions locate">
+          <button type="button" id="locate">Use my location</button>
+          <span class="hint" id="locate-status" role="status"></span>
         </div>
         <p class="hint">Leave the centre or zoom empty to fit the markers, paths and GeoJSON.</p>
         <label>bbox <input name="bbox" placeholder="minLng,minLat,maxLng,maxLat"></label>
@@ -623,6 +629,38 @@
     showUrl();
   }
 
+  /**
+   * Fill in the centre from the browser's location (the Geolocation API). The
+   * position stays in this page: it goes to the server only as part of a map
+   * request, when one is drawn.
+   */
+  function locate() {
+    const status = $('locate-status');
+    if (!('geolocation' in navigator) || !window.isSecureContext) {
+      status.textContent = 'Your browser can share its location only on https pages.';
+      return;
+    }
+    const button = $('locate');
+    button.disabled = true;
+    status.textContent = 'Asking your browser…';
+    navigator.geolocation.getCurrentPosition((position) => {
+      const c = position.coords;
+      form.elements.latitude.value = c.latitude.toFixed(5);
+      form.elements.longitude.value = c.longitude.toFixed(5);
+      if (!form.elements.zoom.value) {
+        form.elements.zoom.value = c.accuracy > 5000 ? '11' : '15';
+      }
+      status.textContent = 'Centred on your location (within ' + Math.round(c.accuracy) + ' m).';
+      button.disabled = false;
+      showUrl();
+    }, (error) => {
+      status.textContent = error.code === error.PERMISSION_DENIED
+        ? 'Location access was refused.'
+        : 'Your location isn\'t available (' + error.message + ').';
+      button.disabled = false;
+    }, {enableHighAccuracy: false, timeout: 15000, maximumAge: 60000});
+  }
+
   async function copy(text) {
     try {
       await navigator.clipboard.writeText(text);
@@ -650,6 +688,7 @@
   $('style').addEventListener('change', describeStyle);
   form.elements.key.addEventListener('change', () => loadApi().then(showUrl).catch((e) => notice(e.message, true)));
   $('reset').addEventListener('click', () => load(null, false));
+  $('locate').addEventListener('click', locate);
   $('copy-url').addEventListener('click', () => copy(lastUrl));
   $('copy-img').addEventListener('click', () => {
     const p = params();
