@@ -54,12 +54,39 @@ final class Response
     public function send(): void
     {
         http_response_code($this->status);
-        foreach (array_unique($this->headers) as $header) {
-            // A response can carry several Link headers (deprecation, help); other
-            // headers replace any earlier one of the same name.
+        foreach ($this->headerLines() as $header) {
             header($header, stripos($header, 'Link:') !== 0);
         }
         echo $this->body;
+    }
+
+    /**
+     * The header lines as sent (#79).
+     *
+     * Repeated lines are sent once. Headers with the same name but different
+     * values are combined into one, the values joined with `, ` (HTTP list
+     * syntax), because PHP's header() replaces an earlier header of the same
+     * name; e.g. two `X-Map-Limit` notices become one header with both.
+     * `Link` headers stay separate (a response can carry several).
+     *
+     * @return list<string> Header lines, in the order their names first appear.
+     */
+    public function headerLines(): array
+    {
+        $lines = [];
+        $byName = [];
+        foreach (array_unique($this->headers) as $header) {
+            $parts = explode(':', $header, 2);
+            $name = strtolower(trim($parts[0]));
+            if (count($parts) < 2 || $name === 'link' || !isset($byName[$name])) {
+                $lines[] = $header;
+                $byName[$name] = count($lines) - 1;
+                continue;
+            }
+            $lines[$byName[$name]] .= ', ' . trim($parts[1]);
+        }
+
+        return $lines;
     }
 
     /**
