@@ -18,6 +18,8 @@ stable interface; pin a commit if you need a fixed point.
 
 ### Added
 
+- Shipped overlay `seamarks` (#31): OpenSeaMap's buoys, beacons, lights and
+  harbours, to zoom 18.
 - A demo page, `assets/demo.html`, now the default `home_page`: it builds
   and draws map requests, with the install's providers, overlays and icons,
   and shows the notices the server sends, with examples and a "Use my

@@ -510,6 +510,7 @@ Shipped overlays:
 | `railway-gauge` | OpenRailwayMap: track gauges | 19 |
 | `usgs-hydro` | USGS National Hydrography: rivers, lakes and streams (USA) | 16 |
 | `basemap-at-labels` | basemap.at labels and roads (Austria), e.g. over imagery | 19 |
+| `seamarks` | [OpenSeaMap](https://www.openseamap.org/): buoys, beacons, lights and harbours | 18 |
 
 An install can switch them off with `'overlays' => ['railways' => ['enabled' => false]]`.
 
@@ -534,6 +535,7 @@ What an install does beyond that is its own responsibility: which providers it a
 | Stadia Maps | Needs a key. The free tier is for non-commercial use only. The terms forbid proxying or caching access to Stadia's services; Stadia support confirmed (2026-10-20) that a server like this doesn't violate that as long as each request results in API calls to Stadia's servers, so Stadia tiles are never cached and map images are marked `private`. Alidade Satellite is left out (its imagery terms forbid processing the imagery). Credit: Stadia Maps, OpenMapTiles, OpenStreetMap, and Stamen Design for the Stamen styles. | [Terms of service](https://stadiamaps.com/terms-of-service), [attribution](https://docs.stadiamaps.com/attribution/) |
 | Geoapify | Needs a key. Free plan: commercial use allowed in development and, with limitations, in production (ask Geoapify); reasonable load; "Powered by Geoapify", OpenStreetMap and OpenMapTiles credit required. | [Terms](https://www.geoapify.com/term-and-conditions/), [map tiles](https://apidocs.geoapify.com/docs/maps/map-tiles/) |
 | OpenTopoMap | CC-BY-SA, so commercial use is allowed with credit. No mass downloads. | [About](https://opentopomap.org/about) |
+| OpenSeaMap (`seamarks`) | Chart tiles are CC BY-SA 2.0; any use, commercial included, with credit. No usage policy for its tile server was found; it is donation-funded, so keep the load modest. | [FAQ](https://www.openseamap.org/index.php?id=faq&L=1) |
 | OpenRailwayMap (overlays) | Small-scale, public, non-commercial use only; for-profit use must run its own tile server. Tiles are CC-BY-SA 2.0. | [Tile usage](https://wiki.openstreetmap.org/wiki/OpenRailwayMap/API) |
 | USGS (`usgs`, `usgs-hydro`) | Public domain; USGS asks for credit. | [Copyrights and credits](https://www.usgs.gov/information-policies-and-instructions/copyrights-and-credits) |
 | NASA GIBS (`nasa-gibs`) | Full and open sharing; NASA asks for an acknowledgement of GIBS (in `attribution_html`). | [GIBS](https://www.earthdata.nasa.gov/engage/open-data-services-software/earthdata-developer-portal/gibs-api) |

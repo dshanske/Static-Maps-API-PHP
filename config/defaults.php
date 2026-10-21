@@ -1144,6 +1144,23 @@ return [
             'attribution_text' => 'Grundkarte: basemap.at',
             'attribution_html' => 'Grundkarte: <a href="https://basemap.at/">basemap.at</a> (CC BY 4.0)',
         ],
+        // OpenSeaMap (https://www.openseamap.org/): seamarks (buoys, beacons,
+        // lights, harbours) over any map. Its FAQ puts the chart tiles under
+        // CC BY-SA 2.0 and allows any use, commercial included, with credit
+        // (https://www.openseamap.org/index.php?id=faq&L=1). No usage policy
+        // for tiles.openseamap.org was found (checked 2026-10-21); the
+        // maintainer decided the licence is enough to ship it (#31). The
+        // service is donation-funded, so keep the load modest. Its tiles send
+        // no caching headers, so the tile cache doesn't keep them. Tiles to
+        // zoom 18 (checked 2026-10-21).
+        'seamarks' => [
+            'name'             => 'OpenSeaMap seamarks',
+            'layers'           => ['https://tiles.openseamap.org/seamark/{z}/{x}/{y}.png'],
+            'cache'            => 'headers',
+            'maxzoom'          => 18,
+            'attribution_text' => 'Seamarks © OpenSeaMap contributors',
+            'attribution_html' => 'Seamarks © <a href="https://www.openseamap.org/">OpenSeaMap</a> contributors (<a href="https://creativecommons.org/licenses/by-sa/2.0/">CC BY-SA 2.0</a>)',
+        ],
     ],
 
     /*
