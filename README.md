@@ -444,7 +444,7 @@ Put only the settings you want to change in `data/config.php`. It is merged over
 <?php
 return [
     'defaults'   => ['width' => 600, 'height' => 400, 'provider' => 'carto', 'style' => 'light'],
-    'user_agent' => 'Static Maps API/ maps.example.com (admin@example.com)',
+    'user_agent' => 'Static Maps API/{version} (maps.example.com; admin@example.com)', // {version}: e.g. 1.0.0
     'providers'  => [
         // Switch a style off, or a whole provider
         'esri'        => ['styles' => ['natgeo' => ['enabled' => false]]],

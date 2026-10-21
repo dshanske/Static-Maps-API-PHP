@@ -35,6 +35,8 @@ final class RemoteFetcher
     /**
      * Build a fetcher from the configuration.
      *
+     * `{version}` in the `user_agent` setting is replaced with Version::VERSION (#41).
+     *
      * @param array<string, mixed> $config Configuration from Config::load() (`remote`, `user_agent`).
      *
      * @return self The fetcher.
@@ -48,7 +50,7 @@ final class RemoteFetcher
             (int) $remote['connect_timeout'],
             (int) $remote['max_bytes'],
             (int) $remote['max_redirects'],
-            (string) $config['user_agent']
+            str_replace('{version}', Version::VERSION, (string) $config['user_agent'])
         );
     }
 

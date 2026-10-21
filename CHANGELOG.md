@@ -183,6 +183,10 @@ stable interface; pin a commit if you need a fixed point.
 
 ### Changed
 
+- The User-Agent sent to tile servers names the version: `{version}` in
+  `user_agent` is replaced with it, and the default is now
+  `Static Maps API/{version} (+https://github.com/dshanske/Static-Maps-API-PHP)`.
+  (#41)
 - `polyline` is drawn together with `path[]` values (after them) instead of
   being ignored when the request has `path[]`; its `X-Path-<n>` number comes
   after theirs (#36).
