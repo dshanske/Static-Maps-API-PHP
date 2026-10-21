@@ -88,7 +88,8 @@ final class Attribution
      * @param int         $scale       Pixel density (#10): text, logos and margins are drawn this
      *                                 many times larger; size rules use the width before scaling.
      *
-     * @return void
+     * @return array{int, int, int, int}|null The box around everything drawn (x1, y1, x2, y2, with
+     *         x2 and y2 just outside it), for the scale bar to keep clear of (#102); null if nothing.
      */
     public function draw(
         GdImage $im,
@@ -98,22 +99,23 @@ final class Attribution
         int $width,
         int $height,
         int $scale = 1
-    ): void {
+    ): ?array {
         if ('none' === $attribution) {
-            return;
+            return null;
         }
 
-        $offset = ($text !== null && $text !== '')
+        $strip = ($text !== null && $text !== '')
             ? $this->drawText($im, $text, $position, $width, $height, $scale)
-            : 0;
+            : null;
+        $offset = $strip === null ? 0 : $strip[3] - $strip[1];
         $cssWidth = intdiv($width, $scale);
         if ('text' === $attribution) {
-            return;
+            return $strip;
         }
 
         $logo = $this->loadLogo($attribution);
         if ($logo === null) {
-            return;
+            return $strip;
         }
 
         $logoWidth = imagesx($logo);
@@ -122,7 +124,7 @@ final class Attribution
         if ('esri' === $attribution) {
             // Shrink the esri logo if the image is small, and leave it out if tiny
             if ($cssWidth <= 120) {
-                return;
+                return $strip;
             }
             $margin = 4 * $scale;
             $shrink = $cssWidth < 220 ? 2 : 1;
@@ -145,6 +147,12 @@ final class Attribution
         } else {
             imagecopyresampled($im, $logo, $x, $y, 0, 0, $w, $h, $logoWidth, $logoHeight);
         }
+
+        $box = [$x, $y, $x + $w, $y + $h];
+
+        return $strip === null
+            ? $box
+            : [min($box[0], $strip[0]), min($box[1], $strip[1]), max($box[2], $strip[2]), max($box[3], $strip[3])];
     }
 
     /**
@@ -188,7 +196,8 @@ final class Attribution
      * @param int     $scale    Pixel density (#10): text and padding are this many times larger,
      *                          and the size rule uses the width before scaling.
      *
-     * @return int Height of the strip in pixels (0 if nothing was drawn).
+     * @return array{int, int, int, int}|null The strip's box (x1, y1, x2, y2, with x2 and y2 just
+     *         outside it), or null if nothing was drawn.
      */
     private function drawText(
         GdImage $im,
@@ -197,12 +206,12 @@ final class Attribution
         int $width,
         int $height,
         int $scale = 1
-    ): int {
+    ): ?array {
         $size = (intdiv($width, $scale) < 250 ? 6.0 : 7.0) * $scale;
         $padding = self::PADDING * $scale;
         $lines = $this->wrap($text, $size, $width - 2 * $padding);
         if ($lines === []) {
-            return 0;
+            return null;
         }
 
         $box = (array) imagettfbbox($size, 0, self::FONT, 'Ag');
@@ -232,7 +241,7 @@ final class Attribution
             );
         }
 
-        return $stripHeight;
+        return [$x, $y, $x + $stripWidth, $y + $stripHeight];
     }
 
     /**

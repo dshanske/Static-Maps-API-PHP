@@ -45,6 +45,8 @@ final class Parameters
      * @param int          $scale        Pixel density: 1, or 2 for a high-density image of the same
      *                                   area at twice the width and height (#10). Width, height and
      *                                   padding above are in CSS pixels, before scaling.
+     * @param string|null  $scalebar     Scale bar units (#102): `metric`, `imperial`, `both`, or null for none.
+     * @param string       $scalebarPosition Corner for the scale bar: one of Attribution::POSITIONS.
      */
     private function __construct(
         public readonly int $width,
@@ -59,7 +61,9 @@ final class Parameters
         public readonly ?array $bbox = null,
         public readonly array $visible = [],
         public readonly array $padding = [0, 0, 0, 0],
-        public readonly int $scale = 1
+        public readonly int $scale = 1,
+        public readonly ?string $scalebar = null,
+        public readonly string $scalebarPosition = 'bottomleft'
     ) {
     }
 
@@ -117,8 +121,34 @@ final class Parameters
             self::bbox($request),
             self::points($request, 'visible', PHP_INT_MAX) ?? [],
             $padding ?? [0, 0, 0, 0],
-            $scale
+            $scale,
+            self::choice($request, 'scalebar', ScaleBar::UNITS),
+            self::choice($request, 'scalebar_position', Attribution::POSITIONS) ?? 'bottomleft'
         );
+    }
+
+    /**
+     * A parameter that must be one of a few words.
+     *
+     * @param Request      $request The request.
+     * @param string       $name    Parameter name.
+     * @param list<string> $allowed The accepted values.
+     *
+     * @return string|null The value, or null if not given (or empty).
+     *
+     * @throws InvalidRequest If it is something else.
+     */
+    private static function choice(Request $request, string $name, array $allowed): ?string
+    {
+        $value = $request->get($name, false);
+        if ($value === false || $value === '') {
+            return null;
+        }
+        if (!is_string($value) || !in_array($value, $allowed, true)) {
+            throw new InvalidRequest("$name must be " . implode(', ', $allowed));
+        }
+
+        return $value;
     }
 
     /**

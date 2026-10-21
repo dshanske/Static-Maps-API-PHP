@@ -131,6 +131,10 @@
           <label>Attribution <select name="attribution" id="attribution"><option value="">map's own</option></select></label>
           <label>Position <select name="attribution_position" id="attribution_position"><option value="">default</option></select></label>
         </div>
+        <div class="row">
+          <label>Scale bar <select name="scalebar" id="scalebar"><option value="">none</option></select></label>
+          <label>Its corner <select name="scalebar_position" id="scalebar_position"><option value="">default</option></select></label>
+        </div>
       </fieldset>
 
       <fieldset>
@@ -196,6 +200,12 @@
     "title": "A place",
     "text": "Centre and zoom.",
     "params": {"latitude": "45.5165", "longitude": "-122.6764", "zoom": "14", "width": "480", "height": "300"}
+  },
+  {
+    "title": "Scale bar",
+    "text": "Metric and imperial, clear of the credit.",
+    "params": {"latitude": "51.5074", "longitude": "-0.1278", "zoom": "13", "width": "480", "height": "300",
+               "scalebar": "both"}
   },
   {
     "title": "Labelled pins",
@@ -313,6 +323,17 @@
     for (const value of info.attribution_positions) {
       position.add(new Option(value, value));
     }
+    // The scale bar (#102), if this install has it.
+    const scalebar = $('scalebar');
+    const scalebarPosition = $('scalebar_position');
+    scalebar.length = 1;
+    scalebarPosition.length = 1;
+    for (const value of info.scalebars || []) {
+      scalebar.add(new Option(value, value));
+    }
+    for (const value of info.attribution_positions) {
+      scalebarPosition.add(new Option(value, value));
+    }
 
     const current = form.elements.provider.value || info.defaults.provider;
     const select = $('provider');
@@ -404,7 +425,7 @@
   function params() {
     const p = new URLSearchParams();
     const fields = ['provider', 'style', 'latitude', 'longitude', 'zoom', 'bbox', 'width', 'height', 'scale',
-                    'format', 'attribution', 'attribution_position'];
+                    'format', 'attribution', 'attribution_position', 'scalebar', 'scalebar_position'];
     for (const name of fields) {
       const value = form.elements[name].value.trim();
       // Leave out defaults, so the URL stays short.
@@ -553,7 +574,8 @@
   /** Fill the form with an example (or nothing), and draw it if asked. */
   function load(example, drawIt) {
     const p = example ? example.params : {};
-    for (const name of ['latitude', 'longitude', 'zoom', 'bbox', 'attribution', 'attribution_position']) {
+    for (const name of ['latitude', 'longitude', 'zoom', 'bbox', 'attribution', 'attribution_position', 'scalebar',
+                        'scalebar_position']) {
       form.elements[name].value = p[name] || '';
     }
     form.elements.geojson.value = p.geojson ? prettyJson(p.geojson) : '';
