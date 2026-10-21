@@ -39,6 +39,10 @@ final class MarkerParser
      * @param int                $maxBytes   Largest icon download in bytes (`limits.icon_bytes`).
      * @param int                $maxPixels  Icons from URLs larger than this many CSS pixels wide or
      *                                       high are drawn smaller (`limits.icon_pixels`).
+     * @param bool               $fetchUrls  False to never download icon URLs: an icon URL the
+     *                                       request may use stands for an icon of the largest size
+     *                                       ($maxPixels square), for measuring a map without drawing
+     *                                       it (the query API, #95).
      */
     public function __construct(
         ?RemoteFetcher $remote = null,
@@ -46,7 +50,8 @@ final class MarkerParser
         private int $density = 1,
         private int $maxUrls = 5,
         int $maxBytes = 262144,
-        private int $maxPixels = 256
+        private int $maxPixels = 256,
+        private bool $fetchUrls = true
     ) {
         $this->remote = ($remote ?? new RemoteFetcher(10, 5, 5000000, 3, 'Static Maps API'))->withMaxBytes($maxBytes);
     }
@@ -272,6 +277,12 @@ final class MarkerParser
                 if (count($this->urlIcons) >= $this->maxUrls) {
                     return [null, 1.0, "at most $this->maxUrls different icon URLs per map"];
                 }
+                if (!$this->fetchUrls) {
+                    // Measuring only: the largest icon a URL can give.
+                    $this->urlIcons[$icon] = [self::placeholder($this->maxPixels), 1.0, null];
+
+                    return $this->urlIcons[$icon];
+                }
                 // Looks like an external image, attempt to download it
                 $img = $this->remote->fetch($icon);
                 $image = $img !== null && $img !== '' ? @imagecreatefromstring($img) : false;
@@ -294,5 +305,22 @@ final class MarkerParser
         $image = @imagecreatefrompng($file);
 
         return $image === false ? [null, 1.0, 'icon could not be loaded'] : [$image, 1.0, null];
+    }
+
+    /**
+     * A transparent square standing in for an icon that isn't downloaded.
+     *
+     * @param int $size Width and height in pixels.
+     *
+     * @return \GdImage The image.
+     */
+    private static function placeholder(int $size): \GdImage
+    {
+        $image = imagecreatetruecolor(max(1, $size), max(1, $size));
+        imagealphablending($image, false);
+        imagesavealpha($image, true);
+        imagefill($image, 0, 0, (int) imagecolorallocatealpha($image, 0, 0, 0, 127));
+
+        return $image;
     }
 }

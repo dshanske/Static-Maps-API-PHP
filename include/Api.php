@@ -235,7 +235,12 @@ final class Api
      *
      * Takes the same `provider`, `style`, `basemap`, `tileurl`, `key`, `overlay` and
      * `attribution` parameters as a map request, so a client can pass the
-     * image's query string and show the result next to the image.
+     * image's query string and show the result next to the image. When the
+     * parameters locate the map, it is planned as the image would be (#95): a
+     * regional map entirely outside its area is reported as the default map
+     * (`fallback` `outside...`), and overlays outside their zoom range or area
+     * are left out. Without a location, the map is chosen from the
+     * provider and style alone.
      *
      * @param Request      $request The request.
      * @param list<string> $headers Receives headers to send (fallback and deprecation notices).
@@ -244,7 +249,21 @@ final class Api
      */
     private function attribution(Request $request, array &$headers): array
     {
-        [$map, $headers] = (new MapChooser($this->config))->choose($request, $this->client);
+        $chooser = new MapChooser($this->config);
+        [$map, $headers] = $chooser->choose($request, $this->client);
+        [$overlays, $overlayHeaders] = $chooser->overlays($request, $this->client);
+        $headers = array_merge($headers, $overlayHeaders);
+        $plan = $this->plan($request);
+        if ($plan !== null) {
+            // The map and overlays the image would really use, and the notices about them.
+            $map = $plan->basemap;
+            $overlays = $plan->overlays;
+            $notices = '/^(X-Map-(Fallback|Overlay|Coverage)|Deprecation|Link):/i';
+            $headers = array_values(array_filter(
+                $plan->headers,
+                static fn (string $h): bool => preg_match($notices, $h) === 1
+            ));
+        }
 
         $logo = $request->get('attribution');
         if (Attribution::isUrl($logo) && ($this->client === null || !$this->client->externalUrls)) {
@@ -253,9 +272,7 @@ final class Api
         if (!Attribution::isKnown($logo)) {
             $logo = $map['attribution'] ?? $this->config['defaults']['attribution'];
         }
-        // The map's credit, then each requested overlay's (#30).
-        [$overlays, $overlayHeaders] = (new MapChooser($this->config))->overlays($request, $this->client);
-        $headers = array_merge($headers, $overlayHeaders);
+        // The map's credit, then each overlay's (#30).
         $texts = [];
         $htmls = [];
         foreach ([$map, ...$overlays] as $layer) {
@@ -292,6 +309,37 @@ final class Api
                 ? null
                 : html_entity_decode(strip_tags($html), ENT_QUOTES | ENT_HTML5, 'UTF-8'),
         ];
+    }
+
+    /**
+     * Plan a request's map as the renderer would, without fetching tiles or icon URLs.
+     *
+     * @param Request $request The request.
+     *
+     * @return MapPlan|null The plan; null if the request doesn't locate a map or its
+     *                      parameters are invalid (the image request would get a 400).
+     */
+    private function plan(Request $request): ?MapPlan
+    {
+        try {
+            $params = Parameters::parse($request, $this->config);
+            $geojson = GeoJson::toOverlays($request->get('geojson'));
+        } catch (InvalidRequest $e) {
+            return null;
+        }
+        $plan = MapPlan::make(
+            $this->config,
+            new WebMercator(),
+            $request,
+            $this->client,
+            $params,
+            $geojson,
+            RemoteFetcher::fromConfig($this->config),
+            [],
+            false
+        );
+
+        return $plan instanceof MapPlan ? $plan : null;
     }
 
     /**

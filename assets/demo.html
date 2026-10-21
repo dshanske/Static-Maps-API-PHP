@@ -510,7 +510,7 @@
         URL.revokeObjectURL(old.src);
       }
       preview.replaceChildren(img);
-      credit(p, response.headers.get('X-Map-Fallback'));
+      credit(p);
     } catch (e) {
       if (e.name !== 'AbortError') {
         notice(e.message, true);
@@ -522,18 +522,11 @@
   }
 
   /**
-   * Show the full credit for the map just drawn, from /api/v1/attribution.
-   * When the server drew another map (X-Map-Fallback), ask for that one's: the
-   * API doesn't know when a regional map is drawn outside its area (#95).
+   * Show the full credit for the map just drawn, from /api/v1/attribution,
+   * which plans the map as the image is (including fallbacks, #95).
    */
-  async function credit(p, fallback) {
+  async function credit(p) {
     $('credit').textContent = '';
-    const drawn = /drawn=([^/;\s]+)\/([^;\s]+)/.exec(fallback || '');
-    if (drawn) {
-      p = new URLSearchParams(p);
-      p.set('provider', drawn[1]);
-      p.set('style', drawn[2]);
-    }
     try {
       const a = await apiGet('attribution', p);
       // The credit comes from this install's own configuration.

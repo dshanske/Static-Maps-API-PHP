@@ -45,19 +45,17 @@ final class MapPlan
      * regional map entirely outside its coverage) and keeps the overlays that
      * apply at its zoom and position.
      *
-     * @param array<string, mixed>                                                     $config  Configuration
-     *                                                                                          from Config::load().
-     * @param WebMercator                                                              $mercator Projection maths.
-     * @param Request                                                                  $request The request.
-     * @param Client|null                                                              $client  The request's
-     *                                                                                          client, if any.
-     * @param Parameters                                                               $params  Its checked
-     *                                                                                          parameters.
-     * @param array{markers: list<string>, paths: list<string>, headers: list<string>} $geojson Its `geojson`
-     *                                                                                          markers and paths.
-     * @param RemoteFetcher                                                            $remote  Downloads icon URLs.
-     * @param list<string>                                                             $headers Headers collected
-     *                                                                                          before planning.
+     * @param array<string, mixed> $config        Configuration from Config::load().
+     * @param WebMercator          $mercator      Projection maths.
+     * @param Request              $request       The request.
+     * @param Client|null          $client        The request's client, if any.
+     * @param Parameters           $params        Its checked parameters.
+     * @param array{markers: list<string>, paths: list<string>, headers: list<string>} $geojson Its GeoJSON
+     *                                            markers and paths (GeoJson::toOverlays()).
+     * @param RemoteFetcher        $remote        Downloads icon URLs.
+     * @param list<string>         $headers       Headers collected before planning.
+     * @param bool                 $fetchIconUrls False to measure icon URLs at their largest size
+     *                                            instead of downloading them (the query API, #95).
      *
      * @return self|Response The plan; or a 400 if the request doesn't locate the map, or (with
      *                       `errors.strict`) a marker or path can't be drawn.
@@ -70,7 +68,8 @@ final class MapPlan
         Parameters $params,
         array $geojson,
         RemoteFetcher $remote,
-        array $headers
+        array $headers,
+        bool $fetchIconUrls = true
     ): self|Response {
         $bounds = new Bounds();
         $mayFetchUrls = $client !== null && $client->externalUrls;
@@ -83,7 +82,8 @@ final class MapPlan
             $params->scale,
             (int) $limits['icon_urls'],
             (int) $limits['icon_bytes'],
-            (int) $limits['icon_pixels']
+            (int) $limits['icon_pixels'],
+            $fetchIconUrls
         ))->parse(
             array_merge(self::values($request->get('marker')), $geojson['markers']),
             $mayFetchUrls,

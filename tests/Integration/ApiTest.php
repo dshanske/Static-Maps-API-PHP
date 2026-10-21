@@ -91,7 +91,10 @@ final class ApiTest extends RenderTestCase
 
         $styles = array_column($byId['fixture']['styles'], null, 'id');
         $this->assertSame(
-            ['base', 'overlay', 'broken', 'esri', 'credited', 'credited-logo', 'regional', 'retina', 'zoom'],
+            [
+                'base', 'overlay', 'broken', 'esri', 'credited', 'credited-logo', 'regional', 'regional-logo',
+                'retina', 'zoom',
+            ],
             array_keys($styles),
             'no auth or off'
         );
@@ -187,6 +190,37 @@ final class ApiTest extends RenderTestCase
                 'style'    => 'base',
                 'fallback' => 'unavailable; requested=nope; drawn=fixture/base',
             ]],
+            // Planned as the image is (#95): a regional map outside its area is the default map.
+            'regional map outside'   => ['style=regional&latitude=35.68&longitude=139.76&zoom=10', [
+                'provider' => 'fixture',
+                'style'    => 'base',
+                'fallback' => 'outside; requested=fixture/regional; drawn=fixture/base',
+            ]],
+            'regional map inside'    => ['style=regional&latitude=45.5&longitude=-122.6&zoom=10', [
+                'style'    => 'regional',
+                'fallback' => null,
+            ]],
+            'located by a marker'    => ['style=regional&marker[]=lat:35.68;lng:139.76;icon:pin', [
+                'style'    => 'base',
+                'fallback' => 'outside; requested=fixture/regional; drawn=fixture/base',
+            ]],
+            'no location: as asked'  => ['style=regional', ['style' => 'regional', 'fallback' => null]],
+            'fallback map\'s logo'   => ['style=regional-logo&latitude=35.68&longitude=139.76&zoom=10', [
+                'style'       => 'base',
+                'attribution' => 'osm',
+            ]],
+            'regional map\'s logo'   => ['style=regional-logo&latitude=45.5&longitude=-122.6&zoom=10', [
+                'style'       => 'regional-logo',
+                'attribution' => 'esri',
+            ]],
+            'overlay below its zoom' => ['overlay=close&latitude=45.5&longitude=-122.6&zoom=5', ['overlays' => []]],
+            'overlay in its zoom'    => ['overlay=close&latitude=45.5&longitude=-122.6&zoom=13', [
+                'overlays' => ['close'],
+            ]],
+            'overlay outside'        => ['overlay=squares,tokyo&latitude=45.5&longitude=-122.6&zoom=10', [
+                'overlays' => ['squares'],
+                'text'     => 'Squares Inc.',
+            ]],
         ];
     }
 
@@ -206,6 +240,38 @@ final class ApiTest extends RenderTestCase
         $this->assertSame(200, $response->status);
         $this->assertSame($expected, array_intersect_key($data, $expected));
         $this->assertSame([], $this->tileRequests(), 'no tiles fetched');
+    }
+
+    /**
+     * Icon URLs are measured, not downloaded: the endpoint fetches nothing (#95).
+     *
+     * @return void
+     */
+    public function testAttributionDoesNotFetchIconUrls(): void
+    {
+        $icon = self::$tiles?->url . '/overlay/1/1/1.png';
+        $query = http_build_query([
+            'key'      => 'test-token',
+            'style'    => 'regional',
+            'marker[]' => "lat:45.5;lng:-122.6;icon:$icon",
+        ]);
+        [$response, $data] = $this->api("/api/v1/attribution?$query");
+
+        $this->assertSame(200, $response->status);
+        $this->assertSame(['regional', null], [$data['style'], $data['fallback']]);
+        $this->assertSame([], $this->tileRequests(), 'no icon downloaded');
+    }
+
+    /**
+     * The attribution endpoint passes on the coverage notice of a planned map (#95).
+     *
+     * @return void
+     */
+    public function testAttributionCoverageHeader(): void
+    {
+        $response = self::$app->get('/api/v1/attribution?style=regional&latitude=45&longitude=-122&zoom=8');
+        $this->assertSame('partial', $response->header('X-Map-Coverage'));
+        $this->assertNull($response->header('X-Marker-1'));
     }
 
     /**
