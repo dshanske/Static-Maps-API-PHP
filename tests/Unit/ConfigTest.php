@@ -278,7 +278,7 @@ final class ConfigTest extends TestCase
     {
         $config = Config::load(null, '/nonexistent/config.php');
         $ids = ['railways', 'railway-maxspeed', 'railway-signals', 'railway-electrification', 'railway-gauge'];
-        $this->assertSame([...$ids, 'usgs-hydro', 'basemap-at-labels'], array_keys($config['overlays']));
+        $this->assertSame([...$ids, 'usgs-hydro', 'basemap-at-labels', 'seamarks'], array_keys($config['overlays']));
         foreach ($ids as $id) {
             $overlay = (array) Config::resolveOverlay($config, $id, null);
             $this->assertSame(19, $overlay['maxzoom'], $id);
