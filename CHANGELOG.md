@@ -283,6 +283,10 @@ stable interface; pin a commit if you need a fixed point.
 
 ### Fixed
 
+- `/api/v1/attribution` plans the map as the image is: for a regional map
+  outside its area it now reports the default map that's drawn (`fallback`
+  `outside`) and its credit, and it leaves out overlays outside their zoom
+  range or area (#95).
 - A geodesic path across the antimeridian (Tokyo to Anchorage) no longer
   zooms the map out to the whole world: a rounding error kept the two sides
   from being joined (#93).

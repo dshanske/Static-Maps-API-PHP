@@ -109,6 +109,13 @@ return [
                     'layers' => [$tiles . '/base/{z}/{x}/{y}.png'],
                     'bounds' => [-123.0, 45.0, -122.0, 46.0],
                 ],
+                // The same, with the Esri logo: its fallback's logo differs (#95).
+                'regional-logo' => [
+                    'name'        => 'Portland only, Esri logo',
+                    'layers'      => [$tiles . '/base/{z}/{x}/{y}.png'],
+                    'bounds'      => [-123.0, 45.0, -122.0, 46.0],
+                    'attribution' => 'esri',
+                ],
                 // Offers 512 px @2x tiles for scale=2 (#10).
                 'retina' => [
                     'name'   => 'With @2x tiles',
