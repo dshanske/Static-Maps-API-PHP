@@ -1,0 +1,673 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Static Maps API demo</title>
+<!--
+  Demo and test page for the Static Maps API (#92). An install can use it as
+  its landing page instead of assets/home.html:
+      'home_page' => __DIR__ . '/../assets/demo.html',
+  It is sent as-is. Everything it shows comes from this install's own query
+  API (/api/v1/), so it only offers the maps, overlays and icons the install
+  has, and it fetches a map only when asked to.
+-->
+<style>
+  :root { --bg: #fafaf8; --fg: #1f2328; --muted: #57606a; --accent: #0b6bcb; --code: #eef0f2;
+          --panel: #ffffff; --line: #d0d7de; --warn: #9a6700; --warn-bg: #fff8c5; --bad: #cf222e; }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg: #16181c; --fg: #e6e8eb; --muted: #9aa4ae; --accent: #6cb6ff; --code: #23272e;
+            --panel: #1e2126; --line: #3a3f47; --warn: #e3b341; --warn-bg: #2e2a1a; --bad: #ff7b72; }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--fg);
+         font: 15px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+  header, main, footer { max-width: 76rem; margin: 0 auto; padding: 0 1rem; }
+  header { padding-top: 2rem; }
+  h1 { font-size: 1.6rem; margin: 0 0 .25rem; }
+  h2 { font-size: 1.15rem; margin: 2rem 0 .75rem; }
+  p { margin: 0 0 .75rem; }
+  .lead { color: var(--muted); }
+  a { color: var(--accent); }
+  code, textarea, .url { font: .88em ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+  code { background: var(--code); padding: .1em .35em; border-radius: 4px; overflow-wrap: anywhere; }
+  .layout { display: grid; grid-template-columns: minmax(0, 25rem) minmax(0, 1fr); gap: 1.5rem; align-items: start; }
+  /* On narrow screens the map comes first, so an example's map is in view. */
+  @media (max-width: 52rem) { .layout { grid-template-columns: minmax(0, 1fr); } .result { order: -1; } }
+  form, .result { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 1rem; }
+  fieldset { border: 0; padding: 0; margin: 0 0 1rem; min-width: 0; }
+  legend { font-weight: 600; padding: 0; margin-bottom: .4rem; }
+  label { display: block; font-size: .85rem; color: var(--muted); margin-bottom: .5rem; }
+  input, select, textarea { display: block; width: 100%; margin-top: .15rem; padding: .35rem .45rem;
+          border: 1px solid var(--line); border-radius: 5px; background: var(--bg); color: var(--fg); font-size: .95rem; }
+  textarea { min-height: 4.5rem; resize: vertical; font-size: .82rem; }
+  .row { display: grid; grid-template-columns: repeat(auto-fit, minmax(6.5rem, 1fr)); gap: 0 .6rem; }
+  .checks { display: flex; flex-wrap: wrap; gap: .25rem .9rem; }
+  .checks label { display: flex; align-items: center; gap: .3rem; margin: 0; color: var(--fg); }
+  .checks input { width: auto; margin: 0; }
+  .hint { font-size: .8rem; color: var(--muted); margin: -.25rem 0 .5rem; }
+  button { font: inherit; padding: .45rem .9rem; border-radius: 6px; border: 1px solid var(--line);
+           background: var(--bg); color: var(--fg); cursor: pointer; }
+  button.primary { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 600; }
+  button:disabled { opacity: .6; cursor: progress; }
+  .actions { display: flex; gap: .5rem; flex-wrap: wrap; align-items: center; }
+  .preview { min-height: 8rem; display: flex; align-items: center; justify-content: center;
+             background: var(--code); border-radius: 6px; overflow: auto; padding: .5rem; }
+  .preview img { max-width: 100%; height: auto; display: block; }
+  .meta { font-size: .85rem; color: var(--muted); margin: .5rem 0; }
+  .credit { font-size: .85rem; margin: .25rem 0 .75rem; }
+  .notices { list-style: none; margin: 0 0 .75rem; padding: 0; font-size: .85rem; }
+  .notices li { background: var(--warn-bg); color: var(--warn); border-radius: 5px; padding: .3rem .55rem; margin-bottom: .3rem;
+                overflow-wrap: anywhere; }
+  .notices li.error { color: var(--bad); }
+  .url { display: block; width: 100%; background: var(--code); border-radius: 5px; padding: .5rem; overflow-wrap: anywhere;
+         white-space: pre-wrap; margin: .25rem 0 .5rem; }
+  .examples { display: grid; grid-template-columns: repeat(auto-fill, minmax(14rem, 1fr)); gap: .75rem; }
+  .examples button { text-align: left; background: var(--panel); padding: .7rem .8rem; }
+  .examples strong { display: block; margin-bottom: .15rem; }
+  .examples span { font-size: .85rem; color: var(--muted); }
+  .icons { display: flex; flex-wrap: wrap; gap: .4rem; }
+  .icons button { display: flex; flex-direction: column; align-items: center; gap: .2rem; padding: .4rem; min-width: 5.5rem;
+                  background: var(--panel); font-size: .72rem; }
+  .icons img { max-height: 40px; }
+  footer { color: var(--muted); font-size: .85rem; padding-top: 2rem; padding-bottom: 2rem; }
+  .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+</style>
+</head>
+<body>
+<header>
+  <h1>Static Maps API</h1>
+  <p class="lead">This server draws map images from tile servers, with markers, paths and shapes.
+     Build a request below, or start from an example.
+     <span id="version"></span></p>
+</header>
+
+<main>
+  <h2>Examples</h2>
+  <div class="examples" id="examples"></div>
+
+  <h2>Try it</h2>
+  <div class="layout" id="try">
+    <form id="form" autocomplete="off">
+      <fieldset>
+        <legend>Map</legend>
+        <div class="row">
+          <label>Provider <select name="provider" id="provider"></select></label>
+          <label>Style <select name="style" id="style"></select></label>
+        </div>
+        <p class="hint" id="map-info"></p>
+        <div id="overlay-box">
+          <span class="hint">Overlays</span>
+          <div class="checks" id="overlays"></div>
+        </div>
+      </fieldset>
+
+      <fieldset>
+        <legend>Where</legend>
+        <div class="row">
+          <label>Latitude <input name="latitude" inputmode="decimal" placeholder="auto"></label>
+          <label>Longitude <input name="longitude" inputmode="decimal" placeholder="auto"></label>
+          <label>Zoom <input name="zoom" type="number" min="0" max="30" placeholder="auto"></label>
+        </div>
+        <p class="hint">Leave the centre or zoom empty to fit the markers, paths and GeoJSON.</p>
+        <label>bbox <input name="bbox" placeholder="minLng,minLat,maxLng,maxLat"></label>
+      </fieldset>
+
+      <fieldset>
+        <legend>Image</legend>
+        <div class="row">
+          <label>Width <input name="width" type="number" min="1"></label>
+          <label>Height <input name="height" type="number" min="1"></label>
+          <label>Scale <select name="scale" id="scale"></select></label>
+        </div>
+        <div class="row">
+          <label>Format <select name="format" id="format"></select></label>
+          <label>Attribution <select name="attribution" id="attribution"><option value="">map's own</option></select></label>
+          <label>Position <select name="attribution_position" id="attribution_position"><option value="">default</option></select></label>
+        </div>
+      </fieldset>
+
+      <fieldset>
+        <legend>Overlays on the map</legend>
+        <label>Markers, one per line
+          <textarea name="marker" placeholder="lat:45.5165;lng:-122.6764;icon:pin;label:A"></textarea></label>
+        <label>Paths, one per line
+          <textarea name="path" placeholder="[-122.68,45.51][-122.66,45.52];color:0055ff;weight:4"></textarea></label>
+        <label>GeoJSON
+          <textarea name="geojson" placeholder='{"type": "Point", "coordinates": [-122.6764, 45.5165]}'></textarea></label>
+      </fieldset>
+
+      <fieldset>
+        <legend>Client key</legend>
+        <label>Key (optional) <input name="key" type="password" spellcheck="false"></label>
+        <p class="hint">Unlocks the maps and features this install keeps for its clients. It's only sent
+           with this page's requests and isn't stored, but it is part of the request URL shown.</p>
+      </fieldset>
+
+      <div class="actions">
+        <button type="submit" class="primary" id="render">Draw map</button>
+        <button type="button" id="reset">Clear</button>
+        <span class="hint" style="margin:0">Ctrl+Enter draws too.</span>
+      </div>
+    </form>
+
+    <section class="result" aria-live="polite">
+      <div class="preview" id="preview"><span class="hint" style="margin:0">The map appears here.</span></div>
+      <p class="meta" id="meta"></p>
+      <p class="credit" id="credit"></p>
+      <ul class="notices" id="notices"></ul>
+      <span class="hint">Request</span>
+      <code class="url" id="url"></code>
+      <div class="actions">
+        <button type="button" id="copy-url">Copy URL</button>
+        <button type="button" id="copy-img">Copy &lt;img&gt;</button>
+        <a id="open" href="#" target="_blank" rel="noopener">Open image</a>
+        <span class="sr-only" id="copied" aria-live="polite"></span>
+      </div>
+    </section>
+  </div>
+
+  <h2>Built-in marker icons</h2>
+  <p class="hint">Click one to add it as a marker at the map's centre. <code>pin</code>, <code>dot</code> and
+     <code>none</code> are drawn on request in any colour, with a label.</p>
+  <div class="icons" id="icons"></div>
+</main>
+
+<footer>
+  See the <a href="https://github.com/dshanske/Static-Maps-API-PHP#readme">documentation</a> for every parameter,
+  and the <a href="https://github.com/dshanske/Static-Maps-API-PHP">source code</a>.
+  The query API is at <a id="api-link" href="api/v1/">api/v1/</a>.
+</footer>
+
+<!--
+  The examples. Each fills the form with its params; arrays become repeated
+  `name[]` parameters. tests/Integration/DemoPageTest.php draws every one, so
+  keep them valid.
+-->
+<script type="application/json" id="demo-examples">
+[
+  {
+    "title": "A place",
+    "text": "Centre and zoom.",
+    "params": {"latitude": "45.5165", "longitude": "-122.6764", "zoom": "14", "width": "480", "height": "300"}
+  },
+  {
+    "title": "Labelled pins",
+    "text": "Generated pins in any colour; the map fits them.",
+    "params": {"width": "480", "height": "300", "marker": [
+      "lat:45.5195;lng:-122.6796;icon:pin;label:A;color:1e88e5",
+      "lat:45.5122;lng:-122.6587;icon:pin;label:B;color:43a047",
+      "lat:45.5051;lng:-122.6750;icon:pin;label:C;color:e53935;size:large",
+      "lat:45.5150;lng:-122.6690;icon:none;label:Downtown Portland"
+    ]}
+  },
+  {
+    "title": "A route",
+    "text": "A styled path with built-in icons at the ends.",
+    "params": {"provider": "opentopomap", "width": "480", "height": "300", "path": [
+      "[-122.7203,45.5230][-122.7107,45.5181][-122.6988,45.5191][-122.6880,45.5157][-122.6765,45.5160];color:e65100;weight:5"
+    ], "marker": [
+      "lat:45.5230;lng:-122.7203;icon:dot-large-green",
+      "lat:45.5160;lng:-122.6765;icon:large-red-cutout"
+    ]}
+  },
+  {
+    "title": "Circle and rectangle",
+    "text": "A 600 m radius with a translucent fill, and a box.",
+    "params": {"width": "480", "height": "300", "path": [
+      "circle:-122.6764,45.5165,600;color:1e88e5;fillcolor:1e88e540;weight:2",
+      "rect:-122.690,45.522,-122.680,45.528;color:8e24aa;linestyle:dashed;weight:2"
+    ]}
+  },
+  {
+    "title": "Across the Pacific",
+    "text": "A geodesic flight path across the antimeridian.",
+    "params": {"provider": "esri", "style": "oceans", "width": "560", "height": "300", "path": [
+      "[139.78,35.55][-149.99,61.17];geodesic:true;color:ffffff;weight:3;linestyle:dashed"
+    ], "marker": [
+      "lat:35.55;lng:139.78;icon:dot;color:ffffff;label:HND",
+      "lat:61.17;lng:-149.99;icon:dot;color:ffffff;label:ANC"
+    ]}
+  },
+  {
+    "title": "GeoJSON",
+    "text": "A FeatureCollection styled with simplestyle properties.",
+    "params": {"width": "480", "height": "300", "geojson": "{\"type\":\"FeatureCollection\",\"features\":[{\"type\":\"Feature\",\"properties\":{\"fill\":\"#43a047\",\"fill-opacity\":0.35,\"stroke\":\"#2e7d32\"},\"geometry\":{\"type\":\"Polygon\",\"coordinates\":[[[-122.6870,45.5240],[-122.6800,45.5290],[-122.6740,45.5240],[-122.6800,45.5190],[-122.6870,45.5240]]]}},{\"type\":\"Feature\",\"properties\":{\"marker-color\":\"#1e88e5\",\"marker-symbol\":\"P\"},\"geometry\":{\"type\":\"Point\",\"coordinates\":[-122.6800,45.5240]}}]}"}
+  },
+  {
+    "title": "Satellite, high density",
+    "text": "Esri imagery at scale=2, for retina screens.",
+    "params": {"provider": "esri", "style": "satellite", "latitude": "37.8199", "longitude": "-122.4783", "zoom": "14",
+               "width": "320", "height": "200", "scale": "2", "format": "jpg"}
+  },
+  {
+    "title": "Railway overlay",
+    "text": "OpenRailwayMap's tracks on top of the map.",
+    "params": {"latitude": "47.3779", "longitude": "8.5403", "zoom": "13", "width": "480", "height": "300",
+               "overlay": "railways"}
+  },
+  {
+    "title": "Outside a regional map",
+    "text": "basemap.at covers Austria only: over Paris the default map is drawn, and the response says why.",
+    "params": {"provider": "basemap-at", "latitude": "48.8566", "longitude": "2.3522", "zoom": "12", "width": "480", "height": "300"}
+  }
+]
+</script>
+
+<script>
+(() => {
+  'use strict';
+
+  // The service's address: this page is served for a request to it without parameters.
+  const base = location.pathname.replace(/[^/]*\.php$/, '').replace(/\/?$/, '/');
+  const form = document.getElementById('form');
+  const $ = (id) => document.getElementById(id);
+  const examples = JSON.parse($('demo-examples').textContent);
+  const lists = ['marker', 'path'];
+  let api = null;
+  let providers = [];
+  let overlays = [];
+  let controller = null;
+  let lastUrl = '';
+
+  // ---- Query API --------------------------------------------------------
+
+  /** GET an /api/v1/ endpoint, with the form's key if there is one. */
+  async function apiGet(endpoint, extra) {
+    const params = new URLSearchParams(extra || '');
+    const key = form.elements.key.value.trim();
+    if (key) {
+      params.set('key', key);
+    }
+    const qs = params.toString();
+    const response = await fetch(base + 'api/v1/' + endpoint + (qs ? '?' + qs : ''));
+    if (!response.ok) {
+      throw new Error('api/v1/' + endpoint + ': HTTP ' + response.status);
+    }
+    return response.json();
+  }
+
+  /** Load what this install offers, and fill the form's lists. */
+  async function loadApi() {
+    const [info, maps, layers] = await Promise.all([apiGet(''), apiGet('providers'), apiGet('overlays')]);
+    api = info;
+    providers = maps.providers;
+    overlays = layers.overlays;
+    $('version').textContent = 'Version ' + info.version + '.';
+
+    fillSelect($('scale'), info.scales.map(String), String(1));
+    fillSelect($('format'), info.formats.filter((f) => f !== 'jpeg'), info.defaults.format);
+    const attribution = $('attribution');
+    attribution.length = 1;
+    for (const value of info.attributions) {
+      attribution.add(new Option(value, value));
+    }
+    const position = $('attribution_position');
+    position.length = 1;
+    for (const value of info.attribution_positions) {
+      position.add(new Option(value, value));
+    }
+
+    const current = form.elements.provider.value || info.defaults.provider;
+    const select = $('provider');
+    select.length = 0;
+    for (const p of providers) {
+      select.add(new Option(p.name, p.id));
+    }
+    select.value = providers.some((p) => p.id === current) ? current : maps.default.provider;
+    fillStyles(form.elements.style.value || null);
+
+    const box = $('overlays');
+    const checked = new Set(selectedOverlays());
+    box.textContent = '';
+    for (const o of overlays) {
+      const label = document.createElement('label');
+      const input = document.createElement('input');
+      input.type = 'checkbox';
+      input.name = 'overlay';
+      input.value = o.id;
+      input.checked = checked.has(o.id);
+      label.append(input, o.name);
+      label.title = o.attribution_text || '';
+      box.append(label);
+    }
+    $('overlay-box').hidden = overlays.length === 0;
+
+    if (!form.elements.width.value) {
+      form.elements.width.value = info.defaults.width;
+      form.elements.height.value = info.defaults.height;
+    }
+    form.elements.width.max = info.limits.max_width;
+    form.elements.height.max = info.limits.max_height;
+  }
+
+  /** Replace a select's options with values, selecting one. */
+  function fillSelect(select, values, selected) {
+    select.length = 0;
+    for (const value of values) {
+      select.add(new Option(value, value));
+    }
+    select.value = values.includes(selected) ? selected : values[0];
+  }
+
+  /** Fill the style list for the selected provider. */
+  function fillStyles(wanted) {
+    const provider = providers.find((p) => p.id === form.elements.provider.value);
+    const select = $('style');
+    select.length = 0;
+    if (!provider) {
+      // A provider this install doesn't offer: keep the style asked for.
+      if (wanted) {
+        select.add(new Option(wanted, wanted));
+      }
+      $('map-info').textContent = '';
+      return;
+    }
+    for (const s of provider.styles) {
+      select.add(new Option(s.name, s.id));
+    }
+    select.value = provider.styles.some((s) => s.id === wanted) ? wanted : provider.default_style;
+    describeStyle();
+  }
+
+  /** Show the selected style's zoom range and coverage. */
+  function describeStyle() {
+    const provider = providers.find((p) => p.id === form.elements.provider.value);
+    const style = provider && provider.styles.find((s) => s.id === form.elements.style.value);
+    if (!style) {
+      $('map-info').textContent = '';
+      return;
+    }
+    let text = 'Zoom ' + style.minzoom + '–' + style.maxzoom;
+    if (style.bounds) {
+      text += '; covers lng ' + style.bounds[0] + ' to ' + style.bounds[2] + ', lat ' + style.bounds[1] + ' to ' + style.bounds[3];
+    }
+    if (style.needs_key) {
+      text += '; uses your key';
+    }
+    $('map-info').textContent = text + '.';
+  }
+
+  function selectedOverlays() {
+    return Array.from(form.querySelectorAll('input[name="overlay"]:checked'), (input) => input.value);
+  }
+
+  // ---- Building and drawing a request ----------------------------------
+
+  /** The request's parameters, from the form. */
+  function params() {
+    const p = new URLSearchParams();
+    const fields = ['provider', 'style', 'latitude', 'longitude', 'zoom', 'bbox', 'width', 'height', 'scale',
+                    'format', 'attribution', 'attribution_position'];
+    for (const name of fields) {
+      const value = form.elements[name].value.trim();
+      // Leave out defaults, so the URL stays short.
+      if (value === '' || (name === 'scale' && value === '1') || (name === 'format' && api && value === api.defaults.format)) {
+        continue;
+      }
+      p.set(name, value);
+    }
+    const chosen = selectedOverlays();
+    if (chosen.length) {
+      p.set('overlay', chosen.join(','));
+    }
+    for (const name of lists) {
+      for (const line of form.elements[name].value.split('\n')) {
+        if (line.trim() !== '') {
+          p.append(name + '[]', line.trim());
+        }
+      }
+    }
+    const geojson = form.elements.geojson.value.trim();
+    if (geojson) {
+      p.set('geojson', compactJson(geojson));
+    }
+    const key = form.elements.key.value.trim();
+    if (key) {
+      p.set('key', key);
+    }
+    return p;
+  }
+
+  /** JSON laid out for reading; as given if it doesn't parse. */
+  function prettyJson(text) {
+    try {
+      return JSON.stringify(JSON.parse(text), null, 1);
+    } catch (e) {
+      return text;
+    }
+  }
+
+  /** JSON without its whitespace, so the URL is shorter; as typed if it doesn't parse. */
+  function compactJson(text) {
+    try {
+      return JSON.stringify(JSON.parse(text));
+    } catch (e) {
+      return text;
+    }
+  }
+
+  /** The URL for parameters; characters the server reads as-is are left unencoded. */
+  function mapUrl(p) {
+    const qs = p.toString().replace(/%(5B|5D|3A|3B|2C|7C)/g, (m) => decodeURIComponent(m));
+    return location.origin + base + (qs ? '?' + qs : '');
+  }
+
+  function showUrl() {
+    lastUrl = mapUrl(params());
+    $('url').textContent = lastUrl;
+    $('open').href = lastUrl;
+  }
+
+  /** Draw the map, and show what the server said about it. */
+  async function draw() {
+    const p = params();
+    showUrl();
+    if (controller) {
+      controller.abort();
+    }
+    controller = new AbortController();
+    const button = $('render');
+    button.disabled = true;
+    const notices = $('notices');
+    notices.textContent = '';
+    $('meta').textContent = 'Drawing…';
+    const started = performance.now();
+
+    try {
+      const response = await fetch(lastUrl, {signal: controller.signal});
+      const ms = Math.round(performance.now() - started);
+      for (const [name, value] of response.headers) {
+        if (/^x-(map|marker|path)-/i.test(name) || name === 'deprecation') {
+          notice(name + ': ' + value, false);
+        }
+      }
+      const type = response.headers.get('Content-Type') || '';
+      if (!response.ok || !type.startsWith('image/')) {
+        notice('HTTP ' + response.status + ': ' + (await response.text()).slice(0, 500), true);
+        $('meta').textContent = '';
+        return;
+      }
+      const blob = await response.blob();
+      const img = new Image();
+      img.alt = 'The requested map';
+      img.src = URL.createObjectURL(blob);
+      const scale = Number(p.get('scale') || 1);
+      img.onload = () => {
+        img.style.width = (img.naturalWidth / scale) + 'px';
+        $('meta').textContent = img.naturalWidth + ' × ' + img.naturalHeight + ' px, ' + type + ', '
+          + Math.max(1, Math.round(blob.size / 1024)) + ' KB, ' + ms + ' ms';
+      };
+      const preview = $('preview');
+      const old = preview.querySelector('img');
+      if (old) {
+        URL.revokeObjectURL(old.src);
+      }
+      preview.replaceChildren(img);
+      credit(p, response.headers.get('X-Map-Fallback'));
+    } catch (e) {
+      if (e.name !== 'AbortError') {
+        notice(e.message, true);
+        $('meta').textContent = '';
+      }
+    } finally {
+      button.disabled = false;
+    }
+  }
+
+  /**
+   * Show the full credit for the map just drawn, from /api/v1/attribution.
+   * When the server drew another map (X-Map-Fallback), ask for that one's: the
+   * API doesn't know when a regional map is drawn outside its area (#95).
+   */
+  async function credit(p, fallback) {
+    $('credit').textContent = '';
+    const drawn = /drawn=([^/;\s]+)\/([^;\s]+)/.exec(fallback || '');
+    if (drawn) {
+      p = new URLSearchParams(p);
+      p.set('provider', drawn[1]);
+      p.set('style', drawn[2]);
+    }
+    try {
+      const a = await apiGet('attribution', p);
+      // The credit comes from this install's own configuration.
+      $('credit').innerHTML = a.html || '';
+    } catch (e) {
+      // The image already carries its credit.
+    }
+  }
+
+  function notice(text, error) {
+    const li = document.createElement('li');
+    li.textContent = text;
+    li.className = error ? 'error' : '';
+    $('notices').append(li);
+  }
+
+  // ---- Examples and icons -----------------------------------------------
+
+  /** Fill the form with an example (or nothing), and draw it if asked. */
+  function load(example, drawIt) {
+    const p = example ? example.params : {};
+    for (const name of ['latitude', 'longitude', 'zoom', 'bbox', 'attribution', 'attribution_position']) {
+      form.elements[name].value = p[name] || '';
+    }
+    form.elements.geojson.value = p.geojson ? prettyJson(p.geojson) : '';
+    form.elements.width.value = p.width || (api ? api.defaults.width : '');
+    form.elements.height.value = p.height || (api ? api.defaults.height : '');
+    form.elements.scale.value = p.scale || '1';
+    form.elements.format.value = p.format || (api ? api.defaults.format : 'png');
+    for (const name of lists) {
+      form.elements[name].value = (p[name] || []).join('\n');
+    }
+    form.elements.provider.value = p.provider || (api ? api.defaults.provider : '');
+    if (!form.elements.provider.value && example && p.provider) {
+      // Not offered here: the server will say which map it draws instead.
+      form.elements.provider.add(new Option(p.provider + ' (not available here)', p.provider));
+      form.elements.provider.value = p.provider;
+    }
+    fillStyles(p.style || null);
+    const wanted = new Set((p.overlay || '').split(',').filter(Boolean));
+    for (const input of form.querySelectorAll('input[name="overlay"]')) {
+      input.checked = wanted.has(input.value);
+    }
+    if (drawIt) {
+      draw();
+    } else {
+      showUrl();
+    }
+  }
+
+  function showExamples() {
+    const box = $('examples');
+    for (const example of examples) {
+      const button = document.createElement('button');
+      button.type = 'button';
+      const title = document.createElement('strong');
+      title.textContent = example.title;
+      const text = document.createElement('span');
+      text.textContent = example.text;
+      button.append(title, text);
+      button.addEventListener('click', () => {
+        load(example, true);
+        $('try').scrollIntoView({behavior: 'smooth', block: 'start'});
+      });
+      box.append(button);
+    }
+  }
+
+  async function showIcons() {
+    const data = await apiGet('icons');
+    const box = $('icons');
+    box.textContent = '';
+    for (const icon of data.icons) {
+      const button = document.createElement('button');
+      button.type = 'button';
+      const img = document.createElement('img');
+      img.src = icon.url;
+      img.alt = '';
+      img.width = icon.width;
+      img.height = icon.height;
+      button.append(img, icon.name);
+      button.addEventListener('click', () => addMarker(icon.name));
+      box.append(button);
+    }
+  }
+
+  /** Add a marker with an icon at the map's centre (or Portland's). */
+  function addMarker(icon) {
+    const lat = form.elements.latitude.value.trim() || '45.5165';
+    const lng = form.elements.longitude.value.trim() || '-122.6764';
+    const markers = form.elements.marker;
+    markers.value = (markers.value.trim() ? markers.value.trim() + '\n' : '') + 'lat:' + lat + ';lng:' + lng + ';icon:' + icon;
+    showUrl();
+  }
+
+  async function copy(text) {
+    try {
+      await navigator.clipboard.writeText(text);
+      $('copied').textContent = 'Copied.';
+    } catch (e) {
+      $('copied').textContent = 'Copying isn\'t allowed here; select the text instead.';
+    }
+  }
+
+  // ---- Wiring ------------------------------------------------------------
+
+  form.addEventListener('submit', (event) => {
+    event.preventDefault();
+    draw();
+  });
+  form.addEventListener('keydown', (event) => {
+    if (event.key === 'Enter' && (event.ctrlKey || event.metaKey)) {
+      event.preventDefault();
+      draw();
+    }
+  });
+  form.addEventListener('input', showUrl);
+  form.addEventListener('change', showUrl);
+  $('provider').addEventListener('change', () => fillStyles(null));
+  $('style').addEventListener('change', describeStyle);
+  form.elements.key.addEventListener('change', () => loadApi().then(showUrl).catch((e) => notice(e.message, true)));
+  $('reset').addEventListener('click', () => load(null, false));
+  $('copy-url').addEventListener('click', () => copy(lastUrl));
+  $('copy-img').addEventListener('click', () => {
+    const p = params();
+    const w = p.get('width') || (api ? api.defaults.width : '');
+    const h = p.get('height') || (api ? api.defaults.height : '');
+    copy('<img src="' + lastUrl.replace(/&/g, '&amp;').replace(/"/g, '&quot;') + '" width="' + w + '" height="' + h + '" alt="">');
+  });
+  $('api-link').href = base + 'api/v1/';
+
+  showExamples();
+  loadApi()
+    .then(() => {
+      // Filled in, but not drawn until asked: the page itself fetches no tiles.
+      load(examples[0], false);
+      return showIcons();
+    })
+    .catch((e) => notice('Couldn\'t load this install\'s query API (' + e.message + ').', true));
+})();
+</script>
+</body>
+</html>
