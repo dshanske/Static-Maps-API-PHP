@@ -20,6 +20,14 @@ namespace StaticMaps;
  */
 final class Bounds
 {
+    /**
+     * @var float Longitudes this close (in degrees) count as the same when
+     *            stretches are joined: a segment across the antimeridian ends at
+     *            `from + delta()`, which can miss the next point + 360 by a rounding
+     *            error (#93).
+     */
+    private const EPSILON = 1e-9;
+
     /** @var mixed Southern edge, latitude in degrees. */
     public mixed $minLat = 90;
 
@@ -135,7 +143,7 @@ final class Bounds
 
         // A stretch running past 180 may cover ones at the start of the list
         // (their longitude + 360): fold those into it.
-        while (count($merged) > 1 && $merged[0][0] + 360 <= $merged[count($merged) - 1][1]) {
+        while (count($merged) > 1 && $merged[0][0] + 360 <= $merged[count($merged) - 1][1] + self::EPSILON) {
             $first = array_shift($merged);
             $merged[count($merged) - 1][1] = max($merged[count($merged) - 1][1], $first[1] + 360);
         }

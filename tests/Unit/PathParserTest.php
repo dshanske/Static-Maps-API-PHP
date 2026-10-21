@@ -262,4 +262,17 @@ final class PathParserTest extends TestCase
         // The great circle's highest point (from its initial bearing, 311.8 degrees) is 62.36 N.
         $this->assertEqualsWithDelta(62.36, $bounds->maxLat, 0.05);
     }
+
+    /**
+     * A geodesic path across the antimeridian is fitted across it, not round the world (#93).
+     *
+     * @return void
+     */
+    public function testGeodesicAcrossTheAntimeridian(): void
+    {
+        $bounds = new Bounds();
+        (new PathParser('333333', 3))->parse(['[139.78,35.55][-149.99,61.17];geodesic:true'], false, $bounds);
+
+        $this->assertEqualsWithDelta([139.78, 210.01], $bounds->span(), 1e-6);
+    }
 }
