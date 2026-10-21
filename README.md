@@ -832,6 +832,12 @@ Both must pass cleanly: PHPStan runs at level 6 with no baseline of ignored erro
 
 **Documentation comments are required** on every PHP file, class, function, method and property, and `composer cs` (and CI) fails without them. Describe what each parameter means, including units (pixels, degrees) and the coordinate order (`lat, lng` or `lng, lat`), and give `@return` and `@throws`. Write types the way PHPStan reads them, for example `int`, `list<string>` or `array{x: float, y: float}`.
 
+### AI coding assistants
+
+Where AI coding assistants contributed to a change, its commits and pull request say so: a `Co-Authored-By` line in each commit message and a note at the end of the pull request. For those changes, the maintainer filed the issue and made the design and policy decisions.
+
+All code contributions, whether from an AI coding assistant or a human contributor, are reviewed before merging.
+
 ### Changelog
 
 Every pull request that changes something users or installs can notice (request parameters, responses, settings, requirements) adds a line to the `Unreleased` section of [CHANGELOG.md](CHANGELOG.md), with its issue or PR number. Deprecations also add a row to the table under [Deprecated](#deprecated). Internal changes (tests, tooling, refactoring with no visible effect) don't need an entry.
