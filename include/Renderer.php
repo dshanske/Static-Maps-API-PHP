@@ -169,9 +169,6 @@ final class Renderer
 
         [$basemap, $basemapHeaders] = (new MapChooser($config))->choose($request, $client);
         $headers = array_merge($headers, $basemapHeaders);
-        $tileURL = $basemap['layers'][0];
-        $overlayURL = $basemap['layers'][1] ?? false;
-        $tileKey = $basemap['key'] ?? null;
 
         // Fit to the content, its icons, path widths and padding; centre on it unless a centre is given.
         $margins = Viewport::margins($params->padding, $markers, $paths, $width, $height);
@@ -184,10 +181,35 @@ final class Renderer
             $bounds,
             $margins
         );
-        $zoom = $viewport->clampZoom($zoom, $params->maxzoom, $basemap['minzoom'], $basemap['maxzoom']);
-        $center = $viewport->center($params->latitude, $params->longitude, $zoom, $bounds, $margins);
-        $latitude = $center['latitude'];
-        $longitude = $center['longitude'];
+        $fitZoom = $zoom;
+        $place = static function (array $map) use ($viewport, $fitZoom, $params, $bounds, $margins): array {
+            $zoom = $viewport->clampZoom($fitZoom, $params->maxzoom, $map['minzoom'], $map['maxzoom']);
+            $center = $viewport->center($params->latitude, $params->longitude, $zoom, $bounds, $margins);
+
+            return [$zoom, $center['latitude'], $center['longitude']];
+        };
+        [$zoom, $latitude, $longitude] = $place($basemap);
+
+        // A regional map (#30) entirely outside its coverage gets the default map instead.
+        $coverage = $viewport->coverage($basemap['bounds'] ?? null, $latitude, $longitude, $zoom, $width, $height);
+        if ($coverage === 'none' && ($fallback = (new MapChooser($config))->outside($basemap, $client)) !== null) {
+            [$basemap, $fallbackHeaders] = $fallback;
+            $headers = array_merge($headers, $fallbackHeaders);
+            [$zoom, $latitude, $longitude] = $place($basemap);
+            $coverage = $viewport->coverage($basemap['bounds'] ?? null, $latitude, $longitude, $zoom, $width, $height);
+        }
+        if ($coverage !== 'full') {
+            $headers[] = "X-Map-Coverage: $coverage";
+        }
+
+        // Overlays (#30), skipped outside their zoom range or coverage.
+        [$overlays, $overlayHeaders] = (new MapChooser($config))->overlays($request, $client);
+        $headers = array_merge($headers, $overlayHeaders);
+        $overlays = array_values(array_filter(
+            $overlays,
+            static fn (array $o): bool => $zoom >= $o['minzoom'] && $zoom <= $o['maxzoom']
+                && $viewport->coverage($o['bounds'] ?? null, $latitude, $longitude, $zoom, $width, $height) !== 'none'
+        ));
 
         // scale=2 (#10): the same area at twice the pixels. Everything is drawn at
         // twice the size and one pixel zoom level up; tiles come from the level
@@ -196,12 +218,6 @@ final class Renderer
         $imageWidth = $width * $scale;
         $imageHeight = $height * $scale;
         $pixelZoom = $zoom + ($scale === 2 ? 1 : 0);
-        [$tileZoom, $tileSize, $retina] = self::tileGrid($basemap, (int) $zoom, $scale);
-        if ($scale > 1 && $tileZoom === (int) $zoom && $retina === '') {
-            $headers[] = "X-Map-Scale: enlarged; the map has no tiles above zoom $zoom";
-        }
-        $tileURL = str_replace('{r}', $retina, $tileURL);
-        $overlayURL = $overlayURL === false ? false : str_replace('{r}', $retina, $overlayURL);
 
         $im = imagecreatetruecolor($imageWidth, $imageHeight);
 
@@ -211,40 +227,50 @@ final class Renderer
         $leftEdge = $center['x'] - $imageWidth / 2;
         $topEdge = $center['y'] - $imageHeight / 2;
 
-        // The tile under the centre, and where in it the centre is.
-        $tilePos = ['x' => floor($center['x'] / $tileSize), 'y' => floor($center['y'] / $tileSize)];
-        $pos = [
-            'x' => round($tileSize * (($center['x'] / $tileSize) - $tilePos['x'])),
-            'y' => round($tileSize * (($center['y'] / $tileSize) - $tilePos['y'])),
-        ];
-
-        // For the given number of pixels, determine how many tiles are needed in each direction
-        $neTile = [
-            'x' => floor(($center['x'] + $imageWidth / 2) / $tileSize),
-            'y' => floor(($center['y'] + $imageHeight / 2) / $tileSize),
-        ];
-        $swTile = [
-            'x' => floor(($center['x'] - $imageWidth / 2) / $tileSize),
-            'y' => floor(($center['y'] - $imageHeight / 2) / $tileSize),
-        ];
-
+        // Every layer: the map's own (gray where a tile fails), then the overlays (transparent).
+        $sources = [[$basemap, 'gray', 1.0]];
+        foreach ($overlays as $overlay) {
+            $sources[] = [$overlay, 'transparent', (float) $overlay['opacity']];
+        }
         // Providers whose terms forbid caching proxies (cache => 'off') never use the tile cache.
-        $tileCache = ($basemap['cache'] ?? 'headers') === 'off' ? null : TileCache::fromConfig($config);
-        $fetched = (new TileFetcher($remote, $tileCache))->fetch(
-            $tileURL,
-            $overlayURL,
-            $tileKey,
-            $swTile,
-            $neTile,
-            $tileZoom,
-            $im,
-            Config::headerLines($basemap)
-        );
+        $tileCache = TileCache::fromConfig($config);
+        $specs = [];
+        foreach ($sources as $n => [$source, $blank, $opacity]) {
+            foreach ((array) $source['layers'] as $template) {
+                [$tileZoom, $tileSize, $retina] = self::tileGrid(
+                    ['layers' => [$template], 'maxzoom' => $source['maxzoom']],
+                    (int) $zoom,
+                    $scale
+                );
+                if ($n === 0 && $specs === [] && $scale > 1 && $tileZoom === (int) $zoom && $retina === '') {
+                    $headers[] = "X-Map-Scale: enlarged; the map has no tiles above zoom $zoom";
+                }
+                $specs[] = self::grid($center, $imageWidth, $imageHeight, $tileSize) + [
+                    'template' => str_replace('{r}', $retina, (string) $template),
+                    'key'      => $source['key'] ?? null,
+                    'headers'  => Config::headerLines($source),
+                    'zoom'     => $tileZoom,
+                    'cache'    => ($source['cache'] ?? 'headers') !== 'off',
+                    'blank'    => $blank,
+                    'size'     => $tileSize,
+                    'opacity'  => $opacity,
+                ];
+            }
+        }
+        $fetched = (new TileFetcher($remote, $tileCache))->fetchLayers($specs, $im);
 
         $compositor = new Compositor($this->webmercator);
-        $compositor->drawTiles($im, $fetched['tiles'], $tilePos, $pos, $imageWidth, $imageHeight, $tileSize);
-        if ($overlayURL) {
-            $compositor->drawTiles($im, $fetched['overlays'], $tilePos, $pos, $imageWidth, $imageHeight, $tileSize);
+        foreach ($specs as $i => $spec) {
+            $compositor->drawTiles(
+                $im,
+                $fetched[$i],
+                $spec['tilePos'],
+                $spec['pos'],
+                $imageWidth,
+                $imageHeight,
+                $spec['size'],
+                $spec['opacity']
+            );
         }
         $compositor->drawPaths(
             $im,
@@ -270,7 +296,15 @@ final class Renderer
         if (!Attribution::isKnown($attribution)) {
             $attribution = $basemap['attribution'] ?? $config['defaults']['attribution'];
         }
-        $text = isset($basemap['attribution_text']) ? (string) $basemap['attribution_text'] : null;
+        // The map's credit, then each overlay's (#30).
+        $credits = array_filter(
+            array_map(
+                static fn (array $m): string => (string) ($m['attribution_text'] ?? ''),
+                [$basemap, ...$overlays]
+            ),
+            static fn (string $t): bool => $t !== ''
+        );
+        $text = $credits === [] ? null : implode(' | ', $credits);
         (new Attribution($remote))->draw($im, $attribution, $text, $position, $imageWidth, $imageHeight, $scale);
 
         [$typeHeaders, $body] = $this->encode($im, $format, $params->quality);
@@ -278,6 +312,39 @@ final class Renderer
         $headers = array_merge($headers, $typeHeaders, $cacheHeaders);
 
         return new Response($headers, $body);
+    }
+
+    /**
+     * The tiles a layer needs to cover the image.
+     *
+     * @param array{x: int|float, y: int|float} $center   The map centre in world pixels.
+     * @param int                               $width    Image width in pixels.
+     * @param int                               $height   Image height in pixels.
+     * @param int                               $tileSize Size each tile is drawn at, in pixels.
+     *
+     * @return array{tilePos: array{x: float, y: float}, pos: array{x: float, y: float},
+     *               sw: array{x: float, y: float}, ne: array{x: float, y: float}} The tile under the
+     *         centre, where in it the centre is, and the top-left and bottom-right tiles.
+     */
+    private static function grid(array $center, int $width, int $height, int $tileSize): array
+    {
+        $tilePos = ['x' => floor($center['x'] / $tileSize), 'y' => floor($center['y'] / $tileSize)];
+
+        return [
+            'tilePos' => $tilePos,
+            'pos'     => [
+                'x' => round($tileSize * (($center['x'] / $tileSize) - $tilePos['x'])),
+                'y' => round($tileSize * (($center['y'] / $tileSize) - $tilePos['y'])),
+            ],
+            'sw'      => [
+                'x' => floor(($center['x'] - $width / 2) / $tileSize),
+                'y' => floor(($center['y'] - $height / 2) / $tileSize),
+            ],
+            'ne'      => [
+                'x' => floor(($center['x'] + $width / 2) / $tileSize),
+                'y' => floor(($center['y'] + $height / 2) / $tileSize),
+            ],
+        ];
     }
 
     /**

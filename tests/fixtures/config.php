@@ -43,6 +43,22 @@ return [
         'limited' => ['key' => 'limited-key', 'providers' => ['keyed'], 'external_urls' => false],
         'off'     => ['key' => 'disabled-key', 'enabled' => false],
     ],
+    // Overlays for OverlayTest (#30).
+    'overlays' => [
+        // Transparent tiles with a white square in the middle of each.
+        'squares' => [
+            'name'             => 'Squares',
+            'layers'           => [$tiles . '/overlay/{z}/{x}/{y}.png'],
+            'attribution_text' => 'Squares Inc.',
+            'attribution_html' => '<a href="https://squares.example/">Squares</a>',
+        ],
+        'faint'   => ['name' => 'Faint squares', 'layers' => [$tiles . '/overlay/{z}/{x}/{y}.png'], 'opacity' => 0.5],
+        'close'   => ['layers' => [$tiles . '/overlay/{z}/{x}/{y}.png'], 'minzoom' => 12],
+        'tokyo'   => ['layers' => [$tiles . '/overlay/{z}/{x}/{y}.png'], 'bounds' => [139.0, 35.0, 140.0, 36.0]],
+        'missing' => ['layers' => [$tiles . '/broken/{z}/{x}/{y}.png']],
+        'private' => ['layers' => [$tiles . '/overlay/{z}/{x}/{y}.png'], 'requires_auth' => true],
+        'retired' => ['layers' => [$tiles . '/overlay/{z}/{x}/{y}.png'], 'enabled' => false],
+    ],
     'providers' => $providers + [
         'fixture' => [
             'name'          => 'Fixture tiles',
@@ -78,6 +94,12 @@ return [
                     'attribution_text' => 'Sources: Fixture, Another Source, Yet Another Source, More Data Ltd, '
                         . 'Some Agency, A Community, and many other contributors around the world',
                     'attribution_html' => 'Powered by <a href="https://fixture.example/">Fixture</a> &amp; friends',
+                ],
+                // Covers only the Portland area (#30).
+                'regional' => [
+                    'name'   => 'Portland only',
+                    'layers' => [$tiles . '/base/{z}/{x}/{y}.png'],
+                    'bounds' => [-123.0, 45.0, -122.0, 46.0],
                 ],
                 // Offers 512 px @2x tiles for scale=2 (#10).
                 'retina' => [

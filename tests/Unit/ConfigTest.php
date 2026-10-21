@@ -74,6 +74,7 @@ final class ConfigTest extends TestCase
                 'icon_urls'   => 5,
                 'icon_bytes'  => 262144,
                 'icon_pixels' => 256,
+                'max_overlays' => 3,
             ],
             'errors'          => ['strict' => false],
             'cache'           => [
@@ -95,6 +96,7 @@ final class ConfigTest extends TestCase
             ],
             'token_file'      => '/nonexistent/tokens.txt',
             'home_page'       => __DIR__ . '/../../assets/home.html',
+            'overlays'        => [],
             'basemap_aliases' => ['old-one' => 'one/base'],
             'removed'         => ['gone' => 'Shut down'],
             'providers'       => [
@@ -459,8 +461,8 @@ final class ConfigTest extends TestCase
             ],
             'style not an array'    => [['providers' => ['bad' => ['styles' => ['s' => 'x']]]], 'must be an array'],
             'no layers' => [['providers' => ['b' => ['styles' => ['s' => ['name' => 'S']]]]], "'b/s' needs"],
-            'three layers'          => [
-                ['providers' => ['bad' => ['styles' => ['s' => ['layers' => ['a', 'b', 'c']]]]]],
+            'six layers'            => [
+                ['providers' => ['bad' => ['styles' => ['s' => ['layers' => ['a', 'b', 'c', 'd', 'e', 'f']]]]]],
                 "'bad/s' needs",
             ],
             'reserved id'           => [['providers' => ['custom' => ['styles' => ['s' => $style]]]], 'is reserved'],
@@ -469,6 +471,14 @@ final class ConfigTest extends TestCase
             'limit not int'         => [['limits' => ['max_width' => '1280']], "'limits.max_width' must be"],
             'padding invalid'       => [['defaults' => ['padding' => '1,2,3,4,5']], "'defaults.padding' must be"],
             'padding negative'      => [['defaults' => ['padding' => -1]], "'defaults.padding' must be"],
+            'overlay no layers'     => [['overlays' => ['o' => ['name' => 'O']]], "Overlay 'o' needs 'layers'"],
+            'overlay bad opacity'   => [['overlays' => ['o' => ['layers' => ['t'], 'opacity' => 2]]], 'opacity'],
+            'overlay bad bounds'    => [['overlays' => ['o' => ['layers' => ['t'], 'bounds' => [1, 2]]]], 'bounds'],
+            'overlay is a provider' => [['overlays' => ['one' => ['layers' => ['t']]]], 'same id as a provider'],
+            'style bad bounds'      => [
+                ['providers' => ['one' => ['bounds' => [0, 50, 10, 40]]]],
+                "Style 'one/base' bounds must be",
+            ],
             'strict not bool'       => [['errors' => ['strict' => 'yes']], "'errors.strict' must be"],
             'max_markers zero'      => [['limits' => ['max_markers' => 0]], "'limits.max_markers' must be"],
             'limit zero'            => [['limits' => ['max_height' => 0]], "'limits.max_height' must be"],

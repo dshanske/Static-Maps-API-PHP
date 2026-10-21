@@ -91,7 +91,7 @@ final class ApiTest extends RenderTestCase
 
         $styles = array_column($byId['fixture']['styles'], null, 'id');
         $this->assertSame(
-            ['base', 'overlay', 'broken', 'esri', 'credited', 'credited-logo', 'retina', 'zoom'],
+            ['base', 'overlay', 'broken', 'esri', 'credited', 'credited-logo', 'regional', 'retina', 'zoom'],
             array_keys($styles),
             'no auth or off'
         );
@@ -99,7 +99,7 @@ final class ApiTest extends RenderTestCase
         $this->assertSame(
             ['id' => 'zoom', 'name' => 'Limited to zoom 5-10', 'minzoom' => 5, 'maxzoom' => 10,
                 'attribution' => 'osm', 'attribution_text' => null, 'attribution_html' => null,
-                'labels_layer' => false, 'requires_auth' => false, 'needs_key' => false],
+                'labels_layer' => false, 'requires_auth' => false, 'needs_key' => false, 'bounds' => null],
             $styles['zoom']
         );
         $this->assertTrue($styles['overlay']['labels_layer']);

@@ -38,6 +38,7 @@ Numbers are checked: a value that isn't a number, or is out of the range given b
 * `polyline` - Alternative to path: one path as a Google encoded polyline (latitude, longitude order), for shorter URLs. See [Polylines](#polylines).
 * `format` - default "png" - `png`, `png8` (a 256-colour PNG: much smaller, good for most maps), `jpg` (`jpeg` also works) or `webp` (smaller still; when the server's PHP has no WebP support, the map is sent as PNG with an `X-Map-Format` header, and `/api/v1/` lists the formats available). Anything else gets HTTP 400.
 * `quality` - default 75 - JPEG and WebP quality, a whole number from 1 to 100.
+* `overlay` - optional - Transparent layers to draw on top of the map, e.g. `overlay=railways` or `overlay=railways,seamarks` (also `overlay[]=`), from the install's [`overlays`](#overlays). Drawn in order, after the map and before paths and markers, with their credit added to the map's. At most 3 (`limits.max_overlays`). Unknown, unavailable or extra ones are left out and listed in an `X-Map-Overlay` header, e.g. `unavailable=nope; over-limit=d; max=3`.
 * `scale` - default 1 - `2` for a high-density ("retina") image: the same map area at twice the `width` and `height` in pixels, with markers, paths and the attribution drawn twice as large, for example for `<img srcset="… 2x">`. Tiles come from the next zoom level up, so the map shows more detail and its labels look smaller; maps with `@2x` tiles (`{r}` in their URLs) use those instead. At a map's highest zoom the tiles are enlarged, with an `X-Map-Scale: enlarged` header. The size limits apply to the image as sent, so a `scale=2` map can be at most 640 × 640 by default. `/api/v1/` lists the `scales` accepted.
 * `bezier` - Specify a bezier curve to your path, an angle in degrees between -89 and 89. 25 will give you a nicely curved line. [More Info](https://aaronparecki.com/2017/01/02/6/day-13-curved-map-lines)
 
@@ -61,9 +62,11 @@ Headers on a map that was drawn, but not quite as requested:
 
 | Header | Meaning |
 |---|---|
-| `X-Map-Fallback` | The default map was drawn instead of the requested provider or style: `removed` or `unavailable`, with `requested=` and `drawn=` (see [Providers and styles](#providers-and-styles)). |
+| `X-Map-Fallback` | The default map was drawn instead of the requested provider or style: `removed`, `unavailable`, or `outside` (a regional map entirely outside its coverage), with `requested=` and `drawn=` (see [Providers and styles](#providers-and-styles)). |
 | `X-Map-Size` | `width` / `height` were over the install's limits and the map was drawn smaller. |
 | `X-Map-Limit` | Markers or paths over the install's limits were left out. |
+| `X-Map-Overlay` | Requested overlays that were left out: `unavailable=…` and/or `over-limit=…; max=N`. |
+| `X-Map-Coverage` | `partial` or `none`: the map is partly or wholly outside the area a regional map covers (its `bounds`). |
 | `X-Map-Scale` | A `scale=2` map at the map's highest zoom: its tiles were enlarged instead of taken from the next zoom up. |
 | `X-Map-Format` | The requested `format` isn't available on this server; the map was sent as PNG. |
 | `X-Map-Attribution` | The `attribution` image URL wasn't used (it needs a valid key). |
@@ -466,6 +469,28 @@ The `removed` setting lists removed provider, style and basemap ids for the `X-M
 Each provider has a `name`, an optional `default_style`, and `styles`. Each style has a `name` and a list of one or two tile URL `layers` (a base map and an optional overlay drawn on top). A provider can set a default `attribution` (`text`, a logo name or `none`), its `attribution_text` (the short credit its terms require on the image), its `attribution_html` (the full credit with links, for `/api/v1/attribution`), `minzoom` / `maxzoom`, `requires_auth` (only usable with a client key), `enabled`, an API `key` and request `headers` (sent with every tile request, for providers that take the key in a header such as `Authorization`); its styles inherit these and can override any of them. A style whose tile URLs or headers contain `{key}` is unavailable until a key is set, and then needs a client key, so a provider that needs a key (such as CARTO) can ship switched on and starts working once the install adds one. See `config/defaults.php` for details.
 
 Tile requests that send `headers` don't follow redirects, so a key in a header is never sent to another server. The query API never shows provider keys or headers.
+
+### Overlays
+
+Overlays are transparent tile layers, such as railways or sea marks, that a request can draw on top of any map with `overlay=<id>`. An install defines them in an `overlays` setting, next to `providers`:
+
+```php
+'overlays' => [
+    'railways' => [
+        'name'             => 'OpenRailwayMap',
+        'layers'           => ['https://a.tiles.openrailwaymap.org/standard/{z}/{x}/{y}.png'],
+        'opacity'          => 0.8,      // 0-1, default 1
+        'minzoom'          => 2,        // skipped outside its zoom range
+        'attribution_text' => 'Style: CC-BY-SA 2.0 OpenRailwayMap',
+    ],
+],
+```
+
+An overlay can also have `maxzoom`, `bounds` (skipped for maps entirely outside them), `attribution_html`, `key`, `headers`, `requires_auth`, `enabled` and `cache`, as providers can. A client's `providers` list names overlays too. Failed overlay tiles are left transparent. No overlays are shipped yet; `/api/v1/overlays` lists the ones an install has. Check each source's terms first (below).
+
+### Regional maps
+
+A provider or style can set `bounds`, `[minLng, minLat, maxLng, maxLat]`, for the area its tiles cover. A map partly outside gets an `X-Map-Coverage: partial` header; one entirely outside gets the default map instead, with `X-Map-Fallback: outside`. The query API reports each style's `bounds`, so clients can offer regional maps only where they apply. Styles can have up to five layers.
 
 ### Provider terms
 

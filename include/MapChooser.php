@@ -100,6 +100,86 @@ final class MapChooser
     }
 
     /**
+     * The default map, for a regional map whose coverage (`bounds`) is entirely
+     * outside the map's area (#30).
+     *
+     * @param array<string, mixed> $basemap The map that was chosen (`provider`, `style`).
+     * @param Client|null          $client  The request's client.
+     *
+     * @return array{array<string, mixed>, list<string>}|null The default map and the
+     *         `X-Map-Fallback: outside` header, or null if $basemap is the default map.
+     */
+    public function outside(array $basemap, ?Client $client): ?array
+    {
+        $config = $this->config;
+        [$provider, $style] = [$config['defaults']['provider'], $config['defaults']['style']];
+        if (($basemap['provider'] ?? null) === $provider && ($basemap['style'] ?? null) === $style) {
+            return null;
+        }
+        $default = (array) Config::resolve($config, $provider, $style, $client, true);
+        $requested = isset($basemap['style']) ? "{$basemap['provider']}/{$basemap['style']}" : 'custom';
+
+        return [$default, ["X-Map-Fallback: outside; requested=$requested; drawn=$provider/$style"]];
+    }
+
+    /**
+     * The overlays a request asks for (#30), in order.
+     *
+     * `overlay` is a comma-separated list of ids, or `overlay[]` values. Unknown or
+     * unavailable ones, and those over `limits.max_overlays`, are left out and
+     * listed in one `X-Map-Overlay` header, e.g. `unavailable=a,b; over-limit=c; max=3`.
+     * Repeated ids count once.
+     *
+     * @param Request     $request The request.
+     * @param Client|null $client  The request's client.
+     *
+     * @return array{list<array<string, mixed>>, list<string>} The overlays (from
+     *         Config::resolveOverlay()) and headers to send.
+     */
+    public function overlays(Request $request, ?Client $client): array
+    {
+        $value = $request->get('overlay');
+        if ($value === false || $value === '') {
+            return [[], []];
+        }
+        $ids = [];
+        foreach (is_array($value) ? $value : [$value] as $part) {
+            foreach (is_string($part) ? explode(',', $part) : ['?'] as $id) {
+                $id = trim($id);
+                if ($id !== '' && !in_array($id, $ids, true)) {
+                    $ids[] = $id;
+                }
+            }
+        }
+
+        $max = (int) $this->config['limits']['max_overlays'];
+        $overlays = [];
+        $unavailable = [];
+        $over = [];
+        foreach ($ids as $id) {
+            $overlay = preg_match('/^[a-z0-9-]+$/', $id) ? Config::resolveOverlay($this->config, $id, $client) : null;
+            if ($overlay === null) {
+                $unavailable[] = preg_match('/^[a-z0-9-]+$/', $id) ? $id : '?';
+            } elseif (count($overlays) >= $max) {
+                $over[] = $id;
+            } else {
+                $overlays[] = $overlay;
+            }
+        }
+
+        // One header (a response can't repeat it): what was left out, and why.
+        $parts = [];
+        if ($unavailable !== []) {
+            $parts[] = 'unavailable=' . implode(',', $unavailable);
+        }
+        if ($over !== []) {
+            $parts[] = 'over-limit=' . implode(',', $over) . "; max=$max";
+        }
+
+        return [$overlays, $parts === [] ? [] : ['X-Map-Overlay: ' . implode('; ', $parts)]];
+    }
+
+    /**
      * Headers telling the client that the default map was drawn instead of the requested one.
      *
      * `removed` means the request names a provider, style or basemap id that was
