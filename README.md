@@ -8,7 +8,7 @@ Static Maps API
 
 Parameters can be sent in the query string, as POST form data, or as a POST JSON body (see [POST with a JSON body](#post-with-a-json-body)).
 
-Every map needs a location: `latitude` **and** `longitude`, or at least one valid marker, path or `geojson` feature (the map is then fitted to them). A request without one gets HTTP 400 with the reason as plain text, as does a request with only one of `latitude` / `longitude`. A request with no parameters at all, such as opening the service's address in a browser, gets an HTML page describing the service (see `home_page` under Configuration).
+Every map needs a location: `latitude` **and** `longitude`, or at least one valid marker, path or `geojson` feature (the map is then fitted to them). A request without one gets HTTP 400 with the reason as plain text, as does a request with only one of `latitude` / `longitude`. A request with no parameters at all, such as opening the service's address in a browser, gets an HTML page: by default a demo page for trying the API (see [Home page](#home-page)).
 
 Numbers are checked: a value that isn't a number, or is out of the range given below, gets HTTP 400 with the reason (for example `zoom must be between 0 and 30`). An empty value (`width=`) counts as not given.
 
@@ -548,11 +548,21 @@ Providers whose terms don't allow this kind of use are left out; each provider i
 
 Install files written for the older format (`basemaps` and `defaults.basemap`) keep working: they are translated to providers and styles, and each request logs a deprecation message until you update the file.
 
-A request without any parameters returns the HTML page in `home_page` (default `assets/home.html`, which names the service and links to this documentation). To describe your own install, point `home_page` at your own HTML file. It is sent as-is and is not run as PHP.
-
 To keep the file somewhere else, set the `STATIC_MAPS_CONFIG` environment variable to its full path, for example with `env[STATIC_MAPS_CONFIG] = /etc/static-maps/config.php` in your PHP-FPM pool.
 
 If the configuration is invalid, every request returns HTTP 500 and the reason is written to the PHP error log.
+
+### Home page
+
+A request without any parameters returns the HTML page in `home_page`. It is sent as-is and is not run as PHP.
+
+The default is a demo and test page, `assets/demo.html` (#92). It builds a map request from a form, with the providers, styles, overlays and icons this install offers (read from the [query API](#query-api)), and draws it when asked. It shows the image, its full credit, the notices the server sent (`X-Map-*`, `X-Marker-<n>`, `X-Path-<n>`, errors), and the request URL and an `<img>` tag to copy. Examples fill the form with pins and labels, routes, circles, a geodesic flight, GeoJSON, an overlay, `scale=2` and a regional map's fallback. "Use my location" fills in the centre from the browser's location (the Geolocation API, which browsers offer only on https pages); the position stays in the page until a map is drawn. A client key can be typed in to try the maps and features that need one; it's only used for the page's own requests.
+
+The page fetches no map until someone asks for one, but each map drawn uses your tile providers. For a public install where you'd rather not offer that, use the plain page, which only names the service and links to this documentation, or your own HTML file. In `data/config.php`:
+
+```php
+'home_page' => __DIR__ . '/../assets/home.html',
+```
 
 ## Paths
 
