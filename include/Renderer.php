@@ -100,127 +100,33 @@ final class Renderer
         }
 
         $config = $this->config;
-        $headers = array();
-        $bounds = new Bounds();
-        $headers = array_merge($headers, $keyHeaders, $formatHeaders);
         $mayFetchUrls = $client !== null && $client->externalUrls;
-
-        // Markers and paths; with no centre given, the map is centred on them
         $remote = RemoteFetcher::fromConfig($config);
-        $limits = $config['limits'];
-        $parsed = (new MarkerParser(
+
+        // Markers, paths, viewport, map and overlays (#98).
+        $plan = MapPlan::make(
+            $config,
+            $this->webmercator,
+            $request,
+            $client,
+            $params,
+            $geojson,
             $remote,
-            (int) $limits['max_markers'],
-            $params->scale,
-            (int) $limits['icon_urls'],
-            (int) $limits['icon_bytes'],
-            (int) $limits['icon_pixels']
-        ))->parse(
-            array_merge(self::values($request->get('marker')), $geojson['markers']),
-            $mayFetchUrls,
-            $bounds
+            array_merge($keyHeaders, $formatHeaders)
         );
-        $markers = $parsed['markers'];
-        $headers = array_merge($headers, $geojson['headers']);
-        $headers = array_merge($headers, $parsed['headers']);
-
-        // Geocoding was removed (#16): `location` is ignored, with a deprecation notice.
-        $usesLocation = $request->get('location') !== false;
-        if ($usesLocation || $parsed['deprecated']) {
-            $headers = array_merge($headers, Deprecation::headers());
+        if ($plan instanceof Response) {
+            return $plan;
         }
-
-        $parsedPaths = (new PathParser(
-            $config['defaults']['path_color'],
-            $config['defaults']['path_weight'],
-            (int) $config['limits']['max_points']
-        ))->parse(
-            array_merge(self::values($request->get('path')), $geojson['paths']),
-            $request->get('polyline'),
-            $bounds
-        );
-        $paths = $parsedPaths['paths'];
-        $headers = array_merge($headers, $parsedPaths['headers']);
-
-        // errors.strict: a marker or path that can't be drawn is an error, not a header (#39).
-        if ($config['errors']['strict']) {
-            foreach ($headers as $header) {
-                if (preg_match('/^X-(Marker|Path)-(\d+): (.*)$/', $header, $m)) {
-                    return Response::error(400, strtolower($m[1]) . " $m[2]: $m[3]", $headers);
-                }
-            }
-        }
-
-        // Curved paths bulge past their points; areas and points to keep in view without drawing them (#35).
-        $viewport = new Viewport($this->webmercator);
-        $viewport->extendForCurves($paths, $params->bezier, $bounds);
-        if ($params->bbox !== null) {
-            // minLng > maxLng means the box crosses the antimeridian.
-            $bounds->extendArea($params->bbox[1], $params->bbox[0], $params->bbox[3], $params->bbox[2]);
-        }
-        foreach ($params->visible as [$lat, $lng]) {
-            $bounds->extend($lat, $lng);
-        }
-
-        if (($params->latitude === null || $params->longitude === null) && $bounds->isEmpty()) {
-            return Response::error(
-                400,
-                $usesLocation
-                    ? 'The location parameter (geocoding) is no longer supported: use latitude and longitude'
-                    : 'A map needs a location: latitude and longitude (or center), bbox, visible, or at least '
-                        . 'one marker or path',
-                $headers
-            );
-        }
-
-        // Within the install's limits (#9); X-Map-Size says if the size was reduced.
+        $headers = $plan->headers;
+        $markers = $plan->markers;
+        $paths = $plan->paths;
+        $basemap = $plan->basemap;
+        $overlays = $plan->overlays;
+        $zoom = $plan->zoom;
+        $latitude = $plan->latitude;
+        $longitude = $plan->longitude;
         $width = $params->width;
         $height = $params->height;
-        $headers = array_merge($headers, $params->sizeHeaders);
-
-        [$basemap, $basemapHeaders] = (new MapChooser($config))->choose($request, $client);
-        $headers = array_merge($headers, $basemapHeaders);
-
-        // Fit to the content, its icons, path widths and padding; centre on it unless a centre is given.
-        $margins = Viewport::margins($params->padding, $markers, $paths, $width, $height);
-        $zoom = $viewport->zoom(
-            $params->zoom,
-            $params->latitude,
-            $params->longitude,
-            $width,
-            $height,
-            $bounds,
-            $margins
-        );
-        $fitZoom = $zoom;
-        $place = static function (array $map) use ($viewport, $fitZoom, $params, $bounds, $margins): array {
-            $zoom = $viewport->clampZoom($fitZoom, $params->maxzoom, $map['minzoom'], $map['maxzoom']);
-            $center = $viewport->center($params->latitude, $params->longitude, $zoom, $bounds, $margins);
-
-            return [$zoom, $center['latitude'], $center['longitude']];
-        };
-        [$zoom, $latitude, $longitude] = $place($basemap);
-
-        // A regional map (#30) entirely outside its coverage gets the default map instead.
-        $coverage = $viewport->coverage($basemap['bounds'] ?? null, $latitude, $longitude, $zoom, $width, $height);
-        if ($coverage === 'none' && ($fallback = (new MapChooser($config))->outside($basemap, $client)) !== null) {
-            [$basemap, $fallbackHeaders] = $fallback;
-            $headers = array_merge($headers, $fallbackHeaders);
-            [$zoom, $latitude, $longitude] = $place($basemap);
-            $coverage = $viewport->coverage($basemap['bounds'] ?? null, $latitude, $longitude, $zoom, $width, $height);
-        }
-        if ($coverage !== 'full') {
-            $headers[] = "X-Map-Coverage: $coverage";
-        }
-
-        // Overlays (#30), skipped outside their zoom range or coverage.
-        [$overlays, $overlayHeaders] = (new MapChooser($config))->overlays($request, $client);
-        $headers = array_merge($headers, $overlayHeaders);
-        $overlays = array_values(array_filter(
-            $overlays,
-            static fn (array $o): bool => $zoom >= $o['minzoom'] && $zoom <= $o['maxzoom']
-                && $viewport->coverage($o['bounds'] ?? null, $latitude, $longitude, $zoom, $width, $height) !== 'none'
-        ));
 
         // scale=2 (#10): the same area at twice the pixels. Everything is drawn at
         // twice the size and one pixel zoom level up; tiles come from the level
@@ -323,22 +229,6 @@ final class Renderer
         $headers = array_merge($headers, $typeHeaders, $cacheHeaders);
 
         return new Response($headers, $body);
-    }
-
-    /**
-     * A `marker[]` or `path[]` parameter as a list.
-     *
-     * @param mixed $value The parameter: false when not given, a string, or a list.
-     *
-     * @return list<mixed> Its values.
-     */
-    private static function values(mixed $value): array
-    {
-        if ($value === false || $value === '' || $value === null) {
-            return [];
-        }
-
-        return is_array($value) ? array_values($value) : [$value];
     }
 
     /**

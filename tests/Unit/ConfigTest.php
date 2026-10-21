@@ -133,8 +133,8 @@ final class ConfigTest extends TestCase
         $this->assertSame(['osm', 'streets'], [$config['defaults']['provider'], $config['defaults']['style']]);
         $this->assertSame(['min' => 2, 'max' => 18, 'max_limit' => null], $config['zoom']);
         $this->assertSame(
-            ['osm', 'esri', 'osm-fr', 'osm-de', 'opentopomap', 'carto', 'stadia', 'geoapify', 'usgs', 'nasa-gibs', 'swisstopo',
-                'ign', 'basemap-at', 'os'],
+            ['osm', 'esri', 'osm-fr', 'osm-de', 'opentopomap', 'carto', 'stadia', 'geoapify', 'usgs', 'nasa-gibs',
+                'swisstopo', 'ign', 'basemap-at', 'os'],
             array_keys($config['providers'])
         );
         $this->assertSame([], $config['deprecations']);
@@ -152,7 +152,12 @@ final class ConfigTest extends TestCase
     {
         $config = Config::load(null, $this->configFile([
             'defaults'  => ['attribution' => 'mapbox'],
-            'providers' => ['carto' => ['key' => 'k'], 'stadia' => ['key' => 'k'], 'geoapify' => ['key' => 'k'], 'os' => ['key' => 'k']],
+            'providers' => [
+                'carto'    => ['key' => 'k'],
+                'stadia'   => ['key' => 'k'],
+                'geoapify' => ['key' => 'k'],
+                'os'       => ['key' => 'k'],
+            ],
         ]));
 
         $expected = [
@@ -197,7 +202,12 @@ final class ConfigTest extends TestCase
     {
         $config = Config::load(null, $this->configFile([
             'zoom'      => ['max' => 5],
-            'providers' => ['carto' => ['key' => 'k'], 'stadia' => ['key' => 'k'], 'geoapify' => ['key' => 'k'], 'os' => ['key' => 'k']],
+            'providers' => [
+                'carto'    => ['key' => 'k'],
+                'stadia'   => ['key' => 'k'],
+                'geoapify' => ['key' => 'k'],
+                'os'       => ['key' => 'k'],
+            ],
         ]));
         $expected = [
             'osm/streets'         => 19,
