@@ -703,6 +703,89 @@ return [
                 ],
             ],
         ],
+
+        // Stadia Maps (https://stadiamaps.com/), including the Stamen styles
+        // (Toner, Terrain, Watercolor) whose original hosting shut down (#17).
+        // Needs an API key, so these styles are unavailable until you set one:
+        //     'providers' => ['stadia' => ['key' => 'your-stadia-api-key']],
+        // Terms (https://stadiamaps.com/terms-of-service): the free tier is for
+        // non-commercial use only (§13); commercial use needs a paid plan.
+        // §8.5 forbids proxying or caching access to their services. Stadia
+        // support confirmed by email (2026-10-20, recorded on #33) that a
+        // server like this one doesn't violate that "as long as each request
+        // results in someone making API calls directly to our servers". So
+        // tiles are never cached here (cache => 'off', which also makes the
+        // map images private: only the viewer's browser may keep them, the
+        // client-side caching §8.5 allows). Alidade Satellite is left out: its
+        // imagery terms (§30.1) forbid processing the imagery.
+        // The key is sent in Stadia's Authorization header, not in tile URLs.
+        // Real tiles to zoom 20 (Watercolor 16), per Stadia's documentation;
+        // {r} gives 512 px @2x tiles for scale=2 maps.
+        'stadia' => [
+            'name'             => 'Stadia Maps',
+            'cache'            => 'off',
+            'headers'          => ['Authorization' => 'Stadia-Auth {key}'],
+            'attribution'      => 'text',
+            'attribution_text' => '© Stadia Maps © OpenMapTiles © OpenStreetMap',
+            'attribution_html' => '© <a href="https://stadiamaps.com/attribution/">Stadia Maps</a> © <a href="https://openmaptiles.org/">OpenMapTiles</a> © <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+            'maxzoom'          => 20,
+            'default_style'    => 'light',
+            'styles' => [
+                'light' => [
+                    'name'   => 'Alidade Smooth',
+                    'layers' => ['https://tiles.stadiamaps.com/tiles/alidade_smooth/{z}/{x}/{y}{r}.png'],
+                ],
+                'dark' => [
+                    'name'   => 'Alidade Smooth Dark',
+                    'layers' => ['https://tiles.stadiamaps.com/tiles/alidade_smooth_dark/{z}/{x}/{y}{r}.png'],
+                ],
+                'bright' => [
+                    'name'   => 'Alidade Bright',
+                    'layers' => ['https://tiles.stadiamaps.com/tiles/alidade_bright/{z}/{x}/{y}{r}.png'],
+                ],
+                'streets' => [
+                    'name'   => 'OSM Bright',
+                    'layers' => ['https://tiles.stadiamaps.com/tiles/osm_bright/{z}/{x}/{y}{r}.png'],
+                ],
+                'outdoors' => [
+                    'name'   => 'Outdoors',
+                    'layers' => ['https://tiles.stadiamaps.com/tiles/outdoors/{z}/{x}/{y}{r}.png'],
+                ],
+                'toner' => [
+                    'name'   => 'Stamen Toner',
+                    'attribution_text' => '© Stadia Maps © Stamen Design © OpenMapTiles © OpenStreetMap',
+                    'attribution_html' => '© <a href="https://stadiamaps.com/attribution/">Stadia Maps</a> © <a href="https://stamen.com/">Stamen Design</a> © <a href="https://openmaptiles.org/">OpenMapTiles</a> © <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+                    'layers' => ['https://tiles.stadiamaps.com/tiles/stamen_toner/{z}/{x}/{y}{r}.png'],
+                ],
+                'toner-lite' => [
+                    'name'   => 'Stamen Toner Lite',
+                    'attribution_text' => '© Stadia Maps © Stamen Design © OpenMapTiles © OpenStreetMap',
+                    'attribution_html' => '© <a href="https://stadiamaps.com/attribution/">Stadia Maps</a> © <a href="https://stamen.com/">Stamen Design</a> © <a href="https://openmaptiles.org/">OpenMapTiles</a> © <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+                    'layers' => ['https://tiles.stadiamaps.com/tiles/stamen_toner_lite/{z}/{x}/{y}{r}.png'],
+                ],
+                'toner-dark' => [
+                    'name'   => 'Stamen Toner Dark',
+                    'attribution_text' => '© Stadia Maps © Stamen Design © OpenMapTiles © OpenStreetMap',
+                    'attribution_html' => '© <a href="https://stadiamaps.com/attribution/">Stadia Maps</a> © <a href="https://stamen.com/">Stamen Design</a> © <a href="https://openmaptiles.org/">OpenMapTiles</a> © <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+                    'layers' => ['https://tiles.stadiamaps.com/tiles/stamen_toner_dark/{z}/{x}/{y}{r}.png'],
+                ],
+                'terrain' => [
+                    'name'   => 'Stamen Terrain',
+                    'attribution_text' => '© Stadia Maps © Stamen Design © OpenMapTiles © OpenStreetMap',
+                    'attribution_html' => '© <a href="https://stadiamaps.com/attribution/">Stadia Maps</a> © <a href="https://stamen.com/">Stamen Design</a> © <a href="https://openmaptiles.org/">OpenMapTiles</a> © <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+                    'layers' => ['https://tiles.stadiamaps.com/tiles/stamen_terrain/{z}/{x}/{y}{r}.png'],
+                ],
+                // JPEG tiles without a high-density version; real tiles to zoom 16.
+                // Stamen Watercolor doesn't need the OpenMapTiles credit.
+                'watercolor' => [
+                    'name'             => 'Stamen Watercolor',
+                    'attribution_text' => '© Stadia Maps © Stamen Design © OpenStreetMap',
+                    'attribution_html' => '© <a href="https://stadiamaps.com/attribution/">Stadia Maps</a> © <a href="https://stamen.com/">Stamen Design</a> © <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+                    'maxzoom'          => 16,
+                    'layers'           => ['https://tiles.stadiamaps.com/tiles/stamen_watercolor/{z}/{x}/{y}.jpg'],
+                ],
+            ],
+        ],
     ],
 
     /*
