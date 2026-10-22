@@ -1,0 +1,14 @@
+# Kept out of the images: per-install data, development files and history.
+.git
+.github
+.claude
+.phpunit.cache
+data
+research
+tests
+vendor
+composer.lock
+compose.yaml
+CLAUDE.md
+CLAUDE.local.md
+REVIEW.md

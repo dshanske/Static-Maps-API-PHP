@@ -18,6 +18,9 @@ stable interface; pin a commit if you need a fixed point.
 
 ### Added
 
+- Example Docker setup (#103): a `Dockerfile` for PHP-FPM and nginx images and
+  a `compose.yaml` that runs them with hourly tile cache pruning; see the
+  README, "Run with Docker".
 - Vehicle icons along paths (#106): `icon:plane|train|car|bus|ship`, with
   `iconat` (percentages along the path) and `iconcolor`; the plane turns to
   the path's direction.

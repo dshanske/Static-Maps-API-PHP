@@ -90,3 +90,55 @@ jobs:
 
       - name: PHPStan
         run: vendor/bin/phpstan analyse --no-progress --memory-limit=1G --error-format=github
+
+  docker:
+    name: Docker example
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      # As the README says: data/ belongs to www-data (uid 33) in the php image.
+      - name: Prepare data/
+        run: sudo chown -R 33:33 data
+
+      - name: Build and start
+        run: docker compose -f compose.yaml -f docker/compose.ci.yaml up -d --build
+
+      - name: Check the PHP extensions
+        run: |
+          docker compose exec -T php php -r '
+            $gd = gd_info();
+            foreach (["JPEG Support", "FreeType Support", "WebP Support", "PNG Support"] as $f) {
+                if (empty($gd[$f])) { fwrite(STDERR, "gd: no $f\n"); exit(1); }
+            }
+            foreach (["curl", "imagick"] as $e) {
+                if (!extension_loaded($e)) { fwrite(STDERR, "missing $e\n"); exit(1); }
+            }
+            echo "gd ", $gd["GD Version"], ", ", Imagick::getVersion()["versionString"], "\n";'
+
+      - name: Render maps through nginx and PHP-FPM
+        run: |
+          map='http://localhost:8080/?width=300&height=200&zoom=3&latitude=40&longitude=-100'
+          for i in $(seq 30); do curl -sf -o /dev/null http://localhost:8080/ && break; sleep 1; done
+          curl -sf -o home.html http://localhost:8080/ && grep -q 'id="demo-examples"' home.html
+          curl -sf -o map.png "$map" && file map.png | grep -q 'PNG image data, 300 x 200'
+          # A curved path (Imagick) as JPEG.
+          curl -sfg -o map.jpg "$map&format=jpg&path[]=[-120,40],[-80,30]&bezier=30" && file map.jpg | grep -q 'JPEG image data'
+          curl -sf http://localhost:8080/api/v1/ | grep -q '"api_version"'
+          curl -sf -o /dev/null http://localhost:8080/images/dot-large-red.png
+          # The second request comes from nginx's cache.
+          curl -sf -D - -o /dev/null "$map" | grep -qi '^X-Cache-Status: HIT'
+          test "$(curl -s -o /dev/null -w '%{http_code}' 'http://localhost:8080/?latitude=1')" = 400
+
+      - name: Run the scripts as www-data
+        run: |
+          docker compose exec -T prune php bin/clients.php add ci-client
+          docker compose exec -T prune php bin/prune-cache.php --dry-run
+
+      - name: Logs
+        if: ${{ always() }}
+        run: docker compose -f compose.yaml -f docker/compose.ci.yaml logs
+
+      - name: Stop
+        if: ${{ always() }}
+        run: docker compose -f compose.yaml -f docker/compose.ci.yaml down -v
