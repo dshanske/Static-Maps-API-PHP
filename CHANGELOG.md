@@ -18,6 +18,9 @@ stable interface; pin a commit if you need a fixed point.
 
 ### Added
 
+- Vehicle icons along paths (#106): `icon:plane|train|car|bus|ship`, with
+  `iconat` (percentages along the path) and `iconcolor`; the plane turns to
+  the path's direction.
 - Optional scale bar (#102): `scalebar=metric|imperial|both` and
   `scalebar_position`, clear of the attribution; left out, with an
   `X-Map-Scalebar` header, where the scale changes by more than 10% across the map.

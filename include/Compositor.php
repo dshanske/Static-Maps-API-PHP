@@ -123,6 +123,7 @@ final class Compositor
         $mg->newImage($width, $height, new ImagickPixel('none'));
 
         $draw = new ImagickDraw();
+        $icons = [];
 
         foreach ($paths as $path) {
             // Each path's settings (dashes, fill) end with it.
@@ -153,6 +154,11 @@ final class Compositor
                 $to['x'] = Viewport::nearest($to['x'], $from['x'] ?? $leftEdge + $width / 2, $zoom);
                 $pixels[] = ['x' => $to['x'] - $leftEdge, 'y' => $to['y'] - $topEdge];
                 $from = $to;
+            }
+
+            // The line as drawn, in path order, for vehicle icons along it (#106).
+            if (($path['vehicle'] ?? null) !== null) {
+                $icons[] = [$path['vehicle'], $this->drawnLine($path, $pixels, $bezier, $leftEdge, $topEdge)];
             }
 
             if ($path['closed'] ?? false) {
@@ -190,6 +196,68 @@ final class Compositor
 
         $pathImg = imagecreatefromstring($mg);
         imagecopy($im, $pathImg, 0, 0, 0, 0, $width, $height);
+
+        // Vehicle icons on top of every path, under the markers (#106).
+        foreach ($icons as [$vehicle, $line]) {
+            foreach ($vehicle['at'] as $percent) {
+                $point = PathIcon::along($line, (float) $percent);
+                if ($point !== null) {
+                    PathIcon::draw(
+                        $im,
+                        $vehicle['type'],
+                        $vehicle['color'],
+                        $point['x'],
+                        $point['y'],
+                        $point['angle'],
+                        $scale
+                    );
+                }
+            }
+        }
+    }
+
+    /**
+     * A path's line as it is drawn: its points, closed for shapes, and with
+     * `bezier` curves sampled, all in path order.
+     *
+     * @param array<string, mixed>                    $path     The path (`closed`, `geodesic`).
+     * @param list<array{x: int|float, y: int|float}> $pixels   Its points in image pixels.
+     * @param mixed                                   $bezier   Curve angle in degrees, or 0.
+     * @param int|float                               $leftEdge Global pixel x of the image's left edge.
+     * @param int|float                               $topEdge  Global pixel y of the image's top edge.
+     *
+     * @return list<array{x: int|float, y: int|float}> The line in image pixels.
+     */
+    private function drawnLine(
+        array $path,
+        array $pixels,
+        mixed $bezier,
+        int|float $leftEdge,
+        int|float $topEdge
+    ): array {
+        if ($path['closed'] ?? false) {
+            return $pixels === [] ? [] : [...$pixels, $pixels[0]];
+        }
+        if (!$bezier || ($path['geodesic'] ?? false)) {
+            return $pixels;
+        }
+        $line = $pixels === [] ? [] : [$pixels[0]];
+        for ($i = 1, $n = count($pixels); $i < $n; $i++) {
+            $from = ['x' => $pixels[$i - 1]['x'] + $leftEdge, 'y' => $pixels[$i - 1]['y'] + $topEdge];
+            $to = ['x' => $pixels[$i]['x'] + $leftEdge, 'y' => $pixels[$i]['y'] + $topEdge];
+            [$a, $p, $b] = self::curve($from, $to, $bezier);
+            // curve() may swap the ends; walk it from this segment's start.
+            $swapped = $a['x'] != $from['x'] || $a['y'] != $from['y'];
+            for ($k = 1; $k <= 24; $k++) {
+                $t = $swapped ? 1 - $k / 24 : $k / 24;
+                $line[] = [
+                    'x' => (1 - $t) ** 2 * $a['x'] + 2 * $t * (1 - $t) * $p['x'] + $t ** 2 * $b['x'] - $leftEdge,
+                    'y' => (1 - $t) ** 2 * $a['y'] + 2 * $t * (1 - $t) * $p['y'] + $t ** 2 * $b['y'] - $topEdge,
+                ];
+            }
+        }
+
+        return $line;
     }
 
     /**

@@ -34,6 +34,7 @@ final class PathParserTest extends TestCase
             'fill'      => null,
             'linestyle' => 'solid',
             'geodesic'  => false,
+            'vehicle'   => null,
         ]], $paths);
         $this->assertSame([45.51, 45.52], [$bounds->minLat, $bounds->maxLat]);
         $this->assertSame([-122.68, -122.67], [$bounds->minLng, $bounds->maxLng]);
@@ -274,5 +275,39 @@ final class PathParserTest extends TestCase
         (new PathParser('333333', 3))->parse(['[139.78,35.55][-149.99,61.17];geodesic:true'], false, $bounds);
 
         $this->assertEqualsWithDelta([139.78, 210.01], $bounds->span(), 1e-6);
+    }
+
+    /**
+     * Vehicle icons (#106): the type, positions (default the middle) and colour (default the path's, opaque).
+     *
+     * @return void
+     */
+    public function testVehicleIcons(): void
+    {
+        $result = (new PathParser('333333', 3))->parse([
+            '[1,2][3,4];color:ff000080;icon:plane',
+            '[1,2][3,4];icon:ship;iconat:0, 25.5,100;iconcolor:00AA00',
+            '[1,2][3,4];icon:bike',
+            '[1,2][3,4];icon:car;iconat:101',
+            '[1,2][3,4];icon:car;iconat:1,2,3,4,5,6',
+            '[1,2][3,4];icon:car;iconat:half',
+            '[1,2][3,4];icon:car;iconcolor:red',
+            '[1,2][3,4];iconat:50',
+        ], false, new Bounds());
+
+        $this->assertSame(['type' => 'plane', 'at' => [50.0], 'color' => 'ff0000'], $result['paths'][0]['vehicle']);
+        $this->assertSame(
+            ['type' => 'ship', 'at' => [0.0, 25.5, 100.0], 'color' => '00aa00'],
+            $result['paths'][1]['vehicle']
+        );
+        $this->assertCount(2, $result['paths']);
+        $this->assertSame([
+            'X-Path-3: icon must be plane, train, car, bus, ship',
+            'X-Path-4: iconat must be 1 to 5 comma-separated percentages from 0 to 100',
+            'X-Path-5: iconat must be 1 to 5 comma-separated percentages from 0 to 100',
+            'X-Path-6: iconat must be 1 to 5 comma-separated percentages from 0 to 100',
+            'X-Path-7: iconcolor must be RRGGBB (hex)',
+            'X-Path-8: iconat and iconcolor need an icon',
+        ], $result['headers']);
     }
 }

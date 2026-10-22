@@ -604,6 +604,15 @@ Style properties, as `key:value;` pairs:
 | `fillcolor` | none | Fill colour, `RRGGBB` or `RRGGBBAA`. A path with a fill is closed into a polygon; circles and rectangles are always closed. |
 | `linestyle` | `solid` | `solid`, `dashed` or `dotted`. |
 | `geodesic` | `false` | `true` follows the great circle between points (the shortest route on the globe, as flights do), instead of a straight line on the map. `bezier` doesn't apply to geodesic or closed paths. |
+| `icon` | none | A vehicle drawn on the path (#106): `plane`, `train`, `car`, `bus` or `ship`, as a round badge with a white glyph. The plane turns to the path's direction at that point (for geodesic paths, the great circle's heading); the others stay upright. |
+| `iconat` | `50` | Where the icon goes, as a percentage of the path's length on the map (0 is the first point, 100 the last), following `bezier` curves; up to 5, comma-separated, e.g. `iconat:25,75`. |
+| `iconcolor` | the path's `color` | The badge colour, `RRGGBB`. |
+
+The vehicle glyphs are Mapbox's [Maki](https://github.com/mapbox/maki) icons (CC0). For example, a flight with a plane on it:
+
+```
+path[]=[139.78,35.55][-149.99,61.17];geodesic:true;linestyle:dashed;icon:plane
+```
 
 A path whose geometry or style can't be used is left out, with an `X-Path-<n>` header saying why (or HTTP 400 with `errors.strict`).
 
