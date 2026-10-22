@@ -1,0 +1,52 @@
+# Example Docker Compose setup for the Static Maps API (#103). See the README,
+# "Run with Docker". The bare-metal install in the README is the reference;
+# adapt this to your own setup.
+#
+#     cp data/config.example.php data/config.php   # then set user_agent in it
+#     sudo chown -R 33:33 data                      # www-data in the php image
+#     docker compose up -d --build
+#
+# Then open http://localhost:8080/.
+
+services:
+  # PHP-FPM: draws the maps and answers the API.
+  php:
+    build:
+      context: .
+      target: php
+    restart: unless-stopped
+    volumes:
+      # Settings (data/config.php), client keys (data/clients.json) and the tile cache.
+      - ./data:/app/data
+    # environment:
+    #   STATIC_MAPS_CONFIG: /app/data/other-config.php
+
+  # nginx: serves public/, keeps rendered maps, passes the rest to php.
+  nginx:
+    build:
+      context: .
+      target: nginx
+    restart: unless-stopped
+    depends_on:
+      - php
+    ports:
+      - "8080:80"
+    volumes:
+      - nginx-cache:/var/cache/nginx/static-maps
+
+  # Keeps the tile cache to size (bin/prune-cache.php), once an hour.
+  prune:
+    build:
+      context: .
+      target: php
+    restart: unless-stopped
+    # Stops promptly on `docker compose down`.
+    init: true
+    volumes:
+      - ./data:/app/data
+    # environment:
+    #   STATIC_MAPS_CONFIG: /app/data/other-config.php
+    entrypoint: ["sh", "-c", "while true; do php bin/prune-cache.php; sleep 3600; done"]
+
+volumes:
+  nginx-cache:

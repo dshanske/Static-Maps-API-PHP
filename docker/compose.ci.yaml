@@ -1,0 +1,21 @@
+# CI override for compose.yaml (#103): the php service draws from the fake
+# tile server of the tests (tests/fixtures/tile-server.php, in the `tiles`
+# service) with the tests' configuration, so CI never reaches a real tile host.
+#
+#     docker compose -f compose.yaml -f docker/compose.ci.yaml up -d --build
+
+services:
+  php:
+    environment:
+      STATIC_MAPS_CONFIG: /app/tests/fixtures/config.php
+      TILE_SERVER_URL: http://tiles:8096
+    volumes:
+      - ./tests:/app/tests:ro
+
+  tiles:
+    build:
+      context: .
+      target: php
+    volumes:
+      - ./tests:/app/tests:ro
+    entrypoint: ["php", "-S", "0.0.0.0:8096", "tests/fixtures/tile-server.php"]

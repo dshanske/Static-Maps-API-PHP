@@ -727,7 +727,35 @@ http://static-maps.pdx.esri.com/?provider=esri&style=light&width=400&height=240&
 
 ## How to install
 
-How to install on a Debian or Ubuntu Server
+The steps below install the service on a Debian or Ubuntu server. To try it in containers instead, see [Run with Docker](#run-with-docker).
+
+### Run with Docker
+
+The repository has an example Docker setup (#103): a `Dockerfile` with two images, PHP-FPM (with `curl`, `gd` and `imagick`) and nginx, and a `compose.yaml` that runs them with a third container that keeps the tile cache to size. It's an example to adapt rather than a supported install; the steps below are the reference.
+
+```
+git clone https://github.com/dshanske/Static-Maps-API-PHP.git static-maps-api
+cd static-maps-api
+cp data/config.example.php data/config.php
+```
+
+Edit `data/config.php` and set `user_agent` to identify your install (see [Configuration](#configuration)): tile providers such as OpenStreetMap require it. Then let the containers write `data/` (PHP runs as `www-data`, user id 33, in the image) and start them:
+
+```
+sudo chown -R 33:33 data
+docker compose up -d --build
+```
+
+The service answers on http://localhost:8080/ (change `ports` in `compose.yaml` for another port).
+
+- **Settings, keys and the tile cache** are in `data/` on the host, mounted into the containers; the images hold only the code. After editing `data/config.php`, `docker compose restart php`. To use another file, set `STATIC_MAPS_CONFIG` under `environment` for the `php` and `prune` services in `compose.yaml`.
+- **Client keys:** `docker compose exec php php bin/clients.php add my-site` (see [Access and client keys](#access-and-client-keys)).
+- **Rendered maps** are kept by nginx, in the `nginx-cache` volume, as in [Cache rendered maps in nginx](#cache-rendered-maps-in-nginx-optional); its settings are in `docker/nginx.conf`. The response header `X-Cache-Status` says whether a map came from it.
+- **The tile cache** is pruned once an hour by the `prune` container (`bin/prune-cache.php`, see [Tile cache](#tile-cache)).
+- **Logs:** PHP errors go to `docker compose logs php`.
+- **Updating:** `git pull`, then `docker compose up -d --build`.
+
+No prebuilt image is published; `docker compose up --build` builds the images from your checkout.
 
 ### Install base packages
 
