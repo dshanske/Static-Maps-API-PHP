@@ -11,7 +11,6 @@ You can expect an answer within a week. Fixes are released as soon as they are r
 | Version | Supported |
 |---|---|
 | Latest 1.x release | Yes |
-| `main` before 1.0.0 | Fixes land on `main` |
 | Older releases | No; please update |
 
 ## Running an install safely

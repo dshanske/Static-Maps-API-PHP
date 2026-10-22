@@ -823,11 +823,11 @@ Releases follow [Semantic Versioning](https://semver.org/). The version numbers 
 - the request parameters and what they do,
 - the response: image formats, status codes and headers,
 - the install settings in `data/config.php`,
-- the query API (once it exists, #25), which also has its own version in its URL (`/api/v1/`). That number only changes when the query API itself breaks.
+- the query API (#25), which also has its own version in its URL (`/api/v1/`). That number only changes when the query API itself breaks.
 
 A **major** release (2.0.0) removes or changes any of these. A **minor** release (1.1.0) adds parameters, providers, styles or settings, or deprecates something; the old way keeps working. A **patch** release (1.0.1) fixes bugs without changing documented behaviour.
 
-The first release will be **1.0.0**, once the first phase of the rewrite is complete (the [1.0 milestone](https://github.com/dshanske/Static-Maps-API-PHP/milestone/1)). There are no releases before it; `main` may change at any time until then. Every change is listed in [CHANGELOG.md](CHANGELOG.md).
+The first release is **1.0.0**, the first phase of the rewrite (the [1.0 milestone](https://github.com/dshanske/Static-Maps-API-PHP/milestone/1)); there were no releases before it. Releases are tagged `vX.Y.Z` and listed on GitHub's Releases page; between releases, `main` may change at any time. Every change is listed in [CHANGELOG.md](CHANGELOG.md).
 
 **Maps that stop working** are the exception: a provider or style whose tiles no longer exist is removed in the next release (not deprecated, since it can't keep working), and requests for it get the default map with a notice; see [Removed providers and styles](#removed-providers-and-styles). Where the provider offers a working replacement, the style is repaired instead and keeps its id.
 
