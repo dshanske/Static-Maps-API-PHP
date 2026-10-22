@@ -178,6 +178,10 @@ final class Viewport
         }
         foreach ($paths as $path) {
             $half = (int) ceil((float) $path['weight'] / 2);
+            // Room for a vehicle icon at the path's ends (#106).
+            if (($path['vehicle'] ?? null) !== null) {
+                $half = max($half, (int) ceil(PathIcon::SIZE / 2));
+            }
             foreach ($extra as $i => $size) {
                 $extra[$i] = max($size, $half);
             }

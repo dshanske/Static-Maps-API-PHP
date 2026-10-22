@@ -171,6 +171,11 @@ final class PathParser
         $properties['fill'] = $properties['fillcolor'] ?? null;
         $properties['linestyle'] = $properties['linestyle'] ?? 'solid';
         $properties['geodesic'] = $geodesic;
+        $properties['vehicle'] = isset($properties['icon']) ? [
+            'type'  => (string) $properties['icon'],
+            'at'    => self::positions((string) ($properties['iconat'] ?? '50')) ?? [50.0],
+            'color' => strtolower(substr((string) ($properties['iconcolor'] ?? $properties['color']), 0, 6)),
+        ] : null;
 
         return [$properties, null];
     }
@@ -204,8 +209,45 @@ final class PathParser
         if (isset($properties['precision']) && !in_array($properties['precision'], ['5', '6'], true)) {
             return 'precision must be 5 or 6';
         }
+        // Vehicle icons along the path (#106).
+        if (isset($properties['icon']) && !in_array($properties['icon'], PathIcon::TYPES, true)) {
+            return 'icon must be ' . implode(', ', PathIcon::TYPES);
+        }
+        if (isset($properties['iconat']) && self::positions((string) $properties['iconat']) === null) {
+            return 'iconat must be 1 to ' . PathIcon::MAX_POSITIONS . ' comma-separated percentages from 0 to 100';
+        }
+        if (isset($properties['iconcolor']) && !preg_match('/^[0-9a-fA-F]{6}$/', (string) $properties['iconcolor'])) {
+            return 'iconcolor must be RRGGBB (hex)';
+        }
+        if ((isset($properties['iconat']) || isset($properties['iconcolor'])) && !isset($properties['icon'])) {
+            return 'iconat and iconcolor need an icon';
+        }
 
         return null;
+    }
+
+    /**
+     * Parse `iconat`: where icons go along a path.
+     *
+     * @param string $value Comma-separated percentages of the path's length.
+     *
+     * @return list<float>|null The percentages (0-100), or null if invalid or too many.
+     */
+    private static function positions(string $value): ?array
+    {
+        $parts = array_map('trim', explode(',', $value));
+        if (count($parts) > PathIcon::MAX_POSITIONS) {
+            return null;
+        }
+        $positions = [];
+        foreach ($parts as $part) {
+            if (!is_numeric($part) || (float) $part < 0 || (float) $part > 100) {
+                return null;
+            }
+            $positions[] = (float) $part;
+        }
+
+        return $positions;
     }
 
     /**
