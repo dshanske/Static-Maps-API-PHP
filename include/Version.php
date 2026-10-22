@@ -14,5 +14,5 @@ namespace StaticMaps;
 final class Version
 {
     /** @var string The version, e.g. `1.0.0`. */
-    public const VERSION = '1.0.0-dev';
+    public const VERSION = '1.0.0';
 }

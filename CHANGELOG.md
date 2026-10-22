@@ -13,8 +13,12 @@ parameters, responses, configuration settings, requirements) adds a line under
 
 ## [Unreleased]
 
-Work towards 1.0.0, the first tagged release. Until then `main` is not a
-stable interface; pin a commit if you need a fixed point.
+## [1.0.0] - 2026-10-21
+
+The first tagged release: the first phase of the rewrite (the
+[1.0 milestone](https://github.com/dshanske/Static-Maps-API-PHP/milestone/1)).
+From here on the request parameters, responses, install settings and query
+API follow Semantic Versioning; see the README, "Versioning and deprecation".
 
 ### Added
 
@@ -415,4 +419,5 @@ OpenStreetMap attribution logos and custom attribution images. It also took
 token protection for features that fetch external URLs from Atlas, along with
 syntax fixes. None of this was released under a version number.
 
-[Unreleased]: https://github.com/dshanske/Static-Maps-API-PHP/commits/main
+[Unreleased]: https://github.com/dshanske/Static-Maps-API-PHP/compare/v1.0.0...HEAD
+[1.0.0]: https://github.com/dshanske/Static-Maps-API-PHP/releases/tag/v1.0.0
